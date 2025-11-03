@@ -24,7 +24,7 @@ public class Artist extends User {
     private String artistName; // Stage name
 
     @Column(name = "verified_artist")
-    private Boolean verifiedArtist = false;
+    private Boolean verifiedArtist;
 
     @Column(columnDefinition = "TEXT")
     private String artistBio;

@@ -1,11 +1,15 @@
 package io.audira.community.controller;
 
 import io.audira.community.dto.AuthResponse;
-import io.audira.community.dto.LoginRequest;
 import io.audira.community.dto.RegisterRequest;
+import io.audira.community.model.User;
 import io.audira.community.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+
+import java.util.HashMap;
+import java.util.Map;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
@@ -32,6 +36,24 @@ public class AuthController {
             throw e;
         }
     }
+    @PostMapping("/verify-email/{userId}")
+    public ResponseEntity<Map<String, Object>> verifyEmail(@PathVariable Long userId) {
+        logger.info("Email verification request received for userId: {}", userId);
 
+        try {
+            User user = userService.verifyEmail(userId);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("user", user);
+            response.put("message", "Email verified successfully!");
+
+            logger.info("Email verified successfully for userId: {}", userId);
+            return ResponseEntity.ok(response);
+
+        } catch (RuntimeException e) {
+            logger.error("Error verifying email for userId {}: {}", userId, e.getMessage());
+            throw e;
+        }
+    }
     // Implementar login
 }

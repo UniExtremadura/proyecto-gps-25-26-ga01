@@ -4,7 +4,6 @@ import io.audira.community.dto.*;
 import io.audira.community.model.*;
 import io.audira.community.repository.UserRepository;
 import io.audira.community.security.JwtTokenProvider;
-import io.audira.community.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -15,6 +14,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Service
 @RequiredArgsConstructor
@@ -24,6 +25,7 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final JwtTokenProvider tokenProvider;
+    private static final Logger logger = LoggerFactory.getLogger(UserService.class);
 
     @Transactional
     public AuthResponse registerUser(RegisterRequest request) {
@@ -41,18 +43,6 @@ public class UserService {
         // Create specific user type based on role
         if (request.getRole() == UserRole.ARTIST) {
             user = Artist.builder()
-                    .email(request.getEmail())
-                    .username(request.getUsername())
-                    .password(encodedPassword)
-                    .firstName(request.getFirstName())
-                    .lastName(request.getLastName())
-                    .role(request.getRole())
-                    .uid(uid)
-                    .isActive(true)
-                    .isVerified(false)
-                    .build();
-        } else if (request.getRole() == UserRole.ADMIN) {
-            user = Admin.builder()
                     .email(request.getEmail())
                     .username(request.getUsername())
                     .password(encodedPassword)
@@ -229,5 +219,28 @@ public class UserService {
                 .createdAt(user.getCreatedAt())
                 .updatedAt(user.getUpdatedAt())
                 .build();
+    }
+
+    @Transactional
+    public User verifyEmail(Long userId) {
+        // Buscar usuario
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        // Verificar que no esté ya verificado
+        if (user.getIsVerified()) {
+            throw new RuntimeException("Email already verified");
+        }
+
+        // Marcar como verificado
+        user.setIsVerified(true);
+        user = userRepository.save(user);
+
+
+        logger.info("Email verified successfully for user: {} ({})",
+                    user.getUsername(),
+                    user.getEmail());
+
+        return user;
     }
 }
