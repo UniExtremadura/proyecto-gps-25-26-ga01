@@ -23,6 +23,9 @@ public class UserDTO {
     private String bannerImageUrl;
     private String location;
     private String website;
+    private UserRole role;
+    private Boolean isActive;
+    private Boolean isVerified;
     private Set<Long> followerIds;
     private Set<Long> followingIds;
     private LocalDateTime createdAt;
