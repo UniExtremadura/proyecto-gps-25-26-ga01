@@ -1,0 +1,52 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: true
+          lower-case-service-id: true
+      routes:
+        # ÉPICA 1: Gestión de Usuarios y Comunidad
+        - id: community-service
+          uri: lb://community-service
+          predicates:
+            # AÑADIDO /api/auth/** para permitir el login/registro
+            - Path=/api/auth/**,/api/users/**,/api/metrics/**,/api/ratings/**,/api/comments/**,/api/contact/**,/api/faq/**,/api/notifications/**
+
+        # ÉPICA 2: Catálogo Musical y Contenido
+        - id: music-catalog-service
+          uri: lb://music-catalog-service
+          predicates:
+            - Path=/api/genres/**,/api/albums/**,/api/songs/**,/api/collaborations/**,/api/discovery/**
+
+        # ÉPICA 3: Reproducción y Experiencia del Usuario
+        - id: playback-service
+          uri: lb://playback-service
+          predicates:
+            - Path=/api/playback/**,/api/queue/**,/api/history/**,/api/library/**,/api/playlists/**
+
+        # ÉPICA 4: Tienda, Carrito y Pagos
+        - id: commerce-service
+          uri: lb://commerce-service
+          predicates:
+            - Path=/api/products/**,/api/cart/**,/api/orders/**,/api/payments/**
+
+eureka:
+  client:
+    service-url:
+      # CORREGIDO: "localhost" cambiado por el nombre del servicio Docker "discovery-server"
+      defaultZone: http://discovery-server:8761/eureka/
+    fetch-registry: true
+    register-with-eureka: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway
+
