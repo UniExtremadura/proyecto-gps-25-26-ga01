@@ -139,6 +139,37 @@ public class UserService {
     }
 
     @Transactional
+    public UserDTO updateProfile(Long userId, Map<String, Object> updates) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        if (updates.containsKey("firstName")) {
+            user.setFirstName((String) updates.get("firstName"));
+        }
+        if (updates.containsKey("lastName")) {
+            user.setLastName((String) updates.get("lastName"));
+        }
+        if (updates.containsKey("bio")) {
+            user.setBio((String) updates.get("bio"));
+        }
+        if (updates.containsKey("profileImageUrl")) {
+            user.setProfileImageUrl((String) updates.get("profileImageUrl"));
+        }
+        if (updates.containsKey("bannerImageUrl")) {
+            user.setBannerImageUrl((String) updates.get("bannerImageUrl"));
+        }
+        if (updates.containsKey("location")) {
+            user.setLocation((String) updates.get("location"));
+        }
+        if (updates.containsKey("website")) {
+            user.setWebsite((String) updates.get("website"));
+        }
+
+        user = userRepository.save(user);
+        return mapToDTO(user);
+    }
+
+    @Transactional
     public void deleteUser(Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
