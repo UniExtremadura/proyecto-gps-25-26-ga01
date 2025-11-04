@@ -15,7 +15,7 @@ spring:
         - id: community-service
           uri: lb://community-service
           predicates:
-            - Path=/api/auth/**,/api/users/**,/api/metrics/**,/api/ratings/**,/api/comments/**,/api/contact/**,/api/faq/**,/api/notifications/**
+            - Path=/api/auth/**,/api/users/**,/api/metrics/**,/api/ratings/**,/api/comments/**,/api/contact/**,/api/faq/**,/api/notifications/**,/api/files/**
 
         # ÉPICA 2: Catálogo Musical y Contenido
 
