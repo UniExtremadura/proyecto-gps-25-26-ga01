@@ -162,6 +162,15 @@ class ProfileScreen extends StatelessWidget {
         ),
 
         ListTile(
+          leading: const Icon(Icons.shopping_bag_outlined),
+          title: const Text('Historial de Compras'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () {
+            Navigator.pushNamed(context, '/profile/purchase-history');
+          },
+        ),
+
+        ListTile(
           leading: const Icon(Icons.settings_outlined),
           title: const Text('Configuración'),
           trailing: const Icon(Icons.chevron_right),

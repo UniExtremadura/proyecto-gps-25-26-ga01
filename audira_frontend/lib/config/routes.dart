@@ -15,6 +15,7 @@ import '../features/playlist/screens/create_playlist_screen.dart';
 import '../features/playlist/screens/playlist_detail_screen.dart';
 import '../features/profile/screens/edit_profile_screen.dart';
 import '../features/profile/screens/user_stats_screen.dart';
+import '../features/profile/screens/purchase_history_screen.dart';
 import '../features/admin/screens/admin_dashboard_screen.dart';
 import '../features/admin/screens/admin_songs_screen.dart';
 import '../features/admin/screens/admin_albums_screen.dart';
@@ -47,6 +48,7 @@ class AppRoutes {
   static const String editProfile = '/profile/edit';
   static const String search = '/search';
   static const String notifications = '/notifications';
+  static const String purchaseHistory = '/profile/purchase-history';
   static const String studio = '/studio';
   static const String studioUploadSong = '/studio/upload-song';
   static const String studioUploadAlbum = '/studio/upload-album';
@@ -118,6 +120,9 @@ class AppRoutes {
       case editProfile:
         return MaterialPageRoute(builder: (_) => const EditProfileScreen());
 
+      case purchaseHistory:
+        return MaterialPageRoute(builder: (_) => const PurchaseHistoryScreen());
+        
       case studio:
         return MaterialPageRoute(builder: (_) => const StudioDashboardScreen());
 

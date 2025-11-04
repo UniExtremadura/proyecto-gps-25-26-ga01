@@ -1,13 +1,11 @@
 package io.audira.community.controller;
 
 import io.audira.community.dto.UserDTO;
-import io.audira.community.security.UserPrincipal;
 import io.audira.community.service.FileStorageService;
 import io.audira.community.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 

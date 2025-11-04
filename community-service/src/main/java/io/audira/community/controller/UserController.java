@@ -1,6 +1,5 @@
 package io.audira.community.controller;
 
-import io.audira.community.dto.ChangePasswordRequest;
 import io.audira.community.dto.UpdateProfileRequest;
 import io.audira.community.dto.UserDTO;
 import io.audira.community.security.UserPrincipal;
@@ -10,8 +9,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/users")
