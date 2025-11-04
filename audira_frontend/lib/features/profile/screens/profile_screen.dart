@@ -12,6 +12,7 @@ class ProfileScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
     final user = authProvider.currentUser;
+    debugPrint(user?.toString());
 
     if (user == null) {
       return const Center(
@@ -167,6 +168,15 @@ class ProfileScreen extends StatelessWidget {
           trailing: const Icon(Icons.chevron_right),
           onTap: () {
             Navigator.pushNamed(context, '/profile/purchase-history');
+          },
+        ),
+
+        ListTile(
+          leading: const Icon(Icons.people_outlined),
+          title: const Text('Artistas Seguidos'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () {
+            Navigator.pushNamed(context, '/profile/followed-artists');
           },
         ),
 

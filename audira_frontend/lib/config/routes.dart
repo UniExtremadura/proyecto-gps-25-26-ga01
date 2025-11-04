@@ -1,3 +1,4 @@
+import 'package:audira_frontend/features/profile/screens/followed_artists_screen.dart';
 import 'package:flutter/material.dart';
 import '../features/auth/screens/login_screen.dart';
 import '../features/auth/screens/register_screen.dart';
@@ -47,6 +48,7 @@ class AppRoutes {
   static const String editPlaylist = '/playlist/edit';
   static const String userStats = '/stats';
   static const String editProfile = '/profile/edit';
+  static const String followedArtists = '/profile/followed-artists';
   static const String changePassword = '/profile/change-password';
   static const String search = '/search';
   static const String notifications = '/notifications';
@@ -147,6 +149,10 @@ class AppRoutes {
       // User statistics
       case userStats:
         return MaterialPageRoute(builder: (_) => const UserStatsScreen());
+
+      // Followed artists
+      case followedArtists:
+        return MaterialPageRoute(builder: (_) => const FollowedArtistsScreen());
 
       // Change password
       case changePassword:

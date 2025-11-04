@@ -4,6 +4,7 @@ import io.audira.community.dto.*;
 import io.audira.community.model.*;
 import io.audira.community.repository.UserRepository;
 import io.audira.community.security.JwtTokenProvider;
+import io.audira.community.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -82,7 +83,26 @@ public class UserService {
                 .build();
     }
 
-    // Implementar login
+    public AuthResponse loginUser(LoginRequest request) {
+        Authentication authentication = authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(
+                        request.getEmailOrUsername(),
+                        request.getPassword()
+                )
+        );
+
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+        String token = tokenProvider.generateToken(authentication);
+
+        UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
+        User user = userRepository.findById(userPrincipal.getId())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        return AuthResponse.builder()
+                .token(token)
+                .user(mapToDTO(user))
+                .build();
+    }
 
     public UserDTO getUserById(Long id) {
         User user = userRepository.findById(id)
@@ -228,6 +248,17 @@ public class UserService {
 
         return user.getFollowingIds().stream()
                 .map(this::getUserById)
+                .collect(Collectors.toList());
+    }
+
+    public List<UserDTO> getFollowedArtists(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        return user.getFollowingIds().stream()
+                .map(followingId -> userRepository.findById(followingId).orElse(null))
+                .filter(followedUser -> followedUser != null && followedUser.getRole() == UserRole.ARTIST)
+                .map(this::mapToDTO)
                 .collect(Collectors.toList());
     }
 

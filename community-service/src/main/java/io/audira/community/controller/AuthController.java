@@ -1,6 +1,7 @@
 package io.audira.community.controller;
 
 import io.audira.community.dto.AuthResponse;
+import io.audira.community.dto.LoginRequest;
 import io.audira.community.dto.RegisterRequest;
 import io.audira.community.model.User;
 import io.audira.community.service.UserService;
@@ -55,5 +56,16 @@ public class AuthController {
             throw e;
         }
     }
-    // Implementar login
+    @PostMapping("/login")
+    public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
+        logger.info("Login request received for: {}", request.getEmailOrUsername());
+        try {
+            AuthResponse response = userService.loginUser(request);
+            logger.info("User logged in successfully: {}", request.getEmailOrUsername());
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            logger.error("Error during login: {}", e.getMessage(), e);
+            throw e;
+        }
+    }
 }
