@@ -171,6 +171,15 @@ class ProfileScreen extends StatelessWidget {
         ),
 
         ListTile(
+          leading: const Icon(Icons.lock_outlined),
+          title: const Text('Cambiar Contraseña'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () {
+            Navigator.pushNamed(context, '/profile/change-password');
+          },
+        ),
+
+        ListTile(
           leading: const Icon(Icons.settings_outlined),
           title: const Text('Configuración'),
           trailing: const Icon(Icons.chevron_right),

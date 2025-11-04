@@ -403,4 +403,47 @@ class AuthService {
       );
     }
   }
+
+  /// Change password
+  Future<ApiResponse<void>> changePassword({
+    required int userId,
+    required String currentPassword,
+    required String newPassword,
+    required String confirmPassword,
+  }) async {
+    try {
+      Uri.parse('${AppConstants.apiGatewayUrl}/api/users/change-password')
+          .replace(queryParameters: {'userId': userId.toString()});
+
+      final body = {
+        'currentPassword': currentPassword,
+        'newPassword': newPassword,
+        'confirmPassword': confirmPassword,
+      };
+
+      final response = await _apiClient.post(
+        '/api/users/change-password?userId=$userId',
+        body: body,
+        requiresAuth: false,
+      );
+
+      if (response.success) {
+        return ApiResponse(
+          success: true,
+          statusCode: response.statusCode,
+        );
+      }
+
+      return ApiResponse(
+        success: false,
+        error: response.error,
+        statusCode: response.statusCode,
+      );
+    } catch (e) {
+      return ApiResponse(
+        success: false,
+        error: 'Error al cambiar contraseña: $e',
+      );
+    }
+  }
 }

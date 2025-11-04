@@ -275,4 +275,30 @@ public class UserService {
 
         return user;
     }
+
+    @Transactional
+    public void changePassword(Long userId, ChangePasswordRequest request) {
+        // Validar que las contraseñas coincidan
+        if (!request.getNewPassword().equals(request.getConfirmPassword())) {
+            throw new RuntimeException("Las contraseñas no coinciden");
+        }
+
+        // Obtener el usuario
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
+        // Verificar que la contraseña actual sea correcta
+        if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
+            throw new RuntimeException("La contraseña actual es incorrecta");
+        }
+
+        // Validar que la nueva contraseña sea diferente de la actual
+        if (passwordEncoder.matches(request.getNewPassword(), user.getPassword())) {
+            throw new RuntimeException("La nueva contraseña debe ser diferente de la actual");
+        }
+
+        // Actualizar la contraseña
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
+    }
 }
