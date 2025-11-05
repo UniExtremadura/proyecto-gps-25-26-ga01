@@ -38,6 +38,24 @@ services:
       timeout: 5s
       retries: 5
 
+  postgres-catalog:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: audira_catalog
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres-catalog-data:/var/lib/postgresql/data
+    networks:
+      - audira-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   config-server:
     build:
       context: . 
@@ -114,7 +132,31 @@ services:
       start_period: 60s
 
   # ÉPICA 2: Music Catalog Service (Genres, Albums, Songs, Collaborations)
-
+  music-catalog-service:
+    build:
+      context: . 
+      dockerfile: ./music-catalog-service/Dockerfile
+    ports:
+      - "9002:9002"
+    depends_on:
+      postgres-catalog:
+        condition: service_healthy
+      discovery-server:
+        condition: service_started
+    networks:
+      - audira-network
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-catalog:5432/audira_catalog
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=postgres
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://discovery-server:8761/eureka/
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9002/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+      
   # ÉPICA 3: Playback Service (Playlists, Library, Playback, Queue, History)
 
   # ÉPICA 4: Commerce Service (Products, Store, Cart, Orders, Payments)
