@@ -12,7 +12,6 @@ COPY community-service/pom.xml ./community-service/
 COPY config-server/pom.xml ./config-server/
 COPY discovery-server/pom.xml ./discovery-server/
 COPY music-catalog-service/pom.xml ./music-catalog-service/
-COPY playback-service/pom.xml ./playback-service/
 
 # 3. Descargar dependencias
 RUN mvn dependency:go-offline
