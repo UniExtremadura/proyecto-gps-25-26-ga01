@@ -1,0 +1,42 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: true
+          lower-case-service-id: true
+      routes:
+        # ÉPICA 1: Gestión de Usuarios y Comunidad
+        - id: community-service
+          uri: lb://community-service
+          predicates:
+            - Path=/api/auth/**,/api/users/**,/api/metrics/**,/api/ratings/**,/api/comments/**,/api/contact/**,/api/faq/**,/api/notifications/**,/api/files/**
+
+        # ÉPICA 2: Catálogo Musical y Contenido
+
+        # ÉPICA 3: Reproducción y Experiencia del Usuario
+
+        # ÉPICA 4: Tienda, Carrito y Pagos
+        - id: commerce-service
+          uri: lb://commerce-service
+          predicates:
+            - Path=/api/products/**,/api/cart/**,/api/orders/**,/api/payments/**
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://discovery-server:8761/eureka/
+    fetch-registry: true
+    register-with-eureka: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway
+
