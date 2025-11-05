@@ -192,3 +192,4 @@ networks:
 volumes:
   postgres-community-data:
   postgres-commerce-data:
+  postgres-catalog-data:
