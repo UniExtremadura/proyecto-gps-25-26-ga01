@@ -7,6 +7,7 @@ COPY pom.xml .
 
 # 2. Copiar los POM de TODOS los módulos (para resolver dependencias)
 COPY api-gateway/pom.xml ./api-gateway/
+COPY commerce-service/pom.xml ./commerce-service/
 COPY community-service/pom.xml ./community-service/
 COPY config-server/pom.xml ./config-server/
 COPY discovery-server/pom.xml ./discovery-server/
@@ -16,6 +17,7 @@ RUN mvn dependency:go-offline
 
 # 4. Copiar el *contenido completo* de TODOS los módulos
 COPY api-gateway ./api-gateway/
+COPY commerce-service ./commerce-service/
 COPY community-service ./community-service/
 COPY config-server ./config-server/
 COPY discovery-server ./discovery-server/

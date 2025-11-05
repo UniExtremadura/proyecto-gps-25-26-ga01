@@ -43,6 +43,13 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
                                 "/api/auth/**",
+                                "/api/users",
+                                "/api/users/{id}",
+                                "/api/users/{userId}/followers",
+                                "/api/users/{userId}/following",
+                                "/api/users/{userId}/following/artists",
+                                "/api/users/{userId}/follow/{targetUserId}",
+                                "/api/files/**",
                                 "/public/**",
                                 "/actuator/**",
                                 "/error"

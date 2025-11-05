@@ -15,13 +15,17 @@ spring:
         - id: community-service
           uri: lb://community-service
           predicates:
-            - Path=/api/auth/**,/api/users/**,/api/metrics/**,/api/ratings/**,/api/comments/**,/api/contact/**,/api/faq/**,/api/notifications/**
+            - Path=/api/auth/**,/api/users/**,/api/metrics/**,/api/ratings/**,/api/comments/**,/api/contact/**,/api/faq/**,/api/notifications/**,/api/files/**
 
         # ÉPICA 2: Catálogo Musical y Contenido
 
         # ÉPICA 3: Reproducción y Experiencia del Usuario
 
         # ÉPICA 4: Tienda, Carrito y Pagos
+        - id: commerce-service
+          uri: lb://commerce-service
+          predicates:
+            - Path=/api/products/**,/api/cart/**,/api/orders/**,/api/payments/**
 
 eureka:
   client:

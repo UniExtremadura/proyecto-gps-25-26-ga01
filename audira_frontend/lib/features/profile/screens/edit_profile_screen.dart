@@ -1,9 +1,11 @@
 // ignore_for_file: use_build_context_synchronously
 
+import 'dart:io';
 import 'package:audira_frontend/core/models/user.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/api/auth_service.dart';
 import '../../../config/theme.dart';
@@ -26,6 +28,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   bool _isLoading = false;
   bool _hasChanges = false;
+  File? _selectedImage;
+  bool _isUploadingImage = false;
+  final ImagePicker _picker = ImagePicker();
 
   @override
   void initState() {
@@ -99,6 +104,74 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     }
   }
 
+  Future<void> _pickImage() async {
+    try {
+      final XFile? pickedFile = await _picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 85,
+      );
+
+      if (pickedFile != null) {
+        setState(() {
+          _selectedImage = File(pickedFile.path);
+        });
+        await _uploadImage();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al seleccionar imagen: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _uploadImage() async {
+    if (_selectedImage == null) return;
+
+    setState(() => _isUploadingImage = true);
+
+    try {
+      final authProvider = context.read<AuthProvider>();
+      final userId = authProvider.currentUser?.id;
+
+      if (userId == null) {
+        throw Exception('Usuario no identificado');
+      }
+
+      final authService = AuthService();
+      final response =
+          await authService.uploadProfileImage(_selectedImage!, userId);
+
+      if (response.success) {
+        await authProvider.refreshProfile();
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Foto de perfil actualizada exitosamente'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } else {
+        throw Exception(response.error ?? 'Error al subir imagen');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isUploadingImage = false);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -131,10 +204,38 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     CircleAvatar(
                       radius: 60,
                       backgroundColor: AppTheme.primaryBlue,
-                      // TODO: Mostrar imagen de perfil real si existe
-                      child: const Icon(Icons.person,
-                          size: 60, color: Colors.white),
+                      backgroundImage: _selectedImage != null
+                          ? FileImage(_selectedImage!)
+                          : (context
+                                      .read<AuthProvider>()
+                                      .currentUser
+                                      ?.profileImageUrl !=
+                                  null
+                              ? NetworkImage(context
+                                  .read<AuthProvider>()
+                                  .currentUser!
+                                  .profileImageUrl!)
+                              : null) as ImageProvider?,
+                      child: (_selectedImage == null &&
+                              context
+                                      .read<AuthProvider>()
+                                      .currentUser
+                                      ?.profileImageUrl ==
+                                  null)
+                          ? const Icon(Icons.person,
+                              size: 60, color: Colors.white)
+                          : null,
                     ),
+                    if (_isUploadingImage)
+                      Positioned.fill(
+                        child: CircleAvatar(
+                          radius: 60,
+                          backgroundColor: Colors.black54,
+                          child: const CircularProgressIndicator(
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
                     Positioned(
                       bottom: 0,
                       right: 0,
@@ -143,14 +244,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         radius: 20,
                         child: IconButton(
                           icon: const Icon(Icons.camera_alt, size: 20),
-                          onPressed: () {
-                            // Image upload functionality
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Image upload - Coming soon'),
-                              ),
-                            );
-                          },
+                          onPressed: _isUploadingImage ? null : _pickImage,
                         ),
                       ),
                     ),

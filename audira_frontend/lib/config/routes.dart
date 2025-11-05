@@ -1,3 +1,4 @@
+import 'package:audira_frontend/features/profile/screens/followed_artists_screen.dart';
 import 'package:flutter/material.dart';
 import '../features/auth/screens/login_screen.dart';
 import '../features/auth/screens/register_screen.dart';
@@ -15,6 +16,8 @@ import '../features/playlist/screens/create_playlist_screen.dart';
 import '../features/playlist/screens/playlist_detail_screen.dart';
 import '../features/profile/screens/edit_profile_screen.dart';
 import '../features/profile/screens/user_stats_screen.dart';
+import '../features/profile/screens/purchase_history_screen.dart';
+import '../features/profile/screens/change_password_screen.dart';
 import '../features/admin/screens/admin_dashboard_screen.dart';
 import '../features/admin/screens/admin_songs_screen.dart';
 import '../features/admin/screens/admin_albums_screen.dart';
@@ -45,8 +48,11 @@ class AppRoutes {
   static const String editPlaylist = '/playlist/edit';
   static const String userStats = '/stats';
   static const String editProfile = '/profile/edit';
+  static const String followedArtists = '/profile/followed-artists';
+  static const String changePassword = '/profile/change-password';
   static const String search = '/search';
   static const String notifications = '/notifications';
+  static const String purchaseHistory = '/profile/purchase-history';
   static const String studio = '/studio';
   static const String studioUploadSong = '/studio/upload-song';
   static const String studioUploadAlbum = '/studio/upload-album';
@@ -118,6 +124,9 @@ class AppRoutes {
       case editProfile:
         return MaterialPageRoute(builder: (_) => const EditProfileScreen());
 
+      case purchaseHistory:
+        return MaterialPageRoute(builder: (_) => const PurchaseHistoryScreen());
+        
       case studio:
         return MaterialPageRoute(builder: (_) => const StudioDashboardScreen());
 
@@ -140,6 +149,14 @@ class AppRoutes {
       // User statistics
       case userStats:
         return MaterialPageRoute(builder: (_) => const UserStatsScreen());
+
+      // Followed artists
+      case followedArtists:
+        return MaterialPageRoute(builder: (_) => const FollowedArtistsScreen());
+
+      // Change password
+      case changePassword:
+        return MaterialPageRoute(builder: (_) => const ChangePasswordScreen());
 
       // Studio routes
       case studioUploadSong:

@@ -14,6 +14,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -82,7 +83,26 @@ public class UserService {
                 .build();
     }
 
-    // Implementar login
+    public AuthResponse loginUser(LoginRequest request) {
+        Authentication authentication = authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(
+                        request.getEmailOrUsername(),
+                        request.getPassword()
+                )
+        );
+
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+        String token = tokenProvider.generateToken(authentication);
+
+        UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
+        User user = userRepository.findById(userPrincipal.getId())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        return AuthResponse.builder()
+                .token(token)
+                .user(mapToDTO(user))
+                .build();
+    }
 
     public UserDTO getUserById(Long id) {
         User user = userRepository.findById(id)
@@ -133,6 +153,37 @@ public class UserService {
         }
         if (request.getWebsite() != null) {
             user.setWebsite(request.getWebsite());
+        }
+
+        user = userRepository.save(user);
+        return mapToDTO(user);
+    }
+
+    @Transactional
+    public UserDTO updateProfile(Long userId, Map<String, Object> updates) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        if (updates.containsKey("firstName")) {
+            user.setFirstName((String) updates.get("firstName"));
+        }
+        if (updates.containsKey("lastName")) {
+            user.setLastName((String) updates.get("lastName"));
+        }
+        if (updates.containsKey("bio")) {
+            user.setBio((String) updates.get("bio"));
+        }
+        if (updates.containsKey("profileImageUrl")) {
+            user.setProfileImageUrl((String) updates.get("profileImageUrl"));
+        }
+        if (updates.containsKey("bannerImageUrl")) {
+            user.setBannerImageUrl((String) updates.get("bannerImageUrl"));
+        }
+        if (updates.containsKey("location")) {
+            user.setLocation((String) updates.get("location"));
+        }
+        if (updates.containsKey("website")) {
+            user.setWebsite((String) updates.get("website"));
         }
 
         user = userRepository.save(user);
@@ -200,6 +251,17 @@ public class UserService {
                 .collect(Collectors.toList());
     }
 
+    public List<UserDTO> getFollowedArtists(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        return user.getFollowingIds().stream()
+                .map(followingId -> userRepository.findById(followingId).orElse(null))
+                .filter(followedUser -> followedUser != null && followedUser.getRole() == UserRole.ARTIST)
+                .map(this::mapToDTO)
+                .collect(Collectors.toList());
+    }
+
     private UserDTO mapToDTO(User user) {
         return UserDTO.builder()
                 .id(user.getId())
@@ -245,24 +307,29 @@ public class UserService {
         return user;
     }
 
-    public AuthResponse loginUser(LoginRequest request) {
-        Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(
-                        request.getEmailOrUsername(),
-                        request.getPassword()
-                )
-        );
+    @Transactional
+    public void changePassword(Long userId, ChangePasswordRequest request) {
+        // Validar que las contraseñas coincidan
+        if (!request.getNewPassword().equals(request.getConfirmPassword())) {
+            throw new RuntimeException("Las contraseñas no coinciden");
+        }
 
-        SecurityContextHolder.getContext().setAuthentication(authentication);
-        String token = tokenProvider.generateToken(authentication);
+        // Obtener el usuario
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
 
-        UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
-        User user = userRepository.findById(userPrincipal.getId())
-                .orElseThrow(() -> new RuntimeException("User not found"));
+        // Verificar que la contraseña actual sea correcta
+        if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
+            throw new RuntimeException("La contraseña actual es incorrecta");
+        }
 
-        return AuthResponse.builder()
-                .token(token)
-                .user(mapToDTO(user))
-                .build();
+        // Validar que la nueva contraseña sea diferente de la actual
+        if (passwordEncoder.matches(request.getNewPassword(), user.getPassword())) {
+            throw new RuntimeException("La nueva contraseña debe ser diferente de la actual");
+        }
+
+        // Actualizar la contraseña
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
     }
 }

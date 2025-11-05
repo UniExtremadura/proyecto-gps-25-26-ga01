@@ -1,6 +1,7 @@
 package io.audira.community.controller;
 
 import io.audira.community.dto.AuthResponse;
+import io.audira.community.dto.LoginRequest;
 import io.audira.community.dto.RegisterRequest;
 import io.audira.community.dto.LoginRequest;
 import io.audira.community.model.User;
