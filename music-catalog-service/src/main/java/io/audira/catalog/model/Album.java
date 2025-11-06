@@ -2,6 +2,7 @@ package io.audira.catalog.model;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
@@ -20,7 +21,7 @@ import java.util.Set;
 @NoArgsConstructor
 @AllArgsConstructor
 public class Album extends Product {
-
+ 
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "album_genres", joinColumns = @JoinColumn(name = "album_id"))
     @Column(name = "genre_id")
