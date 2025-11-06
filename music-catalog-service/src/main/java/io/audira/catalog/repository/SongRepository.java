@@ -3,6 +3,7 @@ package io.audira.catalog.repository;
 import io.audira.catalog.model.Song;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import java.util.List;
 
@@ -19,7 +20,7 @@ public interface SongRepository extends JpaRepository<Song, Long> {
 
     @Query("SELECT s FROM Song s WHERE s.artistId = :artistId OR s.id IN " +
            "(SELECT c.songId FROM Collaborator c WHERE c.artistId = :artistId)")
-    List<Song> findSongsByArtistIncludingCollaborations(Long artistId);
+    List<Song> findSongsByArtistIncludingCollaborations(@Param("artistId") Long artistId);
 
     @Query("SELECT s FROM Song s ORDER BY s.createdAt DESC")
     List<Song> findRecentSongs();
