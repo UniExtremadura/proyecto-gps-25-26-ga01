@@ -35,12 +35,12 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
 
-    final songsResponse = await _musicService.getAllSongs();
+    final songsResponse = await _discoveryService.getTrendingSongs(limit: 10);
     final albumsResponse = await _discoveryService.getLatestReleases(limit: 10);
     final genresResponse = await _musicService.getAllGenres();
 
     if (songsResponse.success && songsResponse.data != null) {
-      _featuredSongs = songsResponse.data!.take(10).toList();
+      _featuredSongs = songsResponse.data!;
     }
 
     if (albumsResponse.success && albumsResponse.data != null) {
