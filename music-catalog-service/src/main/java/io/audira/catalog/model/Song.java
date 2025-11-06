@@ -2,6 +2,7 @@ package io.audira.catalog.model;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
@@ -26,6 +27,7 @@ public class Song extends Product {
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "song_genres", joinColumns = @JoinColumn(name = "song_id"))
     @Column(name = "genre_id")
+    @Builder.Default
     private Set<Long> genreIds = new HashSet<>();
 
     @Column(nullable = false)
@@ -41,6 +43,7 @@ public class Song extends Product {
     private Integer trackNumber; // Only filled if part of an album
 
     @Column(nullable = false)
+    @Builder.Default
     private Long plays = 0L; // Number of times played
 
     @Override
