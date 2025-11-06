@@ -15,7 +15,8 @@ public class DiscoveryController {
     private final DiscoveryService discoveryService;
 
     @GetMapping("/trending/songs")
-    public ResponseEntity<List<Song>> getTrendingSongs() {
-        return ResponseEntity.ok(discoveryService.getTrendingSongs());
+    public ResponseEntity<List<Song>> getTrendingSongs(@RequestParam(defaultValue = "20") int limit) {
+        List<Song> songs = discoveryService.getTrendingSongs();
+        return ResponseEntity.ok(songs.stream().limit(limit).toList());
     }
 }

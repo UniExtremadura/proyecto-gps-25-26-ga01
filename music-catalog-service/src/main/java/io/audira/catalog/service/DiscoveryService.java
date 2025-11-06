@@ -15,8 +15,7 @@ public class DiscoveryService {
     private final AlbumRepository albumRepository;
 
     public List<Song> getTrendingSongs() {
-        // Por ahora devuelve las canciones más recientes
-        return songRepository.findTop20ByOrderByCreatedAtDesc();
+        return songRepository.findTopByPlays();
     }
     
     public List<Album> getTrendingAlbums() {

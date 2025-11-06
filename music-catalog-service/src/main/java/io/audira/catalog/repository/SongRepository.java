@@ -18,10 +18,6 @@ public interface SongRepository extends JpaRepository<Song, Long> {
     @Query("SELECT s FROM Song s WHERE LOWER(s.title) LIKE LOWER(CONCAT('%', :query, '%'))")
     List<Song> searchByTitleOrArtist(String query);
 
-    @Query("SELECT s FROM Song s WHERE s.artistId = :artistId OR s.id IN " +
-           "(SELECT c.songId FROM Collaborator c WHERE c.artistId = :artistId)")
-    List<Song> findSongsByArtistIncludingCollaborations(@Param("artistId") Long artistId);
-
     @Query("SELECT s FROM Song s ORDER BY s.createdAt DESC")
     List<Song> findRecentSongs();
 
