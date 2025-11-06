@@ -11,6 +11,9 @@ import java.util.List;
 @RequestMapping("/api/albums")
 @RequiredArgsConstructor
 public class AlbumController {
+    
+    private final AlbumService albumService;
+
     @GetMapping("/latest-releases")
     public ResponseEntity<List<Album>> getLatestReleases(@RequestParam(defaultValue = "20") int limit) {
         List<Album> albums = albumService.getRecentAlbums();
