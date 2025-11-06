@@ -119,4 +119,55 @@ public class FileUploadController {
         error.put("error", message);
         return error;
     }
+
+    @PostMapping("/api/files/upload/audio")
+    public ResponseEntity<?> uploadSongAudio(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "songId", required = false) Long songId) {
+
+        try {
+            // Logs de depuración con System.out
+            System.out.println("Nombre del archivo: " + file.getOriginalFilename());
+            System.out.println("Content-Type recibido: " + file.getContentType());
+            System.out.println("Tamaño del archivo (bytes): " + file.getSize());
+
+            // Validar que sea un audio válido
+            if (!fileStorageService.isValidAudioFile(file)) {
+                return ResponseEntity.badRequest().body(
+                    createErrorResponse("El archivo debe ser un archivo de audio válido (MP3, WAV, FLAC, MIDI, OGG, AAC)")
+                );
+            }
+
+            // Validar tamaño máximo (50 MB)
+            if (file.getSize() > 50 * 1024 * 1024) {
+                return ResponseEntity.badRequest().body(
+                    createErrorResponse("El archivo no debe superar los 50MB")
+                );
+            }
+
+            // Guardar el archivo
+            String filePath = fileStorageService.storeFile(file, "audio-files");
+
+            // Construir URL de acceso
+            String fileUrl = baseUrl + "/api/files/" + filePath;
+
+            // Crear respuesta
+            Map<String, Object> response = new HashMap<>();
+            response.put("message", "Archivo de audio subido exitosamente");
+            response.put("fileUrl", fileUrl);
+            response.put("filePath", filePath);
+            response.put("songId", songId);
+
+            // Retornar respuesta exitosa
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            System.out.println("Error al subir el archivo de audio: " + e.getMessage());
+            e.printStackTrace();
+
+            return ResponseEntity.internalServerError().body(
+                createErrorResponse("Error al subir el audio: " + e.getMessage())
+            );
+        }
+    }
 }
