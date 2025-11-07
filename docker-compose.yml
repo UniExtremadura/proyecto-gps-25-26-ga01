@@ -112,6 +112,8 @@ services:
       dockerfile: ./community-service/Dockerfile
     ports:
       - "9001:9001"
+    volumes:
+      - audira-uploads:/uploads  # 🔥 Volume persistente compartido
     depends_on:
       postgres-community:
         condition: service_healthy
@@ -193,3 +195,5 @@ volumes:
   postgres-community-data:
   postgres-commerce-data:
   postgres-catalog-data:
+  audira-uploads:
+    driver: local

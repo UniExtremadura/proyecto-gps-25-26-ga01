@@ -49,8 +49,20 @@ public class FileServeController {
                     case "webp":
                         contentType = "image/webp";
                         break;
+                    case "mp3":
+                        contentType = "audio/mpeg";
+                        break;
+                    case "wav":
+                        contentType = "audio/wav";
+                        break;
+                    case "flac":
+                        contentType = "audio/flac";
+                        break;
+                    case "midi":
+                    case "mid":
+                        contentType = "audio/midi";
+                        break;
                 }
-
                 return ResponseEntity.ok()
                         .contentType(MediaType.parseMediaType(contentType))
                         .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + resource.getFilename() + "\"")
@@ -61,5 +73,12 @@ public class FileServeController {
         } catch (Exception e) {
             return ResponseEntity.internalServerError().build();
         }
+    }
+
+    private boolean isAudioFile(String fileName) {
+        String extension = fileName.substring(fileName.lastIndexOf('.') + 1).toLowerCase();
+        return extension.equals("mp3") || extension.equals("wav") ||
+            extension.equals("flac") || extension.equals("midi") ||
+            extension.equals("mid");
     }
 }

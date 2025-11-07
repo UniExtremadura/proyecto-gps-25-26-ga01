@@ -23,6 +23,49 @@ public class FileUploadController {
     @Value("${file.base-url:http://158.49.191.109:9001}")
     private String baseUrl;
 
+    @PostMapping("/upload/image")
+    public ResponseEntity<?> uploadImage(@RequestParam("file") MultipartFile file) {
+        try {
+            // Logs de debugging (líneas 72-75)
+            System.out.println("Recibido archivo: " + file.getOriginalFilename());
+            System.out.println("Content-Type: " + file.getContentType());
+            System.out.println("Tamaño: " + file.getSize() + " bytes");
+
+            // Validaciones (líneas 78-82)
+            if (!fileStorageService.isValidImageFile(file)) {
+                return ResponseEntity.badRequest().body(
+                    createErrorResponse("El archivo debe ser una imagen (JPG, PNG, WEBP)")
+                );
+            }
+
+            // Validación de tamaño máximo 10MB (líneas 85-89)
+            if (file.getSize() > 10 * 1024 * 1024) {
+                return ResponseEntity.badRequest().body(
+                    createErrorResponse("El archivo excede el tamaño máximo permitido (10MB)")
+                );
+            }
+
+            // Proceso (línea 92)
+            String storedFilePath = fileStorageService.storeFile(file, "images");
+            String fileUrl = baseUrl + "/api/files/" + storedFilePath;
+
+            // Respuesta JSON (líneas 95-102)
+            Map<String, Object> response = new HashMap<>();
+            response.put("message", "Imagen subida exitosamente");
+            response.put("fileUrl", fileUrl);
+            response.put("filePath", storedFilePath);
+            response.put("fileName", file.getOriginalFilename());
+            response.put("fileSize", file.getSize());
+
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(
+                createErrorResponse("Error al subir la imagen: " + e.getMessage())
+            );
+        }
+    }
+
     @PostMapping("/upload/profile-image")
     public ResponseEntity<?> uploadProfileImage(
             @RequestParam("file") MultipartFile file,
@@ -156,7 +199,8 @@ public class FileUploadController {
             response.put("message", "Archivo de audio subido exitosamente");
             response.put("fileUrl", fileUrl);
             response.put("filePath", filePath);
-            response.put("songId", songId);
+            response.put("fileName", file.getOriginalFilename());
+            response.put("fileSize", file.getSize());
 
             // Retornar respuesta exitosa
             return ResponseEntity.ok(response);
