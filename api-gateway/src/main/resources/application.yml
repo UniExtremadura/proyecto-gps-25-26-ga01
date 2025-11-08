@@ -15,8 +15,13 @@ spring:
         - id: community-service
           uri: lb://community-service
           predicates:
-            - Path=/api/auth/**,/api/users/**,/api/metrics/**,/api/ratings/**,/api/comments/**,/api/contact/**,/api/faq/**,/api/notifications/**,/api/files/**
+            - Path=/api/auth/**,/api/users/**,/api/metrics/**,/api/ratings/**,/api/comments/**,/api/contact/**,/api/faq/**,/api/notifications/**
 
+        # File Service - Gestión de archivos de audio e imágenes
+        - id: file-service
+          uri: lb://file-service
+          predicates:
+            - Path=/api/files/**
         # ÉPICA 2: Catálogo Musical y Contenido
 
         # ÉPICA 3: Reproducción y Experiencia del Usuario

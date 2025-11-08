@@ -1,6 +1,6 @@
-package io.audira.community.controller;
+package io.audira.fileservice.controller;
 
-import io.audira.community.service.FileCompressionService;
+import io.audira.fileservice.service.FileCompressionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
@@ -17,14 +17,9 @@ public class FileCompressionController {
 
     private final FileCompressionService fileCompressionService;
 
-    @Value("${file.base-url:http://158.49.191.109:9001}")
+    @Value("${file.base-url:http://localhost:9005}")
     private String baseUrl;
 
-    /**
-     * Endpoint para comprimir múltiples archivos en un ZIP
-     * POST /api/files/compress
-     * Body: { "filePaths": ["audio-files/abc.mp3", "images/def.jpg"] }
-     */
     @PostMapping("/compress")
     public ResponseEntity<?> compressFiles(@RequestBody Map<String, List<String>> request) {
         try {
@@ -36,20 +31,15 @@ public class FileCompressionController {
                 );
             }
 
-            // Obtener tamaño total antes de comprimir
             long totalSizeBefore = 0;
             for (String filePath : filePaths) {
                 totalSizeBefore += fileCompressionService.getFileSize(filePath);
             }
 
-            // Comprimir archivos
             String zipFilePath = fileCompressionService.compressFiles(filePaths);
             String zipFileUrl = baseUrl + "/api/files/" + zipFilePath;
 
-            // Obtener tamaño del archivo comprimido
             long compressedSize = fileCompressionService.getFileSize(zipFilePath);
-
-            // Calcular porcentaje de compresión
             double compressionRatio = ((double) (totalSizeBefore - compressedSize) / totalSizeBefore) * 100;
 
             Map<String, Object> response = new HashMap<>();
@@ -70,11 +60,6 @@ public class FileCompressionController {
         }
     }
 
-    /**
-     * Endpoint para comprimir un solo archivo
-     * POST /api/files/compress/single
-     * Body: { "filePath": "audio-files/abc.mp3" }
-     */
     @PostMapping("/compress/single")
     public ResponseEntity<?> compressSingleFile(@RequestBody Map<String, String> request) {
         try {
@@ -86,17 +71,11 @@ public class FileCompressionController {
                 );
             }
 
-            // Obtener tamaño antes de comprimir
             long originalSize = fileCompressionService.getFileSize(filePath);
-
-            // Comprimir archivo
             String zipFilePath = fileCompressionService.compressSingleFile(filePath);
             String zipFileUrl = baseUrl + "/api/files/" + zipFilePath;
 
-            // Obtener tamaño del archivo comprimido
             long compressedSize = fileCompressionService.getFileSize(zipFilePath);
-
-            // Calcular porcentaje de compresión
             double compressionRatio = ((double) (originalSize - compressedSize) / originalSize) * 100;
 
             Map<String, Object> response = new HashMap<>();

@@ -1,4 +1,5 @@
 import 'package:audira_frontend/features/profile/screens/followed_artists_screen.dart';
+import 'package:audira_frontend/features/studio/screens/file_upload_demo_screen.dart';
 import 'package:flutter/material.dart';
 import '../features/auth/screens/login_screen.dart';
 import '../features/auth/screens/register_screen.dart';
@@ -58,6 +59,7 @@ class AppRoutes {
   static const String studioUploadAlbum = '/studio/upload-album';
   static const String studioStats = '/studio/stats';
   static const String studioCatalog = '/studio/catalog';
+  static const String studioFileDemo = '/studio/file-demo';
   static const String admin = '/admin';
   static const String adminSongs = '/admin/songs';
   static const String adminAlbums = '/admin/albums';
@@ -167,6 +169,9 @@ class AppRoutes {
 
       case studioStats:
         return MaterialPageRoute(builder: (_) => const StudioStatsScreen());
+
+      case studioFileDemo:
+        return MaterialPageRoute(builder: (_) => const FileUploadDemoScreen());
 
       case studioCatalog:
       case adminSongs:
