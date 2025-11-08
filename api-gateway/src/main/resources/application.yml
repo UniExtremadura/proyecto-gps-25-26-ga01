@@ -23,7 +23,11 @@ spring:
           predicates:
             - Path=/api/files/**
         # ÉPICA 2: Catálogo Musical y Contenido
-
+        - id: music-catalog-service
+          uri: lb://music-catalog-service
+          predicates:
+            - Path=/api/albums/**,/api/songs/**, /api/collaborations/**,/api/discovery/**,/api/genres/**
+        
         # ÉPICA 3: Reproducción y Experiencia del Usuario
 
         # ÉPICA 4: Tienda, Carrito y Pagos
