@@ -112,6 +112,8 @@ services:
       dockerfile: ./community-service/Dockerfile
     ports:
       - "9001:9001"
+    volumes:
+      - audira-uploads:/uploads  # 🔥 Volume persistente compartido
     depends_on:
       postgres-community:
         condition: service_healthy
@@ -126,6 +128,29 @@ services:
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://discovery-server:8761/eureka/
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9001/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+  
+  # File Service - Gestión de archivos de audio e imágenes
+  file-service:
+    build:
+      context: .
+      dockerfile: ./file-service/Dockerfile
+    ports:
+      - "9005:9005"
+    depends_on:
+      discovery-server:
+        condition: service_healthy
+    networks:
+      - audira-network
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://discovery-server:8761/eureka/
+    volumes:
+      - audira-uploads:/uploads  # Volumen persistente compartido para archivos
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9005/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -193,3 +218,5 @@ volumes:
   postgres-community-data:
   postgres-commerce-data:
   postgres-catalog-data:
+  audira-uploads:
+    driver: local

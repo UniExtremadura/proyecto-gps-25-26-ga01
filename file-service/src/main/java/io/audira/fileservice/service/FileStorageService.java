@@ -1,4 +1,4 @@
-package io.audira.community.service;
+package io.audira.fileservice.service;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -101,24 +101,21 @@ public class FileStorageService {
         return validContentType || validExtension;
     }
 
-    public boolean isValidAudioFile (MultipartFile file) {
+    public boolean isValidAudioFile(MultipartFile file) {
         String contentType = file.getContentType();
         String fileName = file.getOriginalFilename();
 
         // Verificar por content-type
         boolean validContentType = contentType != null && (
-                contentType.equals("audio/mpeg") ||       // .mp3
-                contentType.equals("audio/mp3") ||        // Variante para .mp3
-                contentType.equals("audio/wav") ||        // .wav
-                contentType.equals("audio/wave") ||       // Variante común
-                contentType.equals("audio/x-wav") ||      // Variante común para .wav
-                contentType.equals("audio/flac") ||       // .flac
-                contentType.equals("audio/x-flac") ||     // Variante común para .flac
-                contentType.equals("audio/midi") ||       // .midi
-                contentType.equals("audio/x-midi") ||     // Variante común para .midi
-                contentType.equals("audio/ogg") ||        // .ogg
-                contentType.equals("audio/aac") ||        // .aac
-                contentType.equals("application/octet-stream") // Tipo genérico permitido
+                contentType.equals("audio/mpeg") ||
+                contentType.equals("audio/mp3") ||
+                contentType.equals("audio/wav") ||
+                contentType.equals("audio/x-wav") ||
+                contentType.equals("audio/flac") ||
+                contentType.equals("audio/x-flac") ||
+                contentType.equals("audio/midi") ||
+                contentType.equals("audio/x-midi") ||
+                contentType.equals("application/octet-stream") // Permitir tipo genérico
         );
 
         // Verificar por extensión del archivo como fallback
@@ -126,14 +123,17 @@ public class FileStorageService {
         if (fileName != null) {
             String extension = fileName.substring(fileName.lastIndexOf('.') + 1).toLowerCase();
             validExtension = extension.equals("mp3") ||
-                            extension.equals("wav") ||
-                            extension.equals("flac") ||
-                            extension.equals("midi") ||
-                            extension.equals("mid") ||
-                            extension.equals("ogg") ||
-                            extension.equals("aac");
+                           extension.equals("wav") ||
+                           extension.equals("flac") ||
+                           extension.equals("midi") ||
+                           extension.equals("mid");
         }
 
+        // Aceptar si el content-type O la extensión son válidos
         return validContentType || validExtension;
+    }
+
+    public Path getFileStorageLocation() {
+        return this.fileStorageLocation;
     }
 }

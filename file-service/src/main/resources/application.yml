@@ -1,0 +1,36 @@
+server:
+  port: 9005
+
+spring:
+  application:
+    name: file-service
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 50MB
+      max-request-size: 50MB
+
+file:
+  upload-dir: /uploads
+  base-url: http://localhost:9005
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+    fetch-registry: true
+    register-with-eureka: true
+  instance:
+    prefer-ip-address: true
+    hostname: ${spring.cloud.client.ip-address}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+
+logging:
+  level:
+    io.audira.fileservice: DEBUG
+    org.springframework.web: INFO
