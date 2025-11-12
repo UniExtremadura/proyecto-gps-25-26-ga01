@@ -121,6 +121,34 @@ class DiscoveryService {
     }
   }
 
+  /// Get latest album releases
+  Future<ApiResponse<List<Album>>> getLatestReleases({int limit = 20}) async {
+    try {
+      final response = await _apiClient.get(
+        '/api/albums/latest-releases',
+        queryParameters: {'limit': limit.toString()},
+      );
+
+      if (response.success && response.data != null) {
+        final List<dynamic> data = response.data as List;
+        final albums = data.map((json) => Album.fromJson(json)).toList();
+        return ApiResponse(
+          success: true,
+          data: albums,
+          statusCode: response.statusCode,
+        );
+      }
+
+      return ApiResponse(
+        success: false,
+        error: response.error ?? 'Failed to fetch latest releases',
+        statusCode: response.statusCode,
+      );
+    } catch (e) {
+      return ApiResponse(success: false, error: e.toString());
+    }
+  }
+
   /// Get recommendations for user
   Future<ApiResponse<Map<String, dynamic>>> getRecommendations(
       int userId) async {
