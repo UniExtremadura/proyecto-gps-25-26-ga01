@@ -9,7 +9,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Optional;
@@ -83,17 +82,5 @@ public class AlbumController {
             return ResponseEntity.noContent().build();
         }
         return ResponseEntity.notFound().build();
-    }
-
-    // Endpoint para subir portada del álbum
-    // TODO: Implementar el servicio de almacenamiento de archivos
-    @PostMapping("/{id}/cover")
-    public ResponseEntity<String> uploadCover(
-            @PathVariable Long id,
-            @RequestParam("file") MultipartFile file) {
-        // Esta funcionalidad requeriría un servicio de almacenamiento (S3, local, etc.)
-        // Por ahora, retornamos una URL de ejemplo
-        String coverUrl = "/uploads/albums/" + id + "/" + file.getOriginalFilename();
-        return ResponseEntity.ok(coverUrl);
     }
 }

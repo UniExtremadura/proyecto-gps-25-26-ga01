@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import '../../../config/theme.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/api/services/music_service.dart';
+import '../../../core/api/services/file_service.dart';
 import '../../../core/models/song.dart';
 import '../../../core/models/album.dart';
 
@@ -128,15 +129,39 @@ class _UploadAlbumScreenState extends State<UploadAlbumScreen> {
 
     try {
       final musicService = MusicService();
+      final fileService = FileService();
 
-      // Paso 1: Crear el álbum
-      setState(() => _uploadProgress = 0.2);
+      // Paso 1: Subir la imagen de portada si existe
+      String? coverImageUrl;
+      if (_coverImagePath != null) {
+        setState(() => _uploadProgress = 0.2);
+
+        final imageUploadResponse = await fileService.uploadImageFile(
+          _coverImagePath!,
+          onProgress: (sent, total) {
+            setState(() {
+              _uploadProgress = 0.2 + (sent / total) * 0.3;
+            });
+          },
+        );
+
+        if (!imageUploadResponse.success) {
+          throw Exception(
+              'Error al subir imagen: ${imageUploadResponse.error}');
+        }
+
+        coverImageUrl = imageUploadResponse.data!.fileUrl;
+      }
+
+      // Paso 2: Crear el álbum con la URL de la imagen
+      setState(() => _uploadProgress = 0.6);
 
       final albumData = {
         'title': _titleController.text,
         'artistId': authProvider.currentUser!.id,
         'description': _descriptionController.text,
         'price': double.parse(_priceController.text),
+        'coverImageUrl': coverImageUrl,
         'genreIds': [],
         'releaseDate': _releaseDateController.text.isNotEmpty
             ? _releaseDateController.text
@@ -153,32 +178,8 @@ class _UploadAlbumScreenState extends State<UploadAlbumScreen> {
 
       setState(() {
         _createdAlbum = createResponse.data!;
-        _uploadProgress = 0.6;
+        _uploadProgress = 1.0;
       });
-
-      // Paso 2: Subir la imagen de portada si existe
-      if (_coverImagePath != null) {
-        setState(() => _uploadProgress = 0.7);
-
-        final coverResponse = await musicService.uploadAlbumCover(
-          _createdAlbum!.id,
-          _coverImagePath!,
-        );
-
-        if (coverResponse.success && coverResponse.data != null) {
-          // Actualizar el álbum con la URL de la portada
-          final updateResponse = await musicService.updateAlbum(
-            _createdAlbum!.id,
-            {'coverImageUrl': coverResponse.data},
-          );
-
-          if (updateResponse.success && updateResponse.data != null) {
-            _createdAlbum = updateResponse.data!;
-          }
-        }
-      }
-
-      setState(() => _uploadProgress = 1.0);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -245,7 +246,6 @@ class _UploadAlbumScreenState extends State<UploadAlbumScreen> {
       );
 
       if (response.success) {
-
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
