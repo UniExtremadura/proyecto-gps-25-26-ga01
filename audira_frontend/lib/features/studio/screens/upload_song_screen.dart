@@ -1,5 +1,6 @@
 // ignore_for_file: use_build_context_synchronously
 
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -398,12 +399,34 @@ class _UploadSongScreenState extends State<UploadSongScreen> {
 
             // Cover Image
             Card(
-              child: ListTile(
-                leading: const Icon(Icons.image, color: AppTheme.primaryBlue),
-                title: Text(_imageFileName ?? 'Select Cover Image'),
-                subtitle: const Text('JPG, PNG (Optional)'),
-                trailing: const Icon(Icons.upload_file),
-                onTap: _pickImageFile,
+              child: Column(
+                children: [
+                  ListTile(
+                    leading: const Icon(Icons.image, color: AppTheme.primaryBlue),
+                    title: Text(_imageFileName ?? 'Seleccionar Portada'),
+                    subtitle: const Text('JPG, PNG (Opcional)'),
+                    trailing: Icon(
+                      _imageFileName != null
+                          ? Icons.check_circle
+                          : Icons.upload_file,
+                      color: _imageFileName != null ? Colors.green : null,
+                    ),
+                    onTap: _pickImageFile,
+                  ),
+                  if (_imageFilePath != null)
+                    Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.file(
+                          File(_imageFilePath!),
+                          height: 150,
+                          width: 150,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ).animate().fadeIn(delay: 50.ms),
             const SizedBox(height: 24),
@@ -626,14 +649,31 @@ class _UploadSongScreenState extends State<UploadSongScreen> {
           // Cover Image Preview
           Center(
             child: Container(
-              width: 200,
-              height: 200,
+              width: 250,
+              height: 250,
               decoration: BoxDecoration(
                 color: AppTheme.surfaceBlack,
                 borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha:0.3),
+                    blurRadius: 10,
+                    spreadRadius: 2,
+                  ),
+                ],
               ),
-              child: const Icon(Icons.music_note,
-                  size: 80, color: AppTheme.primaryBlue),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: _imageFilePath != null
+                    ? Image.file(
+                        File(_imageFilePath!),
+                        fit: BoxFit.cover,
+                      )
+                    : const Center(
+                        child: Icon(Icons.music_note,
+                            size: 100, color: AppTheme.primaryBlue),
+                      ),
+              ),
             ),
           ),
           const SizedBox(height: 24),
