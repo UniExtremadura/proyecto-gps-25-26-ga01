@@ -252,4 +252,8 @@ class AudioProvider with ChangeNotifier {
     _audioPlayer.dispose();
     super.dispose();
   }
+
+  Future<void> setUrl(String url) async {
+    await _audioPlayer.setUrl(url);
+  }  
 }

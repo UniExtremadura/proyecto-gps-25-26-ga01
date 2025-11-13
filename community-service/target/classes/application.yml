@@ -24,12 +24,12 @@ jwt:
 
 file:
   upload-dir: uploads
-  base-url: http://158.49.191.109:9001 # Cambiar IP personal hasta que tengamos una base de datos estable
+  base-url: http://192.168.100.121:9001 # Cambiar IP personal hasta que tengamos una base de datos estable
 
 spring.servlet.multipart:
   enabled: true
-  max-file-size: 10MB
-  max-request-size: 10MB
+  max-file-size: 50MB
+  max-request-size: 50MB
   
 eureka:
   client:

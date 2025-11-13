@@ -274,4 +274,58 @@ class ApiClient {
       );
     }
   }
+
+  // Método para subir archivos usando multipart/form-data
+  Future<ApiResponse<T>> uploadFile<T>(
+    String endpoint,
+    String filePath,
+    String fileFieldName, {
+    Map<String, String>? additionalFields,
+    bool requiresAuth = true,
+    Function(int, int)? onProgress,
+  }) async {
+    try {
+      String? token;
+      if (requiresAuth) {
+        token = await _getAuthToken();
+        if (token == null) {
+          return ApiResponse(
+            success: false,
+            error: AppConstants.errorUnauthorizedMessage,
+            statusCode: 401,
+          );
+        }
+      }
+
+      final uri = Uri.parse('$baseUrl$endpoint');
+      final request = http.MultipartRequest('POST', uri);
+
+      // Agregar headers
+      if (requiresAuth && token != null) {
+        request.headers['Authorization'] = 'Bearer $token';
+      }
+
+      // Agregar archivo
+      request.files.add(await http.MultipartFile.fromPath(
+        fileFieldName,
+        filePath,
+      ));
+
+      // Agregar campos adicionales
+      if (additionalFields != null) {
+        request.fields.addAll(additionalFields);
+      }
+
+      // Enviar request
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+
+      return _handleResponse<T>(response);
+    } catch (e) {
+      return ApiResponse(
+        success: false,
+        error: '${AppConstants.errorNetworkMessage}: $e',
+      );
+    }
+  }
 }

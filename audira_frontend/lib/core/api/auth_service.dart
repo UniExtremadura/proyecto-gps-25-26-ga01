@@ -323,17 +323,25 @@ class AuthService {
         error: 'Excepción al obtener usuarios: $e',
       );
     }
-  }
+  } 
 
   /// Upload profile image
   Future<ApiResponse<User>> uploadProfileImage(
       File imageFile, int userId) async {
     try {
       final uri = Uri.parse(
-          '${AppConstants.apiGatewayUrl}/api/files/upload/profile-image');
+          '${AppConstants.apiGatewayUrl}/api/users/profile/image');
 
       final request = http.MultipartRequest('POST', uri);
       request.fields['userId'] = userId.toString();
+
+      final token = await getAuthToken();
+      if (token != null) {
+          request.headers['Authorization'] = 'Bearer $token';
+      } else {
+          // Manejar el caso de token nulo si es necesario
+          throw Exception('No hay token de autenticación disponible.');
+      }
 
       // Determinar el content-type basándose en la extensión
       String? contentType;
