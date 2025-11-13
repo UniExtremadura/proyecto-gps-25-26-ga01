@@ -144,6 +144,39 @@ class MusicService {
     return ApiResponse(success: false, error: response.error);
   }
 
+  // Update Album (Artist only)
+  Future<ApiResponse<Album>> updateAlbum(int id, Map<String, dynamic> albumData) async {
+    final response = await _apiClient.put('${AppConstants.albumsUrl}/$id', body: albumData);
+    if (response.success && response.data != null) {
+      return ApiResponse(success: true, data: Album.fromJson(response.data));
+    }
+    return ApiResponse(success: false, error: response.error);
+  }
+
+  // Publish/Unpublish Album (Artist only)
+  Future<ApiResponse<Album>> publishAlbum(int id, bool published) async {
+    final response = await _apiClient.patch(
+      '${AppConstants.albumsUrl}/$id/publish?published=$published',
+    );
+    if (response.success && response.data != null) {
+      return ApiResponse(success: true, data: Album.fromJson(response.data));
+    }
+    return ApiResponse(success: false, error: response.error);
+  }
+
+  // Upload Album Cover (Artist only)
+  Future<ApiResponse<String>> uploadAlbumCover(int albumId, String filePath) async {
+    final response = await _apiClient.uploadFile(
+      '${AppConstants.albumsUrl}/$albumId/cover',
+      filePath,
+      'file',
+    );
+    if (response.success && response.data != null) {
+      return ApiResponse(success: true, data: response.data as String);
+    }
+    return ApiResponse(success: false, error: response.error);
+  }
+
   // Delete methods (Admin only)
   Future<ApiResponse<void>> deleteSong(int id) async {
     final response = await _apiClient.delete('${AppConstants.songsUrl}/$id');
