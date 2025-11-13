@@ -10,6 +10,9 @@ import java.util.List;
 public interface AlbumRepository extends JpaRepository<Album, Long>{
     List<Album> findTop20ByOrderByCreatedAtDesc();
     
+    List<Album> findByArtistId(Long artistId);
+    
     @Query("SELECT a FROM Album a ORDER BY a.releaseDate DESC")
     List<Album> findRecentAlbums();
+
 }

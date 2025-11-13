@@ -37,6 +37,10 @@ public class Album extends Product {
     @Builder.Default
     private Double discountPercentage = 0.15; // 15% discount by default
 
+    @Column(nullable = false)
+    @Builder.Default
+    private boolean published = false;
+
     @Override
     public String getProductType() {
         return "ALBUM";
