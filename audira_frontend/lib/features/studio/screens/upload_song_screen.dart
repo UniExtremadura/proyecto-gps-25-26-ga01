@@ -377,7 +377,7 @@ class _UploadSongScreenState extends State<UploadSongScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Upload Song'),
+        title: const Text('Subir Canción'),
         actions: [
           IconButton(
             icon: Icon(_showPreview ? Icons.edit : Icons.preview),
@@ -396,7 +396,7 @@ class _UploadSongScreenState extends State<UploadSongScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text('Uploading... ${(_uploadProgress * 100).toInt()}%'),
+                  Text('Subiendo canción... ${(_uploadProgress * 100).toInt()}%'),
                   const SizedBox(height: 8),
                   LinearProgressIndicator(value: _uploadProgress),
                 ],
