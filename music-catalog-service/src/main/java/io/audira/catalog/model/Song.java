@@ -46,6 +46,9 @@ public class Song extends Product {
     @Builder.Default
     private Long plays = 0L; // Number of times played
 
+    @Column(length = 100)
+    private String category; // Category: Single, Album, EP, Remix, Cover, etc.
+    
     @Override
     public String getProductType() {
         return "SONG";

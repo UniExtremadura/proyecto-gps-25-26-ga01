@@ -37,10 +37,10 @@ public class FileUploadController {
                 );
             }
 
-            // Validar tamaño (máximo 50MB para archivos de audio)
-            if (file.getSize() > 50 * 1024 * 1024) {
+            // Validar tamaño (máximo 100MB para archivos de audio)
+            if (file.getSize() > 100 * 1024 * 1024) {
                 return ResponseEntity.badRequest().body(
-                    createErrorResponse("El archivo no debe superar los 50MB")
+                    createErrorResponse("El archivo no debe superar los 100MB")
                 );
             }
 
