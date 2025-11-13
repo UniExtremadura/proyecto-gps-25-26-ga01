@@ -494,17 +494,31 @@ class _SongDetailScreenState extends State<SongDetailScreen>
             child: ElevatedButton.icon(
               onPressed: () {
                 if (_song != null) {
-                  audioProvider.playSong(_song!, demo: true);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Playing 10-second demo...'),
-                      duration: Duration(seconds: 2),
-                    ),
+                  audioProvider.playSong(
+                    _song!,
+                    isUserAuthenticated: authProvider.isAuthenticated,
                   );
+                  if (!authProvider.isAuthenticated) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: const Text(
+                            'Vista previa de 10 segundos - Regístrate para escuchar completo'),
+                        duration: const Duration(seconds: 3),
+                        action: SnackBarAction(
+                          label: 'Registrarse',
+                          textColor: AppTheme.primaryBlue,
+                          onPressed: () {
+                            Navigator.pushNamed(context, '/register');
+                          },
+                        ),
+                      ),
+                    );
+                  }
                 }
               },
               icon: const Icon(Icons.play_arrow),
-              label: const Text('Play Demo'),
+              label: Text(
+                  authProvider.isAuthenticated ? 'Reproducir' : 'Vista previa'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primaryBlue,
                 padding: const EdgeInsets.symmetric(vertical: 12),

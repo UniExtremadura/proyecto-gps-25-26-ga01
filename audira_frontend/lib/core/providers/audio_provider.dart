@@ -76,11 +76,20 @@ class AudioProvider with ChangeNotifier {
     });
   }
 
-  Future<void> playSong(Song song, {bool demo = false}) async {
+  Future<void> playSong(Song song,
+      {bool? demo, bool? isUserAuthenticated}) async {
     _demoFinished = false;
     try {
       _currentSong = song;
-      _isDemoMode = demo;
+      // Auto-enable demo mode if user is not authenticated
+      if (demo != null) {
+        _isDemoMode = demo;
+      } else if (isUserAuthenticated != null) {
+        _isDemoMode = !isUserAuthenticated;
+      } else {
+        _isDemoMode = false;
+      }
+
       _queue = [song];
       _currentIndex = 0;
 
@@ -255,5 +264,5 @@ class AudioProvider with ChangeNotifier {
 
   Future<void> setUrl(String url) async {
     await _audioPlayer.setUrl(url);
-  }  
+  }
 }
