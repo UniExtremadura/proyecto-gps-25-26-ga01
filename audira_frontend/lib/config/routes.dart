@@ -128,7 +128,7 @@ class AppRoutes {
 
       case purchaseHistory:
         return MaterialPageRoute(builder: (_) => const PurchaseHistoryScreen());
-        
+
       case studio:
         return MaterialPageRoute(builder: (_) => const StudioDashboardScreen());
 

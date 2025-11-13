@@ -71,6 +71,7 @@ class DiscoveryService {
       final response = await _apiClient.get(
         '/api/discovery/trending/songs',
         queryParameters: {'limit': limit.toString()},
+        requiresAuth: false,
       );
 
       if (response.success && response.data != null) {
@@ -127,6 +128,7 @@ class DiscoveryService {
       final response = await _apiClient.get(
         '/api/albums/latest-releases',
         queryParameters: {'limit': limit.toString()},
+        requiresAuth: false,
       );
 
       if (response.success && response.data != null) {

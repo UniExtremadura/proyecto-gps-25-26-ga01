@@ -45,7 +45,15 @@ class AudioProvider with ChangeNotifier {
     _audioPlayer.positionStream.listen((position) {
       _currentPosition = position;
 
+      // Log para verificar la posición y el estado del demo
+      if (_isDemoMode) {
+        debugPrint(
+            '🎵 DEMO MODE - Position: ${position.inSeconds}s / isDemoMode: $_isDemoMode');
+      }
+
       if (_isDemoMode && position.inSeconds >= 10) {
+        debugPrint(
+            '⏹️ DEMO FINISHED - Stopping playback at ${position.inSeconds}s');
         pause();
         seek(Duration.zero);
         _isDemoMode = false;
@@ -79,30 +87,41 @@ class AudioProvider with ChangeNotifier {
   Future<void> playSong(Song song,
       {bool? demo, bool? isUserAuthenticated}) async {
     _demoFinished = false;
+    debugPrint('▶️ PLAY SONG - Song: ${song.name}');
+    debugPrint('   demo parameter: $demo');
+    debugPrint('   isUserAuthenticated parameter: $isUserAuthenticated');
+
     try {
       _currentSong = song;
       // Auto-enable demo mode if user is not authenticated
       if (demo != null) {
         _isDemoMode = demo;
+        debugPrint('   ✅ Demo mode set from demo parameter: $_isDemoMode');
       } else if (isUserAuthenticated != null) {
         _isDemoMode = !isUserAuthenticated;
+        debugPrint(
+            '   ✅ Demo mode set from isUserAuthenticated: $_isDemoMode (user auth: $isUserAuthenticated)');
       } else {
         _isDemoMode = false;
+        debugPrint('   ❌ No parameters, demo mode: $_isDemoMode');
       }
+
+      debugPrint('   🎯 FINAL isDemoMode: $_isDemoMode');
 
       _queue = [song];
       _currentIndex = 0;
 
       if (song.audioUrl != null && song.audioUrl!.isNotEmpty) {
+        debugPrint('   🔊 Setting audio URL and starting playback...');
         await _audioPlayer.setUrl(song.audioUrl!);
         await _audioPlayer.play();
       } else {
-        debugPrint('No audio URL for song: ${song.name}');
+        debugPrint('   ⚠️ No audio URL for song: ${song.name}');
       }
 
       notifyListeners();
     } catch (e) {
-      debugPrint('Error playing song: $e');
+      debugPrint('   ❌ Error playing song: $e');
     }
   }
 

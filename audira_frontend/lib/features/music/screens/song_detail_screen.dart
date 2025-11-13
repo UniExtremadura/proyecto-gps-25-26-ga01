@@ -11,6 +11,8 @@ import 'package:audira_frontend/core/providers/audio_provider.dart';
 import 'package:audira_frontend/core/providers/auth_provider.dart';
 import 'package:audira_frontend/core/providers/cart_provider.dart';
 import 'package:audira_frontend/core/providers/library_provider.dart';
+import 'package:audira_frontend/features/common/widgets/app_bottom_navigation_bar.dart';
+import 'package:audira_frontend/features/common/widgets/mini_player.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -108,6 +110,7 @@ class _SongDetailScreenState extends State<SongDetailScreen>
   }
 
   Future<void> _loadRatingsAndComments() async {
+    if (!mounted) return;
     setState(() {
       _isLoadingRatings = true;
       _isLoadingComments = true;
@@ -142,7 +145,9 @@ class _SongDetailScreenState extends State<SongDetailScreen>
         }
       }
 
-      setState(() => _isLoadingRatings = false);
+      if (mounted) {
+        setState(() => _isLoadingRatings = false);
+      }
 
       final commentsResponse = await _commentService.getEntityComments(
         entityType: 'SONG',
@@ -154,7 +159,9 @@ class _SongDetailScreenState extends State<SongDetailScreen>
     } catch (e) {
       debugPrint('Error loading ratings/comments: $e');
     } finally {
-      setState(() => _isLoadingComments = false);
+      if (mounted) {
+        setState(() => _isLoadingComments = false);
+      }
     }
   }
 
@@ -324,7 +331,11 @@ class _SongDetailScreenState extends State<SongDetailScreen>
               ),
             ),
           ),
+          const MiniPlayer(),
         ],
+      ),
+      bottomNavigationBar: const AppBottomNavigationBar(
+        selectedIndex: null,
       ),
     );
   }
@@ -498,22 +509,8 @@ class _SongDetailScreenState extends State<SongDetailScreen>
                     _song!,
                     isUserAuthenticated: authProvider.isAuthenticated,
                   );
-                  if (!authProvider.isAuthenticated) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: const Text(
-                            'Vista previa de 10 segundos - Regístrate para escuchar completo'),
-                        duration: const Duration(seconds: 3),
-                        action: SnackBarAction(
-                          label: 'Registrarse',
-                          textColor: AppTheme.primaryBlue,
-                          onPressed: () {
-                            Navigator.pushNamed(context, '/register');
-                          },
-                        ),
-                      ),
-                    );
-                  }
+
+                  Navigator.pushNamed(context, '/playback');
                 }
               },
               icon: const Icon(Icons.play_arrow),

@@ -10,6 +10,8 @@ import 'package:audira_frontend/core/providers/audio_provider.dart';
 import 'package:audira_frontend/core/providers/auth_provider.dart';
 import 'package:audira_frontend/core/providers/cart_provider.dart';
 import 'package:audira_frontend/core/providers/library_provider.dart';
+import 'package:audira_frontend/features/common/widgets/app_bottom_navigation_bar.dart';
+import 'package:audira_frontend/features/common/widgets/mini_player.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -300,7 +302,6 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen>
 
     return Scaffold(
       appBar: AppBar(
-        // CORREGIDO: El campo se llama 'name', no 'title'
         title: Text(_album!.name),
         actions: [
           IconButton(
@@ -329,7 +330,11 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen>
               ),
             ),
           ),
+          const MiniPlayer(),
         ],
+      ),
+      bottomNavigationBar: const AppBottomNavigationBar(
+        selectedIndex: null,
       ),
     );
   }
@@ -499,22 +504,8 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen>
                     _songs[0],
                     isUserAuthenticated: authProvider.isAuthenticated,
                   );
-                  if (!authProvider.isAuthenticated) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: const Text(
-                            'Vista previa de 10 segundos - Regístrate para escuchar completo'),
-                        duration: const Duration(seconds: 3),
-                        action: SnackBarAction(
-                          label: 'Registrarse',
-                          textColor: AppTheme.primaryBlue,
-                          onPressed: () {
-                            Navigator.pushNamed(context, '/register');
-                          },
-                        ),
-                      ),
-                    );
-                  }
+
+                  Navigator.pushNamed(context, '/playback');
                 }
               },
               icon: const Icon(Icons.play_arrow),
@@ -638,6 +629,8 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen>
                       song,
                       isUserAuthenticated: authProvider.isAuthenticated,
                     );
+
+                    Navigator.pushNamed(context, '/playback');
                     if (!authProvider.isAuthenticated) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
