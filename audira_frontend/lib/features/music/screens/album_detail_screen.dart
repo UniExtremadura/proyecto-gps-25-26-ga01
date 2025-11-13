@@ -647,7 +647,7 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen>
                             label: 'Registrarse',
                             textColor: AppTheme.primaryBlue,
                             onPressed: () {
-                              Navigator.pushNamed(context, '/register');
+                              // Vacío por ahora, lo activaremos en GA01-75
                             },
                           ),
                         ),
