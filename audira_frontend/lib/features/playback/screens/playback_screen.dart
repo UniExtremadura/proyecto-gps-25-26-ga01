@@ -44,10 +44,9 @@ class PlaybackScreen extends StatelessWidget {
           if (audioProvider.demoFinished) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
               if (ModalRoute.of(context)?.isCurrent ?? false) {
-                Navigator.of(context).pop();
+                _showDemoFinishedDialog(context);
               }
             });
-            return const Center(child: CircularProgressIndicator());
           }
           final song = audioProvider.currentSong;
 
@@ -796,6 +795,107 @@ class PlaybackScreen extends StatelessWidget {
                   borderRadius: BorderRadius.circular(8),
                 ),
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDemoFinishedDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppTheme.surfaceBlack,
+        title: Row(
+          children: const [
+            Icon(Icons.timer_off, color: AppTheme.primaryBlue, size: 28),
+            SizedBox(width: 12),
+            Text('Vista previa finalizada'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: const [
+            Text(
+              'Has alcanzado el límite de 10 segundos de reproducción.',
+              style: TextStyle(fontSize: 16),
+            ),
+            SizedBox(height: 16),
+            Text(
+              '¡Regístrate gratis para:',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.primaryBlue,
+              ),
+            ),
+            SizedBox(height: 8),
+            Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.green, size: 20),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text('Escuchar canciones completas'),
+                ),
+              ],
+            ),
+            SizedBox(height: 8),
+            Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.green, size: 20),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text('Crear listas de reproducción'),
+                ),
+              ],
+            ),
+            SizedBox(height: 8),
+            Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.green, size: 20),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text('Comprar música y álbumes'),
+                ),
+              ],
+            ),
+            SizedBox(height: 8),
+            Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.green, size: 20),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text('Seguir a tus artistas favoritos'),
+                ),
+              ],
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              Navigator.of(context).pop();
+            },
+            child: const Text(
+              'Quizás luego',
+              style: TextStyle(color: AppTheme.textGrey),
+            ),
+          ),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.of(context).pop();
+              Navigator.of(context).pop();
+              Navigator.pushNamed(context, '/register');
+            },
+            icon: const Icon(Icons.person_add),
+            label: const Text('Registrarse gratis'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryBlue,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
             ),
           ),
         ],

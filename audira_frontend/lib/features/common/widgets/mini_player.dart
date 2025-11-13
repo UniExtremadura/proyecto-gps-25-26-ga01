@@ -47,7 +47,7 @@ class MiniPlayer extends StatelessWidget {
                     ),
                     TextButton(
                       onPressed: () {
-                        // Botón vacío por ahora, lo activaremos en GA01-75
+                        Navigator.pushNamed(context, '/register');
                       },
                       style: TextButton.styleFrom(
                         backgroundColor: Colors.white,
