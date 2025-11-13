@@ -1,6 +1,6 @@
 class AppConstants {
   // API Configuration
-  static const String apiGatewayUrl = 'http://192.168.11.176:8080';
+  static const String apiGatewayUrl = 'http://192.168.100.121:8080';
 
   // Auth endpoints
   static const String authRegisterUrl = '/api/auth/register';
@@ -71,6 +71,7 @@ class AppConstants {
 
   // Payment endpoints
   static const String paymentsUrl = '/api/payments';
+  static const String receiptsUrl = '/api/receipts';
 
   // App Configuration
   static const String appName = 'Audira';

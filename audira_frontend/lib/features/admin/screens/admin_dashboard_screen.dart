@@ -13,9 +13,9 @@ class AdminDashboardScreen extends StatelessWidget {
       ),
       body: GridView.count(
         crossAxisCount: 2,
-        padding: const EdgeInsets.all(16),
-        mainAxisSpacing: 16,
-        crossAxisSpacing: 16,
+        padding: const EdgeInsets.all(10),
+        mainAxisSpacing: 10,
+        crossAxisSpacing: 10,
         children: [
           _buildAdminCard(
             context,
