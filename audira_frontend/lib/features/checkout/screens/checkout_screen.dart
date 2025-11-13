@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import '../../../core/models/payment.dart';
 import '../../../core/api/services/payment_service.dart';
 import '../../../core/models/order.dart';
+import '../../receipt/screens/receipt_screen.dart';
 // import '../../receipt/screens/receipt_screen.dart'; <- descomentar cuando se cree
 
 class CheckoutScreen extends StatefulWidget {
@@ -614,11 +615,11 @@ class PaymentResultScreen extends StatelessWidget {
               if (success) ...[
                 ElevatedButton.icon(
                   onPressed: () {
-                    /*Navigator.of(context).pushReplacement(
+                    Navigator.of(context).pushReplacement(
                       MaterialPageRoute(
-                        builder: (context) => ReceiptScreen(payment: payment!),     <- Descomentar cuando este completo el sistema de recibos
+                        builder: (context) => ReceiptScreen(payment: payment!),
                       ),
-                    );*/
+                    );
                   },
                   icon: const Icon(Icons.receipt),
                   label: const Text('Ver recibo'),

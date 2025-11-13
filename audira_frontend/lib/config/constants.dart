@@ -71,6 +71,7 @@ class AppConstants {
 
   // Payment endpoints
   static const String paymentsUrl = '/api/payments';
+  static const String receiptsUrl = '/api/receipts';
 
   // App Configuration
   static const String appName = 'Audira';
