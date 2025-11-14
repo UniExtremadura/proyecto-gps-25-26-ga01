@@ -11,6 +11,8 @@ import 'package:audira_frontend/core/providers/audio_provider.dart';
 import 'package:audira_frontend/core/providers/auth_provider.dart';
 import 'package:audira_frontend/core/providers/cart_provider.dart';
 import 'package:audira_frontend/core/providers/library_provider.dart';
+import 'package:audira_frontend/features/common/widgets/app_bottom_navigation_bar.dart';
+import 'package:audira_frontend/features/common/widgets/mini_player.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -108,6 +110,7 @@ class _SongDetailScreenState extends State<SongDetailScreen>
   }
 
   Future<void> _loadRatingsAndComments() async {
+    if (!mounted) return;
     setState(() {
       _isLoadingRatings = true;
       _isLoadingComments = true;
@@ -142,7 +145,9 @@ class _SongDetailScreenState extends State<SongDetailScreen>
         }
       }
 
-      setState(() => _isLoadingRatings = false);
+      if (mounted) {
+        setState(() => _isLoadingRatings = false);
+      }
 
       final commentsResponse = await _commentService.getEntityComments(
         entityType: 'SONG',
@@ -154,7 +159,9 @@ class _SongDetailScreenState extends State<SongDetailScreen>
     } catch (e) {
       debugPrint('Error loading ratings/comments: $e');
     } finally {
-      setState(() => _isLoadingComments = false);
+      if (mounted) {
+        setState(() => _isLoadingComments = false);
+      }
     }
   }
 
@@ -324,7 +331,11 @@ class _SongDetailScreenState extends State<SongDetailScreen>
               ),
             ),
           ),
+          const MiniPlayer(),
         ],
+      ),
+      bottomNavigationBar: const AppBottomNavigationBar(
+        selectedIndex: null,
       ),
     );
   }
@@ -494,17 +505,17 @@ class _SongDetailScreenState extends State<SongDetailScreen>
             child: ElevatedButton.icon(
               onPressed: () {
                 if (_song != null) {
-                  audioProvider.playSong(_song!, demo: true);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Playing 10-second demo...'),
-                      duration: Duration(seconds: 2),
-                    ),
+                  audioProvider.playSong(
+                    _song!,
+                    isUserAuthenticated: authProvider.isAuthenticated,
                   );
+
+                  Navigator.pushNamed(context, '/playback');
                 }
               },
               icon: const Icon(Icons.play_arrow),
-              label: const Text('Play Demo'),
+              label: Text(
+                  authProvider.isAuthenticated ? 'Reproducir' : 'Vista previa'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primaryBlue,
                 padding: const EdgeInsets.symmetric(vertical: 12),

@@ -40,11 +40,7 @@ class AudiraApp extends StatelessWidget {
               );
             }
 
-            if (authProvider.isAuthenticated) {
-              return const MainLayout();
-            }
-
-            return const LoginScreen();
+            return const MainLayout();
           },
         ),
       ),

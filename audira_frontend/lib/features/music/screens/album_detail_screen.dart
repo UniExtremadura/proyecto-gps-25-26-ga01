@@ -10,6 +10,8 @@ import 'package:audira_frontend/core/providers/audio_provider.dart';
 import 'package:audira_frontend/core/providers/auth_provider.dart';
 import 'package:audira_frontend/core/providers/cart_provider.dart';
 import 'package:audira_frontend/core/providers/library_provider.dart';
+import 'package:audira_frontend/features/common/widgets/app_bottom_navigation_bar.dart';
+import 'package:audira_frontend/features/common/widgets/mini_player.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -300,7 +302,6 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen>
 
     return Scaffold(
       appBar: AppBar(
-        // CORREGIDO: El campo se llama 'name', no 'title'
         title: Text(_album!.name),
         actions: [
           IconButton(
@@ -329,7 +330,11 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen>
               ),
             ),
           ),
+          const MiniPlayer(),
         ],
+      ),
+      bottomNavigationBar: const AppBottomNavigationBar(
+        selectedIndex: null,
       ),
     );
   }
@@ -494,18 +499,19 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen>
           Expanded(
             child: ElevatedButton.icon(
               onPressed: () {
-                if (_album != null) {
-                  audioProvider.playAlbum(_album!);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Playing album...'),
-                      duration: Duration(seconds: 2),
-                    ),
+                if (_album != null && _songs.isNotEmpty) {
+                  audioProvider.playSong(
+                    _songs[0],
+                    isUserAuthenticated: authProvider.isAuthenticated,
                   );
+
+                  Navigator.pushNamed(context, '/playback');
                 }
               },
               icon: const Icon(Icons.play_arrow),
-              label: const Text('Play Album'),
+              label: Text(authProvider.isAuthenticated
+                  ? 'Reproducir álbum'
+                  : 'Vista previa'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primaryBlue,
                 padding: const EdgeInsets.symmetric(vertical: 12),
@@ -618,13 +624,28 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen>
                   icon: const Icon(Icons.play_circle_outline),
                   onPressed: () {
                     final audioProvider = context.read<AudioProvider>();
-                    audioProvider.playSong(song, demo: true);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Playing ${song.name} demo...'),
-                        duration: const Duration(seconds: 2),
-                      ),
+                    final authProvider = context.read<AuthProvider>();
+                    audioProvider.playSong(
+                      song,
+                      isUserAuthenticated: authProvider.isAuthenticated,
                     );
+
+                    Navigator.pushNamed(context, '/playback');
+                    if (!authProvider.isAuthenticated) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: const Text('Vista previa de 10 segundos'),
+                          duration: const Duration(seconds: 2),
+                          action: SnackBarAction(
+                            label: 'Registrarse',
+                            textColor: AppTheme.primaryBlue,
+                            onPressed: () {
+                              Navigator.pushNamed(context, '/register');
+                            },
+                          ),
+                        ),
+                      );
+                    }
                   },
                 ),
                 IconButton(
