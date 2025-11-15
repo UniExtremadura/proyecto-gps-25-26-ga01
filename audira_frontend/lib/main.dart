@@ -6,7 +6,6 @@ import 'core/providers/auth_provider.dart';
 import 'core/providers/cart_provider.dart';
 import 'core/providers/audio_provider.dart';
 import 'core/providers/library_provider.dart';
-import 'features/auth/screens/login_screen.dart';
 import 'features/home/screens/main_layout.dart';
 
 void main() {
