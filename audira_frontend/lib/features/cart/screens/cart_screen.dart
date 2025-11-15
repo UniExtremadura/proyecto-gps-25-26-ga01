@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../../config/theme.dart';
 import '../../../core/providers/cart_provider.dart';
 import '../../../core/providers/auth_provider.dart';
@@ -45,57 +46,208 @@ class CartScreen extends StatelessWidget {
         Expanded(
           child: ListView.builder(
             padding: const EdgeInsets.all(16),
-            itemCount: cartProvider.cart!.items.length,
+            itemCount: cartProvider.cartItemDetails.length,
             itemBuilder: (context, index) {
-              final item = cartProvider.cart!.items[index];
+              final itemDetail = cartProvider.cartItemDetails[index];
+              final item = itemDetail.cartItem;
+
               return Card(
                 margin: const EdgeInsets.only(bottom: 12),
-                child: ListTile(
-                  leading: const Icon(Icons.music_note),
-                  title: Text('${item.itemType} #${item.itemId}'),
-                  subtitle: Text(
-                    '\$${item.price.toStringAsFixed(2)} x ${item.quantity}',
-                  ),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      IconButton(
-                        icon: const Icon(Icons.remove_circle_outline),
-                        onPressed: () {
-                          if (item.quantity > 1 &&
-                              authProvider.currentUser != null) {
-                            cartProvider.updateQuantity(
-                              authProvider.currentUser!.id,
-                              item.id!,
-                              item.quantity - 1,
-                            );
-                          }
-                        },
+                      // Product Image
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: itemDetail.itemImageUrl != null
+                            ? CachedNetworkImage(
+                                imageUrl: itemDetail.itemImageUrl!,
+                                width: 80,
+                                height: 80,
+                                fit: BoxFit.cover,
+                                placeholder: (context, url) => Container(
+                                  width: 80,
+                                  height: 80,
+                                  color: AppTheme.surfaceBlack,
+                                  child: const Center(
+                                    child: CircularProgressIndicator(),
+                                  ),
+                                ),
+                                errorWidget: (context, url, error) => Container(
+                                  width: 80,
+                                  height: 80,
+                                  color: AppTheme.surfaceBlack,
+                                  child: Icon(
+                                    item.itemType == 'SONG'
+                                        ? Icons.music_note
+                                        : Icons.album,
+                                    size: 40,
+                                    color: AppTheme.textGrey,
+                                  ),
+                                ),
+                              )
+                            : Container(
+                                width: 80,
+                                height: 80,
+                                color: AppTheme.surfaceBlack,
+                                child: Icon(
+                                  item.itemType == 'SONG'
+                                      ? Icons.music_note
+                                      : Icons.album,
+                                  size: 40,
+                                  color: AppTheme.textGrey,
+                                ),
+                              ),
                       ),
-                      Text('${item.quantity}'),
-                      IconButton(
-                        icon: const Icon(Icons.add_circle_outline),
-                        onPressed: () {
-                          if (authProvider.currentUser != null) {
-                            cartProvider.updateQuantity(
-                              authProvider.currentUser!.id,
-                              item.id!,
-                              item.quantity + 1,
-                            );
-                          }
-                        },
+                      const SizedBox(width: 12),
+                      // Product Info
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              itemDetail.itemName,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              itemDetail.itemArtist,
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: AppTheme.textSecondary,
+                              ),
+                            ),
+                            if (itemDetail.itemDuration != null) ...[
+                              const SizedBox(height: 2),
+                              Text(
+                                itemDetail.itemDuration!,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: AppTheme.textSecondary,
+                                ),
+                              ),
+                            ],
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Text(
+                                  '\$${item.price.toStringAsFixed(2)}',
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppTheme.primaryBlue,
+                                  ),
+                                ),
+                                if (item.quantity > 1) ...[
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'x${item.quantity}',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: AppTheme.textSecondary,
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.delete_outline),
-                        color: AppTheme.errorRed,
-                        onPressed: () {
-                          if (authProvider.currentUser != null) {
-                            cartProvider.removeItem(
-                              authProvider.currentUser!.id,
-                              item.id!,
-                            );
-                          }
-                        },
+                      // Quantity Controls & Delete
+                      Column(
+                        children: [
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.remove_circle_outline),
+                                iconSize: 20,
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                                onPressed: () {
+                                  if (item.quantity > 1 &&
+                                      authProvider.currentUser != null) {
+                                    cartProvider.updateQuantity(
+                                      authProvider.currentUser!.id,
+                                      item.id!,
+                                      item.quantity - 1,
+                                    );
+                                  }
+                                },
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 8),
+                                child: Text(
+                                  '${item.quantity}',
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.add_circle_outline),
+                                iconSize: 20,
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                                onPressed: () {
+                                  if (authProvider.currentUser != null) {
+                                    cartProvider.updateQuantity(
+                                      authProvider.currentUser!.id,
+                                      item.id!,
+                                      item.quantity + 1,
+                                    );
+                                  }
+                                },
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          IconButton(
+                            icon: const Icon(Icons.delete_outline),
+                            color: AppTheme.errorRed,
+                            iconSize: 24,
+                            onPressed: () {
+                              if (authProvider.currentUser != null) {
+                                showDialog(
+                                  context: context,
+                                  builder: (context) => AlertDialog(
+                                    title: const Text('Eliminar producto'),
+                                    content: Text(
+                                      '¿Deseas eliminar "${itemDetail.itemName}" del carrito?',
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () => Navigator.pop(context),
+                                        child: const Text('Cancelar'),
+                                      ),
+                                      TextButton(
+                                        onPressed: () {
+                                          cartProvider.removeItem(
+                                            authProvider.currentUser!.id,
+                                            item.id!,
+                                          );
+                                          Navigator.pop(context);
+                                        },
+                                        child: const Text(
+                                          'Eliminar',
+                                          style: TextStyle(color: AppTheme.errorRed),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }
+                            },
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -118,6 +270,43 @@ class CartScreen extends StatelessWidget {
           ),
           child: Column(
             children: [
+              // Subtotal
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Subtotal',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  Text(
+                    '\$${cartProvider.subtotal.toStringAsFixed(2)}',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              // Tax
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'IVA (16%)',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          color: AppTheme.textSecondary,
+                        ),
+                  ),
+                  Text(
+                    '\$${cartProvider.taxAmount.toStringAsFixed(2)}',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          color: AppTheme.textSecondary,
+                        ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Divider(color: AppTheme.textSecondary.withValues(alpha: 0.3)),
+              const SizedBox(height: 8),
+              // Total
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -126,7 +315,7 @@ class CartScreen extends StatelessWidget {
                     style: Theme.of(context).textTheme.headlineMedium,
                   ),
                   Text(
-                    '\$${cartProvider.totalAmount.toStringAsFixed(2)}',
+                    '\$${cartProvider.totalWithTax.toStringAsFixed(2)}',
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                           color: AppTheme.primaryBlue,
                         ),
