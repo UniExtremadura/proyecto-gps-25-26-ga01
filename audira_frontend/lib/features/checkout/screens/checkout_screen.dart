@@ -4,6 +4,7 @@ import '../../../core/models/payment.dart';
 import '../../../core/api/services/payment_service.dart';
 import '../../../core/models/order.dart';
 import '../../receipt/screens/receipt_screen.dart';
+// import 'payment_success_screent.dart';
 // import '../../receipt/screens/receipt_screen.dart'; <- descomentar cuando se cree
 
 class CheckoutScreen extends StatefulWidget {
@@ -460,16 +461,29 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     Payment? payment,
     String? errorMessage,
   }) {
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
-        builder: (context) => PaymentResultScreen(
-          success: success,
-          payment: payment,
-          errorMessage: errorMessage,
-          order: widget.order,
-        ),
-      ),
-    );
+    // if (success && payment != null) {
+    //   // Pago exitoso -> Nueva pantalla con integración de biblioteca
+    //   Navigator.of(context).pushReplacement(
+    //     MaterialPageRoute(
+    //       builder: (context) => PaymentSuccessScreen(
+    //         payment: payment,
+    //         order: widget.order,
+    //       ),
+    //     ),
+    //   );
+    // } else {
+    //   // Pago fallido -> Pantalla de error
+    //   Navigator.of(context).pushReplacement(
+    //     MaterialPageRoute(
+    //       builder: (context) => PaymentResultScreen(
+    //         success: false,
+    //         payment: payment,
+    //         errorMessage: errorMessage,
+    //         order: widget.order,
+    //       ),
+    //     ),
+    //   );
+    // }
   }
 
   void _showError(String message) {
