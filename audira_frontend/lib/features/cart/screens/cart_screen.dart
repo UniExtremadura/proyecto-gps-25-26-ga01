@@ -211,42 +211,30 @@ class CartScreen extends StatelessWidget {
                           ),
                           const SizedBox(height: 8),
                           IconButton(
-                            icon: const Icon(Icons.delete_outline),
-                            color: AppTheme.errorRed,
-                            iconSize: 24,
+                            icon: Icon(Icons.delete_outline),
                             onPressed: () {
-                              if (authProvider.currentUser != null) {
-                                showDialog(
-                                  context: context,
-                                  builder: (context) => AlertDialog(
-                                    title: const Text('Eliminar producto'),
-                                    content: Text(
-                                      '¿Deseas eliminar "${itemDetail.itemName}" del carrito?',
+                              showDialog(
+                                context: context,
+                                builder: (context) => AlertDialog(
+                                  title: Text('Eliminar producto'),
+                                  content: Text('¿Deseas eliminar "${itemDetail.itemName}"?'),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(context),
+                                      child: Text('Cancelar'),
                                     ),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () => Navigator.pop(context),
-                                        child: const Text('Cancelar'),
-                                      ),
-                                      TextButton(
-                                        onPressed: () {
-                                          cartProvider.removeItem(
-                                            authProvider.currentUser!.id,
-                                            item.id!,
-                                          );
-                                          Navigator.pop(context);
-                                        },
-                                        child: const Text(
-                                          'Eliminar',
-                                          style: TextStyle(color: AppTheme.errorRed),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              }
+                                    TextButton(
+                                      onPressed: () {
+                                        cartProvider.removeItem(authProvider.currentUser!.id, item.id!);
+                                        Navigator.pop(context);
+                                      },
+                                      child: Text('Eliminar'),
+                                    ),
+                                  ],
+                                ),
+                              );
                             },
-                          ),
+                          )
                         ],
                       ),
                     ],
