@@ -4,6 +4,8 @@ import io.audira.commerce.dto.*;
 import io.audira.commerce.model.*;
 import io.audira.commerce.repository.OrderRepository;
 import io.audira.commerce.repository.PaymentRepository;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -22,7 +24,12 @@ public class PaymentService {
 
     private final PaymentRepository paymentRepository;
     private final OrderRepository orderRepository;
+    private final LibraryService libraryService;
+    private final CartService cartService;
     private final Random random = new Random();
+
+    @PersistenceContext
+    private EntityManager entityManager;
 
     @Transactional
     public PaymentResponse processPayment(ProcessPaymentRequest request) {
@@ -55,17 +62,49 @@ public class PaymentService {
                 payment.setCompletedAt(LocalDateTime.now());
                 payment = paymentRepository.save(payment);
 
-                // Update order status
-                updateOrderStatus(request.getOrderId(), OrderStatus.PROCESSING);
+                // CRITICAL: Flush to database immediately so polling can see the COMPLETED status
+                entityManager.flush();
+                log.info("Payment status after save and flush: {}", payment.getStatus());
 
-                log.info("Payment completed successfully: {}", transactionId);
+                // Update order status to DELIVERED since digital products are immediately available
+                updateOrderStatus(request.getOrderId(), OrderStatus.DELIVERED);
+
+                // Flush order status update to database immediately
+                entityManager.flush();
+                log.info("Order status updated to DELIVERED for order: {}", request.getOrderId());
+
+                // Add purchased items to user's library
+                Order order = orderRepository.findById(request.getOrderId())
+                        .orElseThrow(() -> new RuntimeException("Order not found"));
+                libraryService.addOrderToLibrary(order, payment.getId());
+
+                // Clear user's cart after successful payment
+                try {
+                    cartService.clearCart(request.getUserId());
+                    log.info("Cart cleared for user: {}", request.getUserId());
+                } catch (Exception e) {
+                    log.error("Failed to clear cart for user: {}", request.getUserId(), e);
+                    // Don't fail the payment if cart clearing fails
+                }
+
+                // Flush again to ensure all changes are written to DB
+                entityManager.flush();
+
+                // Refresh payment from database to ensure we have the latest state
+                payment = paymentRepository.findById(payment.getId())
+                        .orElseThrow(() -> new RuntimeException("Payment not found after save"));
+
+                log.info("Payment completed successfully: {}, final status: {}", transactionId, payment.getStatus());
+
+                PaymentDTO paymentDTO = mapToDTO(payment);
+                log.info("PaymentDTO status: {}", paymentDTO.getStatus());
 
                 return PaymentResponse.builder()
                         .success(true)
                         .transactionId(transactionId)
                         .status(PaymentStatus.COMPLETED)
                         .message("Payment processed successfully")
-                        .payment(mapToDTO(payment))
+                        .payment(paymentDTO)
                         .build();
             } else {
                 payment.setStatus(PaymentStatus.FAILED);

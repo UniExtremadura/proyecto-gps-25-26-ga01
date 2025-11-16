@@ -20,6 +20,24 @@ class _CartScreenState extends State<CartScreen> {
   bool _isCreatingOrder = false;
 
   @override
+  void initState() {
+    super.initState();
+    // Schedule cart loading after the first frame to avoid setState during build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadCart();
+    });
+  }
+
+  Future<void> _loadCart() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final cartProvider = Provider.of<CartProvider>(context, listen: false);
+
+    if (authProvider.currentUser != null) {
+      await cartProvider.loadCart(authProvider.currentUser!.id);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final cartProvider = Provider.of<CartProvider>(context);
     final authProvider = Provider.of<AuthProvider>(context);
@@ -62,6 +80,7 @@ class _CartScreenState extends State<CartScreen> {
               final item = itemDetail.cartItem;
 
               return Card(
+                key: ValueKey('cart-item-${item.id}-${item.itemType}-${item.itemId}'),
                 margin: const EdgeInsets.only(bottom: 12),
                 child: Padding(
                   padding: const EdgeInsets.all(12),
@@ -145,119 +164,82 @@ class _CartScreenState extends State<CartScreen> {
                               ),
                             ],
                             const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                Text(
-                                  '\$${item.price.toStringAsFixed(2)}',
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppTheme.primaryBlue,
-                                  ),
-                                ),
-                                if (item.quantity > 1) ...[
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'x${item.quantity}',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      color: AppTheme.textSecondary,
-                                    ),
-                                  ),
-                                ],
-                              ],
+                            Text(
+                              '\$${item.price.toStringAsFixed(2)}',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.primaryBlue,
+                              ),
                             ),
                           ],
                         ),
                       ),
-                      // Quantity Controls & Delete
-                      Column(
-                        children: [
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(
-                                icon: const Icon(Icons.remove_circle_outline),
-                                iconSize: 20,
-                                padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints(),
-                                onPressed: () {
-                                  if (item.quantity > 1 &&
-                                      authProvider.currentUser != null) {
-                                    cartProvider.updateQuantity(
-                                      authProvider.currentUser!.id,
-                                      item.id!,
-                                      item.quantity - 1,
-                                    );
-                                  }
-                                },
-                              ),
-                              Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 8),
-                                child: Text(
-                                  '${item.quantity}',
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                      // Delete Button Only
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline),
+                        color: AppTheme.errorRed,
+                        iconSize: 24,
+                        tooltip: 'Eliminar del carrito',
+                        onPressed: () {
+                          if (authProvider.currentUser != null) {
+                            showDialog(
+                              context: context,
+                              builder: (context) => AlertDialog(
+                                title: const Text('Eliminar producto'),
+                                content: Text(
+                                  '¿Deseas eliminar "${itemDetail.itemName}" del carrito?',
                                 ),
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.add_circle_outline),
-                                iconSize: 20,
-                                padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints(),
-                                onPressed: () {
-                                  if (authProvider.currentUser != null) {
-                                    cartProvider.updateQuantity(
-                                      authProvider.currentUser!.id,
-                                      item.id!,
-                                      item.quantity + 1,
-                                    );
-                                  }
-                                },
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          IconButton(
-                            icon: const Icon(Icons.delete_outline),
-                            color: AppTheme.errorRed,
-                            iconSize: 24,
-                            onPressed: () {
-                              if (authProvider.currentUser != null) {
-                                showDialog(
-                                  context: context,
-                                  builder: (context) => AlertDialog(
-                                    title: const Text('Eliminar producto'),
-                                    content: Text(
-                                      '¿Deseas eliminar "${itemDetail.itemName}" del carrito?',
-                                    ),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () => Navigator.pop(context),
-                                        child: const Text('Cancelar'),
-                                      ),
-                                      TextButton(
-                                        onPressed: () {
-                                          cartProvider.removeItem(
-                                            authProvider.currentUser!.id,
-                                            item.id!,
-                                          );
-                                          Navigator.pop(context);
-                                        },
-                                        child: const Text(
-                                          'Eliminar',
-                                          style: TextStyle(color: AppTheme.errorRed),
-                                        ),
-                                      ),
-                                    ],
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(context),
+                                    child: const Text('Cancelar'),
                                   ),
-                                );
-                              }
-                            },
-                          ),
-                        ],
+                                  TextButton(
+                                    onPressed: () async {
+                                      // Save messenger and navigator before popping
+                                      final messenger = ScaffoldMessenger.of(context);
+                                      final navigator = Navigator.of(context);
+                                      final itemName = itemDetail.itemName;
+
+                                      // Close dialog first
+                                      navigator.pop();
+
+                                      // Execute removal
+                                      final success = await cartProvider.removeItem(
+                                        authProvider.currentUser!.id,
+                                        item.id!,
+                                      );
+
+                                      // Show feedback
+                                      if (success) {
+                                        messenger.showSnackBar(
+                                          SnackBar(
+                                            content: Text('$itemName eliminado del carrito'),
+                                            backgroundColor: Colors.green,
+                                            duration: const Duration(seconds: 2),
+                                          ),
+                                        );
+                                      } else {
+                                        messenger.showSnackBar(
+                                          const SnackBar(
+                                            content: Text('Error al eliminar del carrito'),
+                                            backgroundColor: Colors.red,
+                                            duration: Duration(seconds: 2),
+                                          ),
+                                        );
+                                      }
+                                    },
+                                    child: const Text(
+                                      'Eliminar',
+                                      style: TextStyle(color: AppTheme.errorRed),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }
+                        },
                       ),
                     ],
                   ),

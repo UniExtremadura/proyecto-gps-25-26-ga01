@@ -4,8 +4,7 @@ import '../../../core/models/payment.dart';
 import '../../../core/api/services/payment_service.dart';
 import '../../../core/models/order.dart';
 import '../../receipt/screens/receipt_screen.dart';
-// import 'payment_success_screent.dart';
-// import '../../receipt/screens/receipt_screen.dart'; <- descomentar cuando se cree
+import 'payment_success_screen.dart';
 
 class CheckoutScreen extends StatefulWidget {
   final Order order;
@@ -154,7 +153,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final isSelected = _selectedPaymentMethod == method;
 
     return Card(
-      color: isSelected ? Colors.blue.shade50 : null,
+      color: isSelected ? Colors.blue.shade900 : null,
       child: ListTile(
         leading: Icon(
           icon,
@@ -415,6 +414,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         };
       }
 
+      debugPrint('Processing payment for order ${widget.order.id}');
+
       // Process payment
       final response = await _paymentService.processPayment(
         orderId: widget.order.id,
@@ -424,21 +425,32 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         paymentDetails: paymentDetails,
       );
 
-      setState(() {
-        _isProcessing = false;
-      });
+      debugPrint('CheckoutScreen - Payment response - success: ${response.success}, data null: ${response.data == null}');
 
       if (response.success && response.data != null) {
         final paymentResponse = response.data!;
+        debugPrint('PaymentResponse - success: ${paymentResponse.success}, payment null: ${paymentResponse.payment == null}');
 
         if (paymentResponse.success) {
           // Payment successful
-          _showPaymentResult(
-            success: true,
-            payment: paymentResponse.payment!,
-          );
+          if (paymentResponse.payment != null) {
+            debugPrint('Payment received with status: ${paymentResponse.payment!.status}');
+
+            // Wait for payment to be COMPLETED before navigating
+            await _waitForPaymentCompletion(paymentResponse.payment!);
+          } else {
+            setState(() {
+              _isProcessing = false;
+            });
+            debugPrint('ERROR: Payment is null even though success is true');
+            _showError('Error: Pago procesado pero respuesta incompleta');
+          }
         } else {
           // Payment failed
+          setState(() {
+            _isProcessing = false;
+          });
+          debugPrint('Payment failed: ${paymentResponse.message}');
           _showPaymentResult(
             success: false,
             errorMessage: paymentResponse.message,
@@ -446,13 +458,92 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           );
         }
       } else {
+        setState(() {
+          _isProcessing = false;
+        });
+        debugPrint('API error: ${response.error}');
         _showError(response.error ?? 'Error al procesar el pago');
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      debugPrint('Exception in _processPayment: $e');
+      debugPrint('Stack trace: $stackTrace');
       setState(() {
         _isProcessing = false;
       });
       _showError('Error inesperado: $e');
+    }
+  }
+
+  Future<void> _waitForPaymentCompletion(Payment initialPayment) async {
+    Payment currentPayment = initialPayment;
+    int attempts = 0;
+    const maxAttempts = 10; // 10 intentos = 10 segundos máximo
+    const pollInterval = Duration(seconds: 1);
+
+    debugPrint('=== Waiting for payment to be COMPLETED ===');
+    debugPrint('Initial payment status: ${currentPayment.status}');
+
+    // Si ya está COMPLETED, navegar inmediatamente
+    if (currentPayment.status == PaymentStatus.completed) {
+      debugPrint('Payment already COMPLETED, navigating to success screen');
+      setState(() {
+        _isProcessing = false;
+      });
+      _showPaymentResult(success: true, payment: currentPayment);
+      return;
+    }
+
+    // Polling loop: esperar hasta que el estado sea COMPLETED
+    while (attempts < maxAttempts) {
+      await Future.delayed(pollInterval);
+      attempts++;
+
+      debugPrint('Polling attempt $attempts/$maxAttempts - Checking payment status...');
+
+      // Obtener el estado actualizado del payment
+      final response = await _paymentService.getPaymentById(currentPayment.id);
+
+      if (response.success && response.data != null) {
+        currentPayment = response.data!;
+        debugPrint('Payment status: ${currentPayment.status}');
+
+        if (currentPayment.status == PaymentStatus.completed) {
+          debugPrint('✓ Payment is now COMPLETED! Navigating to success screen');
+          setState(() {
+            _isProcessing = false;
+          });
+          _showPaymentResult(success: true, payment: currentPayment);
+          return;
+        } else if (currentPayment.status == PaymentStatus.failed) {
+          debugPrint('✗ Payment FAILED');
+          setState(() {
+            _isProcessing = false;
+          });
+          _showPaymentResult(
+            success: false,
+            payment: currentPayment,
+            errorMessage: 'El pago falló: ${currentPayment.errorMessage ?? "Error desconocido"}',
+          );
+          return;
+        }
+
+        // Si sigue en PROCESSING, continuar esperando
+        debugPrint('Payment still in ${currentPayment.status}, waiting...');
+      } else {
+        debugPrint('Error fetching payment status: ${response.error}');
+      }
+    }
+
+    // Timeout: el pago no se completó en el tiempo esperado
+    debugPrint('⚠ Timeout waiting for payment completion');
+    setState(() {
+      _isProcessing = false;
+    });
+    _showError('El pago está siendo procesado. Por favor verifica el estado más tarde.');
+
+    // Navegar al inicio
+    if (mounted) {
+      Navigator.of(context).popUntil((route) => route.isFirst);
     }
   }
 
@@ -461,29 +552,29 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     Payment? payment,
     String? errorMessage,
   }) {
-    // if (success && payment != null) {
-    //   // Pago exitoso -> Nueva pantalla con integración de biblioteca
-    //   Navigator.of(context).pushReplacement(
-    //     MaterialPageRoute(
-    //       builder: (context) => PaymentSuccessScreen(
-    //         payment: payment,
-    //         order: widget.order,
-    //       ),
-    //     ),
-    //   );
-    // } else {
-    //   // Pago fallido -> Pantalla de error
-    //   Navigator.of(context).pushReplacement(
-    //     MaterialPageRoute(
-    //       builder: (context) => PaymentResultScreen(
-    //         success: false,
-    //         payment: payment,
-    //         errorMessage: errorMessage,
-    //         order: widget.order,
-    //       ),
-    //     ),
-    //   );
-    // }
+    if (success && payment != null) {
+      // Navigate to success screen with library integration
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (context) => PaymentSuccessScreen(
+            payment: payment,
+            order: widget.order,
+          ),
+        ),
+      );
+    } else {
+      // Navigate to error screen
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (context) => PaymentResultScreen(
+            success: false,
+            payment: payment,
+            errorMessage: errorMessage,
+            order: widget.order,
+          ),
+        ),
+      );
+    }
   }
 
   void _showError(String message) {

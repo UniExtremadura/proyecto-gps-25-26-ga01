@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import '../api_client.dart';
 import '../../../config/constants.dart';
 import '../../models/payment.dart';
@@ -13,6 +14,8 @@ class PaymentService {
     required double amount,
     Map<String, String>? paymentDetails,
   }) async {
+    debugPrint('PaymentService.processPayment - orderId: $orderId, userId: $userId, method: ${paymentMethod.value}');
+
     final response = await _apiClient.post(
       '${AppConstants.paymentsUrl}/process',
       body: {
@@ -25,19 +28,29 @@ class PaymentService {
       requiresAuth: false,
     );
 
+    debugPrint('PaymentService - API response - success: ${response.success}, statusCode: ${response.statusCode}');
+    debugPrint('PaymentService - API response data: ${response.data}');
+
     if (response.success && response.data != null) {
       try {
+        debugPrint('Parsing PaymentResponse from JSON...');
+        final paymentResponse = PaymentResponse.fromJson(response.data as Map<String, dynamic>);
+        debugPrint('PaymentResponse parsed - success: ${paymentResponse.success}, payment: ${paymentResponse.payment?.id}');
+
         return ApiResponse(
           success: true,
-          data: PaymentResponse.fromJson(response.data as Map<String, dynamic>),
+          data: paymentResponse,
         );
-      } catch (e) {
+      } catch (e, stackTrace) {
+        debugPrint('Error parsing PaymentResponse: $e');
+        debugPrint('Stack trace: $stackTrace');
         return ApiResponse(
           success: false,
           error: 'Error al procesar respuesta de pago: $e',
         );
       }
     }
+    debugPrint('PaymentService - returning error: ${response.error}');
     return ApiResponse(success: false, error: response.error);
   }
 
