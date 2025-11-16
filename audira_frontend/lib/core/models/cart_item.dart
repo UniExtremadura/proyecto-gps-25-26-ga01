@@ -1,4 +1,6 @@
 import 'package:equatable/equatable.dart';
+import 'song.dart';
+import 'album.dart';
 
 class CartItem extends Equatable {
   final int? id;
@@ -131,4 +133,53 @@ class Cart extends Equatable {
 
   @override
   List<Object?> get props => [id, userId, items, totalAmount, createdAt, updatedAt];
+}
+
+class CartItemDetail extends Equatable {
+  final CartItem cartItem;
+  final Song? song;
+  final Album? album;
+
+  const CartItemDetail({
+    required this.cartItem,
+    this.song,
+    this.album,
+  });
+
+  String get itemName {
+    if (cartItem.itemType == 'SONG' && song != null) {
+      return song!.name;
+    } else if (cartItem.itemType == 'ALBUM' && album != null) {
+      return album!.name;
+    }
+    return 'Unknown';
+  }
+
+  String? get itemImageUrl {
+    if (cartItem.itemType == 'SONG' && song != null) {
+      return song!.coverImageUrl;
+    } else if (cartItem.itemType == 'ALBUM' && album != null) {
+      return album!.coverImageUrl;
+    }
+    return null;
+  }
+
+  String get itemArtist {
+    if (cartItem.itemType == 'SONG' && song != null) {
+      return song!.artistName;
+    } else if (cartItem.itemType == 'ALBUM' && album != null) {
+      return 'Album';
+    }
+    return 'Unknown Artist';
+  }
+
+  String? get itemDuration {
+    if (cartItem.itemType == 'SONG' && song != null) {
+      return song!.durationFormatted;
+    }
+    return null;
+  }
+
+  @override
+  List<Object?> get props => [cartItem, song, album];
 }
