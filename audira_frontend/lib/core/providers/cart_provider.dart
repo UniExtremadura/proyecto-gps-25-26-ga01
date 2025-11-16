@@ -7,10 +7,10 @@ import '../api/services/music_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../../config/constants.dart';
-
 class CartProvider with ChangeNotifier {
   final CartService _cartService = CartService();
   final MusicService _musicService = MusicService();
+  static const double taxRate = 0.21; // IVA 21%
 
   Cart? _cart;
   bool _isLoading = false;
@@ -22,20 +22,21 @@ class CartProvider with ChangeNotifier {
   double get totalAmount => _cart?.totalAmount ?? 0.0;
   List<CartItemDetail> get cartItemDetails => _cartItemDetails;
 
-  static const double taxRate = 0.21;
+// Subtotal (suma de precios sin impuestos)
+double get subtotal {
+  if (_cart == null || _cart!.items.isEmpty) return 0.0;
+  return _cart!.items.fold(0.0, (sum, item) => sum + item.totalPrice);
+}
 
-  double get subtotal {
-    if (_cart == null || _cart!.items.isEmpty) return 0.0;
-    return _cart!.items.fold(0.0, (sum, item) => sum + item.totalPrice);
-  }
+// Impuestos (IVA 21%)
+double get taxAmount {
+  return subtotal * taxRate;
+}
 
-  double get taxAmount {
-    return subtotal * taxRate;
-  }
-
-  double get totalWithTax {
-    return subtotal + taxAmount;
-  }
+// Total final (subtotal + impuestos)
+double get totalWithTax {
+  return subtotal + taxAmount;
+}
 
   Future<void> loadCart(int userId) async {
     _isLoading = true;

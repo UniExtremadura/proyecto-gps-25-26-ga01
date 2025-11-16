@@ -4,10 +4,20 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../../../config/theme.dart';
 import '../../../core/providers/cart_provider.dart';
 import '../../../core/providers/auth_provider.dart';
+import '../../../core/api/services/order_service.dart';
 import '../../auth/screens/login_screen.dart';
+import '../../checkout/screens/checkout_screen.dart';
 
-class CartScreen extends StatelessWidget {
+class CartScreen extends StatefulWidget {
   const CartScreen({super.key});
+
+  @override
+  State<CartScreen> createState() => _CartScreenState();
+}
+
+class _CartScreenState extends State<CartScreen> {
+  final OrderService _orderService = OrderService();
+  bool _isCreatingOrder = false;
 
   @override
   Widget build(BuildContext context) {
@@ -211,30 +221,42 @@ class CartScreen extends StatelessWidget {
                           ),
                           const SizedBox(height: 8),
                           IconButton(
-                            icon: Icon(Icons.delete_outline),
+                            icon: const Icon(Icons.delete_outline),
+                            color: AppTheme.errorRed,
+                            iconSize: 24,
                             onPressed: () {
-                              showDialog(
-                                context: context,
-                                builder: (context) => AlertDialog(
-                                  title: Text('Eliminar producto'),
-                                  content: Text('¿Deseas eliminar "${itemDetail.itemName}"?'),
-                                  actions: [
-                                    TextButton(
-                                      onPressed: () => Navigator.pop(context),
-                                      child: Text('Cancelar'),
+                              if (authProvider.currentUser != null) {
+                                showDialog(
+                                  context: context,
+                                  builder: (context) => AlertDialog(
+                                    title: const Text('Eliminar producto'),
+                                    content: Text(
+                                      '¿Deseas eliminar "${itemDetail.itemName}" del carrito?',
                                     ),
-                                    TextButton(
-                                      onPressed: () {
-                                        cartProvider.removeItem(authProvider.currentUser!.id, item.id!);
-                                        Navigator.pop(context);
-                                      },
-                                      child: Text('Eliminar'),
-                                    ),
-                                  ],
-                                ),
-                              );
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () => Navigator.pop(context),
+                                        child: const Text('Cancelar'),
+                                      ),
+                                      TextButton(
+                                        onPressed: () {
+                                          cartProvider.removeItem(
+                                            authProvider.currentUser!.id,
+                                            item.id!,
+                                          );
+                                          Navigator.pop(context);
+                                        },
+                                        child: const Text(
+                                          'Eliminar',
+                                          style: TextStyle(color: AppTheme.errorRed),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }
                             },
-                          )
+                          ),
                         ],
                       ),
                     ],
@@ -278,7 +300,7 @@ class CartScreen extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'IVA (16%)',
+                    'IVA (21%)',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                           color: AppTheme.textSecondary,
                         ),
@@ -315,31 +337,19 @@ class CartScreen extends StatelessWidget {
                 width: double.infinity,
                 height: 50,
                 child: ElevatedButton(
-                  onPressed: () {
-                    if (!authProvider.isAuthenticated) {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const LoginScreen(),
-                        ),
-                      );
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'Debes iniciar sesión para comprar',
+                  onPressed: _isCreatingOrder
+                      ? null
+                      : () => _proceedToCheckout(cartProvider, authProvider),
+                  child: _isCreatingOrder
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
                           ),
-                        ),
-                      );
-                    } else {
-                      // Proceed to checkout
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Funcionalidad de pago próximamente'),
-                        ),
-                      );
-                    }
-                  },
-                  child: const Text('Proceder al pago'),
+                        )
+                      : const Text('Proceder al pago'),
                 ),
               ),
             ],
@@ -347,5 +357,95 @@ class CartScreen extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  Future<void> _proceedToCheckout(
+    CartProvider cartProvider,
+    AuthProvider authProvider,
+  ) async {
+    if (!authProvider.isAuthenticated) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const LoginScreen(),
+        ),
+      );
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Debes iniciar sesión para comprar'),
+        ),
+      );
+      return;
+    }
+
+    if (cartProvider.cart == null || cartProvider.cart!.items.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('El carrito está vacío'),
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isCreatingOrder = true;
+    });
+
+    try {
+      // Prepare order items
+      final orderItems = cartProvider.cart!.items.map((item) {
+        return {
+          'itemType': item.itemType,
+          'itemId': item.itemId,
+          'quantity': item.quantity,
+          'price': item.price,
+        };
+      }).toList();
+
+      // Create order
+      final response = await _orderService.createOrder(
+        userId: authProvider.currentUser!.id,
+        shippingAddress: 'Digital delivery', // For digital products
+        items: orderItems,
+      );
+
+      setState(() {
+        _isCreatingOrder = false;
+      });
+
+      if (response.success && response.data != null) {
+        // Navigate to checkout screen
+        if (mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => CheckoutScreen(order: response.data!),
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(response.error ?? 'Error al crear la orden'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      setState(() {
+        _isCreatingOrder = false;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 }
