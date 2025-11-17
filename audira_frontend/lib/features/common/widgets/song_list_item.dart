@@ -6,6 +6,7 @@ import '../../../config/constants.dart';
 import '../../../core/models/song.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/providers/cart_provider.dart';
+import '../../../core/providers/library_provider.dart';
 
 class SongListItem extends StatelessWidget {
   final Song song;
@@ -52,33 +53,77 @@ class SongListItem extends StatelessWidget {
           '${song.durationFormatted} • \$${song.price.toStringAsFixed(2)}',
           style: Theme.of(context).textTheme.bodySmall,
         ),
-        trailing: IconButton(
-          icon: const Icon(Icons.add_shopping_cart_outlined),
-          color: AppTheme.primaryBlue,
-          onPressed: () async {
-            if (authProvider.currentUser != null) {
-              final success = await cartProvider.addToCart(
-                userId: authProvider.currentUser!.id,
-                itemType: AppConstants.itemTypeSong,
-                itemId: song.id,
-                price: song.price,
-                quantity: 1,
-              );
-              if (success && context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('${song.name} agregado al carrito'),
-                    backgroundColor: AppTheme.successGreen,
-                  ),
-                );
-              }
-            } else {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Inicia sesión para agregar al carrito'),
+        trailing: Consumer<LibraryProvider>(
+          builder: (context, libraryProvider, child) {
+            final isPurchased = libraryProvider.isSongPurchased(song.id);
+
+            if (isPurchased) {
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.green,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: const [
+                    Icon(
+                      Icons.check_circle,
+                      size: 16,
+                      color: Colors.white,
+                    ),
+                    SizedBox(width: 4),
+                    Text(
+                      'Adquirido',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
                 ),
               );
             }
+
+            return IconButton(
+              icon: const Icon(Icons.add_shopping_cart_outlined),
+              color: AppTheme.primaryBlue,
+              onPressed: () async {
+                if (authProvider.currentUser != null) {
+                  final success = await cartProvider.addToCart(
+                    userId: authProvider.currentUser!.id,
+                    itemType: AppConstants.itemTypeSong,
+                    itemId: song.id,
+                    price: song.price,
+                    quantity: 1,
+                  );
+                  if (context.mounted) {
+                    if (success) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('${song.name} agregado al carrito'),
+                          backgroundColor: AppTheme.successGreen,
+                        ),
+                      );
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('${song.name} ya está en el carrito'),
+                          backgroundColor: Colors.orange,
+                        ),
+                      );
+                    }
+                  }
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Inicia sesión para agregar al carrito'),
+                    ),
+                  );
+                }
+              },
+            );
           },
         ),
         onTap: onTap ??
