@@ -52,11 +52,15 @@ class CartService {
     return ApiResponse(success: false, error: response.error);
   }
 
-  Future<ApiResponse<void>> removeFromCart(int userId, int itemId) async {
-    return await _apiClient.delete(
+  Future<ApiResponse<Cart>> removeFromCart(int userId, int itemId) async {
+    final response = await _apiClient.delete(
       '${AppConstants.cartUrl}/$userId/items/$itemId',
       requiresAuth: false,
     );
+    if (response.success && response.data != null) {
+      return ApiResponse(success: true, data: Cart.fromJson(response.data));
+    }
+    return ApiResponse(success: false, error: response.error);
   }
 
   Future<ApiResponse<void>> clearCart(int userId) async {

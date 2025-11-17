@@ -253,7 +253,7 @@ class _SongDetailScreenState extends State<SongDetailScreen>
 
     final cartProvider = context.read<CartProvider>();
     try {
-      await cartProvider.addToCart(
+      final success = await cartProvider.addToCart(
         userId: authProvider.currentUser!.id,
         itemType: 'SONG',
         itemId: _song!.id,
@@ -261,13 +261,34 @@ class _SongDetailScreenState extends State<SongDetailScreen>
         quantity: 1,
       );
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Song added to cart')),
-      );
+      if (mounted) {
+        if (success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('${_song!.name} añadido al carrito'),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('${_song!.name} ya está en el carrito'),
+              backgroundColor: Colors.orange,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -524,15 +545,27 @@ class _SongDetailScreenState extends State<SongDetailScreen>
           ),
           const SizedBox(width: 8),
           Expanded(
-            child: ElevatedButton.icon(
-              onPressed: _addToCart,
-              icon: const Icon(Icons.shopping_cart),
-              label: const Text('Add to Cart'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.darkBlue,
-                padding: const EdgeInsets.symmetric(vertical: 12),
-              ),
-            ),
+            child: libraryProvider.isSongPurchased(_song!.id)
+                ? ElevatedButton.icon(
+                    onPressed: null, // Botón deshabilitado
+                    icon: const Icon(Icons.check_circle),
+                    label: const Text('Comprado'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      disabledBackgroundColor: Colors.green.withValues(alpha: 0.7),
+                      disabledForegroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  )
+                : ElevatedButton.icon(
+                    onPressed: _addToCart,
+                    icon: const Icon(Icons.shopping_cart),
+                    label: const Text('Add to Cart'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.darkBlue,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
           ),
           const SizedBox(width: 8),
           IconButton(

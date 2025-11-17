@@ -1,19 +1,20 @@
 import 'package:flutter/foundation.dart';
-import '../models/cart_item.dart';
-import '../api/services/cart_service.dart';
-import '../models/song.dart';
-import '../models/album.dart';
-import '../api/services/music_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
+import '../models/cart_item.dart';
+import '../models/song.dart';
+import '../models/album.dart';
+import '../api/services/cart_service.dart';
+import '../api/services/music_service.dart';
 import '../../config/constants.dart';
+
 class CartProvider with ChangeNotifier {
   final CartService _cartService = CartService();
   final MusicService _musicService = MusicService();
-  static const double taxRate = 0.21; // IVA 21%
 
   Cart? _cart;
   bool _isLoading = false;
+  bool _isLoadingInProgress = false;
   List<CartItemDetail> _cartItemDetails = [];
 
   Cart? get cart => _cart;
@@ -22,36 +23,49 @@ class CartProvider with ChangeNotifier {
   double get totalAmount => _cart?.totalAmount ?? 0.0;
   List<CartItemDetail> get cartItemDetails => _cartItemDetails;
 
-// Subtotal (suma de precios sin impuestos)
-double get subtotal {
-  if (_cart == null || _cart!.items.isEmpty) return 0.0;
-  return _cart!.items.fold(0.0, (sum, item) => sum + item.totalPrice);
-}
+  // Tax calculations (IVA 21%)
+  static const double taxRate = 0.21;
 
-// Impuestos (IVA 21%)
-double get taxAmount {
-  return subtotal * taxRate;
-}
+  double get subtotal {
+    if (_cart == null || _cart!.items.isEmpty) return 0.0;
+    return _cart!.items.fold(0.0, (sum, item) => sum + item.totalPrice);
+  }
 
-// Total final (subtotal + impuestos)
-double get totalWithTax {
-  return subtotal + taxAmount;
-}
+  double get taxAmount {
+    return subtotal * taxRate;
+  }
+
+  double get totalWithTax {
+    return subtotal + taxAmount;
+  }
 
   Future<void> loadCart(int userId) async {
-    _isLoading = true;
-    notifyListeners();
-    await _loadCartFromLocal(userId);
-
-    final response = await _cartService.getCart(userId);
-    if (response.success && response.data != null) {
-      _cart = response.data;
-      await _loadCartItemDetails();
-      await _saveCartToLocal(userId);
+    // Prevent concurrent loads
+    if (_isLoadingInProgress) {
+      debugPrint('Cart load already in progress, skipping duplicate call');
+      return;
     }
 
-    _isLoading = false;
+    _isLoadingInProgress = true;
+    _isLoading = true;
     notifyListeners();
+
+    try {
+      // Try to load from local storage first
+      await _loadCartFromLocal(userId);
+
+      // Then sync with server
+      final response = await _cartService.getCart(userId);
+      if (response.success && response.data != null) {
+        _cart = response.data;
+        await _loadCartItemDetails();
+        await _saveCartToLocal(userId);
+      }
+    } finally {
+      _isLoading = false;
+      _isLoadingInProgress = false;
+      notifyListeners();
+    }
   }
 
   Future<void> _loadCartItemDetails() async {
@@ -85,6 +99,46 @@ double get totalWithTax {
     }
   }
 
+  // Save cart to local storage
+  Future<void> _saveCartToLocal(int userId) async {
+    if (_cart == null) return;
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final cartJson = jsonEncode(_cart!.toJson());
+      await prefs.setString('${AppConstants.guestCartKey}_$userId', cartJson);
+    } catch (e) {
+      debugPrint('Error saving cart to local storage: $e');
+    }
+  }
+
+  // Load cart from local storage
+  Future<void> _loadCartFromLocal(int userId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final cartJson = prefs.getString('${AppConstants.guestCartKey}_$userId');
+
+      if (cartJson != null) {
+        final cartData = jsonDecode(cartJson) as Map<String, dynamic>;
+        _cart = Cart.fromJson(cartData);
+        await _loadCartItemDetails();
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('Error loading cart from local storage: $e');
+    }
+  }
+
+  // Clear local storage
+  Future<void> _clearCartFromLocal(int userId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('${AppConstants.guestCartKey}_$userId');
+    } catch (e) {
+      debugPrint('Error clearing cart from local storage: $e');
+    }
+  }
+
   Future<bool> addToCart({
     required int userId,
     required String itemType,
@@ -92,21 +146,61 @@ double get totalWithTax {
     required double price,
     int quantity = 1,
   }) async {
-    final response = await _cartService.addToCart(
-      userId: userId,
-      itemType: itemType,
-      itemId: itemId,
-      price: price,
-      quantity: quantity,
-    );
+    try {
+      debugPrint('CartProvider.addToCart called - userId: $userId, itemType: $itemType, itemId: $itemId, price: $price');
 
-    if (response.success && response.data != null) {
-      _cart = response.data;
-      await _loadCartItemDetails();
+      // Check if the item already exists in the cart (prevent duplicates for digital products)
+      if (_cart != null) {
+        final existingItem = _cart!.items.firstWhere(
+          (item) => item.itemType == itemType && item.itemId == itemId,
+          orElse: () => const CartItem(itemType: '', itemId: -1, price: 0),
+        );
+
+        if (existingItem.itemId != -1) {
+          debugPrint('Item already exists in cart - not adding duplicate');
+          return false; // Item already in cart, don't add duplicate
+        }
+      }
+
+      // Set loading state to prevent UI flickering
+      _isLoading = true;
       notifyListeners();
-      return true;
+
+      // For digital products, always set quantity to 1
+      final response = await _cartService.addToCart(
+        userId: userId,
+        itemType: itemType,
+        itemId: itemId,
+        price: price,
+        quantity: 1, // Always 1 for digital products
+      );
+
+      debugPrint('CartService.addToCart response - success: ${response.success}, error: ${response.error}, statusCode: ${response.statusCode}');
+
+      if (response.success && response.data != null) {
+        _cart = response.data;
+        debugPrint('Cart updated - items count: ${_cart!.items.length}');
+
+        await _loadCartItemDetails();
+        debugPrint('Cart item details loaded - count: ${_cartItemDetails.length}');
+
+        await _saveCartToLocal(userId);
+
+        _isLoading = false;
+        notifyListeners();
+        return true;
+      }
+
+      _isLoading = false;
+      debugPrint('addToCart failed - success: ${response.success}, data null: ${response.data == null}');
+      notifyListeners();
+      return false;
+    } catch (e) {
+      debugPrint('Error in addToCart: $e');
+      _isLoading = false;
+      notifyListeners();
+      return false;
     }
-    return false;
   }
 
   Future<bool> updateQuantity(int userId, int itemId, int quantity) async {
@@ -119,6 +213,7 @@ double get totalWithTax {
     if (response.success && response.data != null) {
       _cart = response.data;
       await _loadCartItemDetails();
+      await _saveCartToLocal(userId);
       notifyListeners();
       return true;
     }
@@ -126,54 +221,47 @@ double get totalWithTax {
   }
 
   Future<bool> removeItem(int userId, int itemId) async {
+    debugPrint('CartProvider.removeItem called - userId: $userId, itemId: $itemId');
+
     final response = await _cartService.removeFromCart(userId, itemId);
-    if (response.success) {
-      await loadCart(userId);
+
+    debugPrint('CartService.removeFromCart response - success: ${response.success}, error: ${response.error}');
+
+    if (response.success && response.data != null) {
+      _cart = response.data;
+      debugPrint('Cart updated after removal - items count: ${_cart!.items.length}');
+
+      await _loadCartItemDetails();
+      await _saveCartToLocal(userId);
+      notifyListeners();
       return true;
     }
+
+    debugPrint('removeItem failed - success: ${response.success}, data null: ${response.data == null}');
     return false;
   }
 
   Future<void> clearCart(int userId) async {
-    await _cartService.clearCart(userId);
-    _cart = null;
-    notifyListeners();
-  }
-
-  Future<void> _saveCartToLocal(int userId) async {
-    if (_cart == null) return;
+    debugPrint('=== CartProvider.clearCart called for userId: $userId ===');
 
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final cartJson = jsonEncode(_cart!.toJson());
-      await prefs.setString('${AppConstants.guestCartKey}_$userId', cartJson);
-    } catch (e) {
-      debugPrint('Error saving cart: $e');
-    }
-  }
+      final response = await _cartService.clearCart(userId);
+      debugPrint('CartService.clearCart response - success: ${response.success}');
 
-  Future<void> _loadCartFromLocal(int userId) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final cartJson = prefs.getString('${AppConstants.guestCartKey}_$userId');
+      // Clear local state regardless of server response
+      _cart = null;
+      _cartItemDetails = [];
+      await _clearCartFromLocal(userId);
+      notifyListeners();
 
-      if (cartJson != null) {
-        final cartData = jsonDecode(cartJson);
-        _cart = Cart.fromJson(cartData);
-        await _loadCartItemDetails();
-        notifyListeners();
-      }
+      debugPrint('=== Cart cleared successfully ===');
     } catch (e) {
-      debugPrint('Error loading cart: $e');
-    }
-  }
-
-  Future<void> _clearCartFromLocal(int userId) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove('${AppConstants.guestCartKey}_$userId');
-    } catch (e) {
-      debugPrint('Error clearing cart: $e');
+      debugPrint('=== Error clearing cart: $e ===');
+      // Still clear local state even if server fails
+      _cart = null;
+      _cartItemDetails = [];
+      await _clearCartFromLocal(userId);
+      notifyListeners();
     }
   }
 }

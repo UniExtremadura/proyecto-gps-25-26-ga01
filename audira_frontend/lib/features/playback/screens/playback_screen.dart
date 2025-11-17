@@ -640,20 +640,39 @@ class PlaybackScreen extends StatelessWidget {
               }
               final cartProvider = context.read<CartProvider>();
               try {
-                await cartProvider.addToCart(
+                final success = await cartProvider.addToCart(
                   userId: authProvider.currentUser!.id,
                   itemType: 'SONG',
                   itemId: currentSong.id,
                   price: currentSong.price,
                   quantity: 1,
                 );
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Song added to cart')),
-                );
+                if (context.mounted) {
+                  if (success) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('${currentSong.name} añadido al carrito'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('${currentSong.name} ya está en el carrito'),
+                        backgroundColor: Colors.orange,
+                      ),
+                    );
+                  }
+                }
               } catch (e) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Error: $e')),
-                );
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Error: $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
               }
             },
           ),
