@@ -20,7 +20,7 @@ public class ProfileImageController {
     private final FileStorageService fileStorageService;
     private final UserService userService;
 
-    @Value("${file.base-url:http://localhost:9001}")
+    @Value("${file.base-url:http://54.81.152.217:9001}")
     private String baseUrl;
 
     @PostMapping("/profile/image")

@@ -17,7 +17,7 @@ public class FileUploadController {
 
     private final FileStorageService fileStorageService;
 
-    @Value("${file.base-url:http://localhost:9005}")
+    @Value("${file.base-url:http://54.81.152.217:9005}")
     private String baseUrl;
 
     @PostMapping("/audio")
