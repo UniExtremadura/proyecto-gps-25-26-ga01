@@ -1,11 +1,6 @@
 import 'user.dart';
 
 class Artist extends User {
-  final String? artistName;
-  final bool verifiedArtist;
-  final String? artistBio;
-  final String? recordLabel;
-
   const Artist({
     required super.id,
     super.uid,
@@ -25,12 +20,22 @@ class Artist extends User {
     super.followingIds,
     super.createdAt,
     super.updatedAt,
-    this.artistName,
-    this.verifiedArtist = false,
-    this.artistBio,
-    this.recordLabel,
-  });
+    super.artistName,
+    bool verifiedArtist = false,
+    super.artistBio,
+    super.recordLabel,
+    super.twitterUrl,
+    super.instagramUrl,
+    super.facebookUrl,
+    super.youtubeUrl,
+    super.spotifyUrl,
+    super.tiktokUrl,
+  }) : super(verifiedArtist: verifiedArtist);
 
+  @override
+  bool get verifiedArtist => super.verifiedArtist ?? false;
+
+  @override
   String get displayName => artistName ?? fullName;
 
   factory Artist.fromJson(Map<String, dynamic> json) {
@@ -67,6 +72,12 @@ class Artist extends User {
       verifiedArtist: json['verifiedArtist'] as bool? ?? false,
       artistBio: json['artistBio'] as String?,
       recordLabel: json['recordLabel'] as String?,
+      twitterUrl: json['twitterUrl'] as String?,
+      instagramUrl: json['instagramUrl'] as String?,
+      facebookUrl: json['facebookUrl'] as String?,
+      youtubeUrl: json['youtubeUrl'] as String?,
+      spotifyUrl: json['spotifyUrl'] as String?,
+      tiktokUrl: json['tiktokUrl'] as String?,
     );
   }
 
@@ -104,6 +115,12 @@ class Artist extends User {
     bool? verifiedArtist,
     String? artistBio,
     String? recordLabel,
+    String? facebookUrl,
+    String? instagramUrl,
+    String? spotifyUrl,
+    String? tiktokUrl,
+    String? twitterUrl,
+    String? youtubeUrl,
   }) {
     return Artist(
       id: id ?? this.id,
@@ -128,6 +145,12 @@ class Artist extends User {
       verifiedArtist: verifiedArtist ?? this.verifiedArtist,
       artistBio: artistBio ?? this.artistBio,
       recordLabel: recordLabel ?? this.recordLabel,
+      twitterUrl: twitterUrl ?? this.twitterUrl,
+      instagramUrl: instagramUrl ?? this.instagramUrl,
+      facebookUrl: facebookUrl ?? this.facebookUrl,
+      youtubeUrl: youtubeUrl ?? this.youtubeUrl,
+      spotifyUrl: spotifyUrl ?? this.spotifyUrl,
+      tiktokUrl: tiktokUrl ?? this.tiktokUrl,
     );
   }
 
