@@ -71,6 +71,55 @@ public class ProfileImageController {
         }
     }
 
+    @PostMapping("/profile/banner")
+    public ResponseEntity<?> uploadBannerImage(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam("userId") Long userId) {
+
+        try {
+            // Log para debugging
+            System.out.println("Recibido archivo: " + file.getOriginalFilename());
+            System.out.println("Content-Type: " + file.getContentType());
+            System.out.println("Tamaño: " + file.getSize() + " bytes");
+
+            // Validar que sea una imagen
+            if (!fileStorageService.isValidImageFile(file)) {
+                return ResponseEntity.badRequest().body(
+                    createErrorResponse("El archivo debe ser una imagen (JPEG, PNG, GIF, WEBP)")
+                );
+            }
+
+            // Validar tamaño (máximo 5MB)
+            if (file.getSize() > 5 * 1024 * 1024) {
+                return ResponseEntity.badRequest().body(
+                    createErrorResponse("El archivo no debe superar los 5MB")
+                );
+            }
+
+            // Guardar el archivo en carpeta "banner-images"
+            String filePath = fileStorageService.storeFile(file, "banner-images");
+            String fileUrl = baseUrl + "/api/files/" + filePath;
+
+            // Actualizar el usuario con la nueva banner image url
+            Map<String, Object> updates = new HashMap<>();
+            updates.put("bannerImageUrl", fileUrl);
+            UserDTO updatedUser = userService.updateProfile(userId, updates);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("message", "Banner actualizado exitosamente");
+            response.put("fileUrl", fileUrl);
+            response.put("user", updatedUser);
+
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(
+                createErrorResponse("Error al subir el banner: " + e.getMessage())
+            );
+        }
+    }
+
+
     private Map<String, String> createErrorResponse(String message) {
         Map<String, String> error = new HashMap<>();
         error.put("error", message);

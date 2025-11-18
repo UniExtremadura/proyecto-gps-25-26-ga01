@@ -27,6 +27,40 @@ class ProfileScreen extends StatelessWidget {
         Center(
           child: Column(
             children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: Container(
+                    height: 150,
+                    decoration: BoxDecoration(
+                      color: user.bannerImageUrl == null
+                          ? AppTheme.primaryBlue.withOpacity(0.2) // Color por defecto elegante
+                          : null,
+                      image: user.bannerImageUrl != null
+                          ? DecorationImage(
+                              image: NetworkImage(user.bannerImageUrl!),
+                              fit: BoxFit.cover,
+                            )
+                          : null,
+                    ),
+                    child: user.bannerImageUrl == null
+                        ? Center(
+                            child: Text(
+                              'Seleccione una imagen para el baner',
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: AppTheme.textGrey,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                            ),
+                          )
+                        : null,
+                  ),
+                ),
+              ),
+
+              // Separación con la imagen de perfil
+              const SizedBox(height: 16),
               CircleAvatar(
                 radius: 50,
                 backgroundColor: AppTheme.primaryBlue,
