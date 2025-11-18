@@ -17,7 +17,7 @@ public class FileCompressionController {
 
     private final FileCompressionService fileCompressionService;
 
-    @Value("${file.base-url:http://68.221.240.178:9005}")
+    @Value("${file.base-url:http://188.227.140.98:9005}")
     private String baseUrl;
 
     @PostMapping("/compress")
