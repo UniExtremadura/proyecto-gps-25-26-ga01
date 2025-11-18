@@ -70,6 +70,7 @@ dependencies:
 
   # Loading indicators
   flutter_spinkit: ^5.2.0
+  timeago: ^3.7.1
 
 dev_dependencies:
   flutter_test:

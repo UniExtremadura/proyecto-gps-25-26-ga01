@@ -9,6 +9,9 @@ class Rating extends Equatable {
   final String? comment;
   final DateTime? createdAt;
   final DateTime? updatedAt;
+  final bool? isActive;
+  final String? userName;
+  final String? userProfileImageUrl;
 
   const Rating({
     required this.id,
@@ -19,6 +22,9 @@ class Rating extends Equatable {
     this.comment,
     this.createdAt,
     this.updatedAt,
+    this.isActive,
+    this.userName,
+    this.userProfileImageUrl,
   });
 
   factory Rating.fromJson(Map<String, dynamic> json) {
@@ -35,6 +41,9 @@ class Rating extends Equatable {
       updatedAt: json['updatedAt'] != null
           ? DateTime.parse(json['updatedAt'] as String)
           : null,
+      isActive: json['isActive'] as bool?,
+      userName: json['userName'] as String?,
+      userProfileImageUrl: json['userProfileImageUrl'] as String?,
     );
   }
 
@@ -48,6 +57,9 @@ class Rating extends Equatable {
       'comment': comment,
       'createdAt': createdAt?.toIso8601String(),
       'updatedAt': updatedAt?.toIso8601String(),
+      'isActive': isActive,
+      'userName': userName,
+      'userProfileImageUrl': userProfileImageUrl,
     };
   }
 
@@ -61,5 +73,8 @@ class Rating extends Equatable {
         comment,
         createdAt,
         updatedAt,
+        isActive,
+        userName,
+        userProfileImageUrl,
       ];
 }
