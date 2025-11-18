@@ -30,4 +30,18 @@ public class UserDTO {
     private Set<Long> followingIds;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+
+    // Artist-specific fields
+    private String artistName;
+    private String artistBio;
+    private String recordLabel;
+    private Boolean verifiedArtist;
+
+    // Social media links
+    private String twitterUrl;
+    private String instagramUrl;
+    private String facebookUrl;
+    private String youtubeUrl;
+    private String spotifyUrl;
+    private String tiktokUrl;
 }

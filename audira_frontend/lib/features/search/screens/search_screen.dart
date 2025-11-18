@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'dart:async';
 import '../../../core/models/song.dart';
 import '../../../core/models/album.dart';
 import '../../../core/models/artist.dart';
@@ -23,27 +24,62 @@ class _SearchScreenState extends State<SearchScreen>
     with SingleTickerProviderStateMixin {
   final TextEditingController _searchController = TextEditingController();
   final DiscoveryService _discoveryService = DiscoveryService();
+  final ScrollController _songsScrollController = ScrollController();
+  final ScrollController _albumsScrollController = ScrollController();
 
   List<Song> _songs = [];
   List<Album> _albums = [];
   List<Artist> _artists = [];
 
   bool _isLoading = false;
+  bool _isLoadingMoreSongs = false;
+  bool _isLoadingMoreAlbums = false;
   bool _hasSearched = false;
   late TabController _tabController;
+
+  int _currentSongPage = 0;
+  int _currentAlbumPage = 0;
+  bool _hasMoreSongs = false;
+  bool _hasMoreAlbums = false;
+  String _currentQuery = '';
+  Timer? _debounceTimer;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
     _loadTrendingContent();
+
+    _songsScrollController.addListener(_onSongsScroll);
+    _albumsScrollController.addListener(_onAlbumsScroll);
   }
 
   @override
   void dispose() {
     _searchController.dispose();
     _tabController.dispose();
+    _songsScrollController.dispose();
+    _albumsScrollController.dispose();
+    _debounceTimer?.cancel();
     super.dispose();
+  }
+
+  void _onSongsScroll() {
+    if (_songsScrollController.position.pixels >=
+            _songsScrollController.position.maxScrollExtent * 0.8 &&
+        !_isLoadingMoreSongs &&
+        _hasMoreSongs) {
+      _loadMoreSongs();
+    }
+  }
+
+  void _onAlbumsScroll() {
+    if (_albumsScrollController.position.pixels >=
+            _albumsScrollController.position.maxScrollExtent * 0.8 &&
+        !_isLoadingMoreAlbums &&
+        _hasMoreAlbums) {
+      _loadMoreAlbums();
+    }
   }
 
   Future<void> _loadTrendingContent() async {
@@ -75,6 +111,11 @@ class _SearchScreenState extends State<SearchScreen>
         _songs = [];
         _albums = [];
         _artists = [];
+        _currentSongPage = 0;
+        _currentAlbumPage = 0;
+        _hasMoreSongs = false;
+        _hasMoreAlbums = false;
+        _currentQuery = '';
       });
       _loadTrendingContent();
       return;
@@ -83,19 +124,40 @@ class _SearchScreenState extends State<SearchScreen>
     setState(() {
       _isLoading = true;
       _hasSearched = true;
+      _currentQuery = query;
+      _currentSongPage = 0;
+      _currentAlbumPage = 0;
     });
 
     try {
-      // Search songs
-      final songsResponse = await _discoveryService.searchSongs(query);
+      final songsResponse = await _discoveryService.searchSongs(
+        query,
+        page: 0,
+        size: 20,
+      );
       if (songsResponse.success && songsResponse.data != null) {
-        _songs = songsResponse.data!;
+        final data = songsResponse.data!;
+        _songs = List<Song>.from(data['songs'] as List);
+        _hasMoreSongs = data['hasMore'] as bool;
+        _currentSongPage = 0;
+      } else {
+        _songs = [];
+        _hasMoreSongs = false;
       }
 
-      // Search albums
-      final albumsResponse = await _discoveryService.searchAlbums(query);
+      final albumsResponse = await _discoveryService.searchAlbums(
+        query,
+        page: 0,
+        size: 20,
+      );
       if (albumsResponse.success && albumsResponse.data != null) {
-        _albums = albumsResponse.data!;
+        final data = albumsResponse.data!;
+        _albums = List<Album>.from(data['albums'] as List);
+        _hasMoreAlbums = data['hasMore'] as bool;
+        _currentAlbumPage = 0;
+      } else {
+        _albums = [];
+        _hasMoreAlbums = false;
       }
 
       // Artist search functionality
@@ -107,6 +169,60 @@ class _SearchScreenState extends State<SearchScreen>
       );
     } finally {
       setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _loadMoreSongs() async {
+    if (_isLoadingMoreSongs || !_hasMoreSongs) return;
+
+    setState(() => _isLoadingMoreSongs = true);
+
+    try {
+      final response = await _discoveryService.searchSongs(
+        _currentQuery,
+        page: _currentSongPage + 1,
+        size: 20,
+      );
+
+      if (response.success && response.data != null) {
+        final data = response.data!;
+        setState(() {
+          _songs.addAll(List<Song>.from(data['songs'] as List));
+          _hasMoreSongs = data['hasMore'] as bool;
+          _currentSongPage++;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading more songs: $e');
+    } finally {
+      setState(() => _isLoadingMoreSongs = false);
+    }
+  }
+
+  Future<void> _loadMoreAlbums() async {
+    if (_isLoadingMoreAlbums || !_hasMoreAlbums) return;
+
+    setState(() => _isLoadingMoreAlbums = true);
+
+    try {
+      final response = await _discoveryService.searchAlbums(
+        _currentQuery,
+        page: _currentAlbumPage + 1,
+        size: 20,
+      );
+
+      if (response.success && response.data != null) {
+        final data = response.data!;
+        setState(() {
+          _albums.addAll(List<Album>.from(data['albums'] as List));
+          _hasMoreAlbums = data['hasMore'] as bool;
+          _currentAlbumPage++;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading more albums: $e');
+    } finally {
+      setState(() => _isLoadingMoreAlbums = false);
     }
   }
 
@@ -134,8 +250,8 @@ class _SearchScreenState extends State<SearchScreen>
           ),
           onChanged: (value) {
             setState(() {});
-            // Debounce search
-            Future.delayed(const Duration(milliseconds: 500), () {
+            _debounceTimer?.cancel();
+            _debounceTimer = Timer(const Duration(milliseconds: 500), () {
               if (_searchController.text == value) {
                 _performSearch(value);
               }
@@ -343,9 +459,20 @@ class _SearchScreenState extends State<SearchScreen>
 
   Widget _buildSongsList() {
     return ListView.builder(
+      controller: _songsScrollController,
       padding: const EdgeInsets.all(16),
-      itemCount: _songs.length,
+      itemCount: _songs.length + (_hasMoreSongs ? 1 : 0),
       itemBuilder: (context, index) {
+        if (index == _songs.length) {
+          // Loading indicator at bottom (GA01-98)
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(16.0),
+              child: CircularProgressIndicator(),
+            ),
+          );
+        }
+
         final song = _songs[index];
         return SongListItem(
           song: song,
@@ -358,9 +485,20 @@ class _SearchScreenState extends State<SearchScreen>
 
   Widget _buildAlbumsList() {
     return ListView.builder(
+      controller: _albumsScrollController,
       padding: const EdgeInsets.all(16),
-      itemCount: _albums.length,
+      itemCount: _albums.length + (_hasMoreAlbums ? 1 : 0),
       itemBuilder: (context, index) {
+        if (index == _albums.length) {
+          // Loading indicator at bottom (GA01-98)
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(16.0),
+              child: CircularProgressIndicator(),
+            ),
+          );
+        }
+
         final album = _albums[index];
         return AlbumListItem(
           album: album,
