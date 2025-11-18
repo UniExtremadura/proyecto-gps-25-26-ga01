@@ -37,7 +37,6 @@ class _SearchScreenState extends State<SearchScreen>
   bool _hasSearched = false;
   late TabController _tabController;
 
-  // Pagination state for GA01-98
   int _currentSongPage = 0;
   int _currentAlbumPage = 0;
   bool _hasMoreSongs = false;
@@ -51,7 +50,6 @@ class _SearchScreenState extends State<SearchScreen>
     _tabController = TabController(length: 4, vsync: this);
     _loadTrendingContent();
 
-    // Attach scroll listeners for infinite scroll (GA01-98)
     _songsScrollController.addListener(_onSongsScroll);
     _albumsScrollController.addListener(_onAlbumsScroll);
   }
@@ -132,7 +130,6 @@ class _SearchScreenState extends State<SearchScreen>
     });
 
     try {
-      // Search songs with pagination (GA01-96, GA01-98)
       final songsResponse = await _discoveryService.searchSongs(
         query,
         page: 0,
@@ -148,7 +145,6 @@ class _SearchScreenState extends State<SearchScreen>
         _hasMoreSongs = false;
       }
 
-      // Search albums with pagination (GA01-96, GA01-98)
       final albumsResponse = await _discoveryService.searchAlbums(
         query,
         page: 0,
@@ -254,7 +250,6 @@ class _SearchScreenState extends State<SearchScreen>
           ),
           onChanged: (value) {
             setState(() {});
-            // Improved debouncing for GA01-97
             _debounceTimer?.cancel();
             _debounceTimer = Timer(const Duration(milliseconds: 500), () {
               if (_searchController.text == value) {
