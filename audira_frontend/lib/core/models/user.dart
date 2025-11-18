@@ -20,6 +20,20 @@ class User extends Equatable {
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
+  // Artist-specific fields
+  final String? artistName;
+  final String? artistBio;
+  final String? recordLabel;
+  final bool? verifiedArtist;
+
+  // Social media links
+  final String? twitterUrl;
+  final String? instagramUrl;
+  final String? facebookUrl;
+  final String? youtubeUrl;
+  final String? spotifyUrl;
+  final String? tiktokUrl;
+
   const User({
     required this.id,
     this.uid,
@@ -39,6 +53,16 @@ class User extends Equatable {
     this.followingIds = const [],
     this.createdAt,
     this.updatedAt,
+    this.artistName,
+    this.artistBio,
+    this.recordLabel,
+    this.verifiedArtist,
+    this.twitterUrl,
+    this.instagramUrl,
+    this.facebookUrl,
+    this.youtubeUrl,
+    this.spotifyUrl,
+    this.tiktokUrl,
   });
 
   String get fullName {
@@ -78,6 +102,16 @@ class User extends Equatable {
       updatedAt: json['updatedAt'] != null
           ? DateTime.parse(json['updatedAt'] as String)
           : null,
+      artistName: json['artistName'] as String?,
+      artistBio: json['artistBio'] as String?,
+      recordLabel: json['recordLabel'] as String?,
+      verifiedArtist: json['verifiedArtist'] as bool?,
+      twitterUrl: json['twitterUrl'] as String?,
+      instagramUrl: json['instagramUrl'] as String?,
+      facebookUrl: json['facebookUrl'] as String?,
+      youtubeUrl: json['youtubeUrl'] as String?,
+      spotifyUrl: json['spotifyUrl'] as String?,
+      tiktokUrl: json['tiktokUrl'] as String?,
     );
   }
 
@@ -101,6 +135,16 @@ class User extends Equatable {
       'followingIds': followingIds,
       'createdAt': createdAt?.toIso8601String(),
       'updatedAt': updatedAt?.toIso8601String(),
+      'artistName': artistName,
+      'artistBio': artistBio,
+      'recordLabel': recordLabel,
+      'verifiedArtist': verifiedArtist,
+      'twitterUrl': twitterUrl,
+      'instagramUrl': instagramUrl,
+      'facebookUrl': facebookUrl,
+      'youtubeUrl': youtubeUrl,
+      'spotifyUrl': spotifyUrl,
+      'tiktokUrl': tiktokUrl,
     };
   }
 
@@ -123,6 +167,16 @@ class User extends Equatable {
     List<int>? followingIds,
     DateTime? createdAt,
     DateTime? updatedAt,
+    String? artistName,
+    String? artistBio,
+    String? recordLabel,
+    bool? verifiedArtist,
+    String? twitterUrl,
+    String? instagramUrl,
+    String? facebookUrl,
+    String? youtubeUrl,
+    String? spotifyUrl,
+    String? tiktokUrl,
   }) {
     return User(
       id: id ?? this.id,
@@ -143,6 +197,16 @@ class User extends Equatable {
       followingIds: followingIds ?? this.followingIds,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      artistName: artistName ?? this.artistName,
+      artistBio: artistBio ?? this.artistBio,
+      recordLabel: recordLabel ?? this.recordLabel,
+      verifiedArtist: verifiedArtist ?? this.verifiedArtist,
+      twitterUrl: twitterUrl ?? this.twitterUrl,
+      instagramUrl: instagramUrl ?? this.instagramUrl,
+      facebookUrl: facebookUrl ?? this.facebookUrl,
+      youtubeUrl: youtubeUrl ?? this.youtubeUrl,
+      spotifyUrl: spotifyUrl ?? this.spotifyUrl,
+      tiktokUrl: tiktokUrl ?? this.tiktokUrl,
     );
   }
 
@@ -166,5 +230,24 @@ class User extends Equatable {
         followingIds,
         createdAt,
         updatedAt,
+        artistName,
+        artistBio,
+        recordLabel,
+        verifiedArtist,
+        twitterUrl,
+        instagramUrl,
+        facebookUrl,
+        youtubeUrl,
+        spotifyUrl,
+        tiktokUrl,
       ];
+
+  bool get isArtist => role == 'ARTIST';
+
+  String get displayName {
+    if (isArtist && artistName != null && artistName!.isNotEmpty) {
+      return artistName!;
+    }
+    return fullName;
+  }
 }

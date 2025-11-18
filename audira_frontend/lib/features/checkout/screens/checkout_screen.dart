@@ -122,74 +122,75 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   }
 
   Widget _buildPaymentMethodSelector() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Método de pago',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      const Text(
+        'Método de pago',
+        style: TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
         ),
-        const SizedBox(height: 12),
-        RadioGroup<PaymentMethod>(
-          groupValue: _selectedPaymentMethod,
-          onChanged: (PaymentMethod? value) { 
-            if (value != null) {
-              setState(() {
-                _selectedPaymentMethod = value; 
-              });
-            }
-          },
-          child: Column(
-            children: [
-              _buildPaymentMethodOption(
-                PaymentMethod.creditCard,
-                Icons.credit_card,
-              ),
-              _buildPaymentMethodOption(
-                PaymentMethod.debitCard,
-                Icons.payment,
-              ),
-              _buildPaymentMethodOption(
-                PaymentMethod.stripe,
-                Icons.credit_score,
-              ),
-            ]
-          )
-        )
-      ],
-    );
-  }
+      ),
+      const SizedBox(height: 12),
+      
+      RadioGroup<PaymentMethod>(
+        groupValue: _selectedPaymentMethod,
+        onChanged: (PaymentMethod? value) { 
+          if (value != null) {
+            setState(() {
+              _selectedPaymentMethod = value; 
+            });
+          }
+        },
+        child: Column(
+          children: [
+            _buildPaymentMethodOption(
+              PaymentMethod.creditCard,
+              Icons.credit_card,
+            ),
+            _buildPaymentMethodOption(
+              PaymentMethod.debitCard,
+              Icons.payment,
+            ),
+            _buildPaymentMethodOption(
+              PaymentMethod.stripe,
+              Icons.credit_score,
+            ),
+          ],
+        ),
+      ),
+    ],
+  );
+}
 
   Widget _buildPaymentMethodOption(PaymentMethod method, IconData icon) {
-    final isSelected = _selectedPaymentMethod == method;
+  final isSelected = _selectedPaymentMethod == method;
 
-    return Card(
-      color: isSelected ? Colors.blue.shade900 : null,
-      child: ListTile(
-        leading: Icon(
-          icon,
-          color: isSelected ? Colors.blue : null,
-        ),
-        title: Text(
-          method.displayName,
-          style: TextStyle(
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-          ),
-        ),
-        trailing: Radio<PaymentMethod>(
-          value: method,
-        ),
-        onTap: () {
-          setState(() {
-            _selectedPaymentMethod = method;
-          });
-        },
+  return Card(
+    color: isSelected ? Colors.blue.shade900 : null,
+    child: ListTile(
+      leading: Icon(
+        icon,
+        color: isSelected ? Colors.blue : null,
       ),
-    );
-  }
+      title: Text(
+        method.displayName,
+        style: TextStyle(
+          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+        ),
+      ),
+      trailing: Radio<PaymentMethod>(
+        value: method,
+      ),
+      onTap: () {
+        setState(() {
+          _selectedPaymentMethod = method;
+        });
+      },
+    ),
+  );
+}
 
   Widget _buildCardForm() {
     return Column(

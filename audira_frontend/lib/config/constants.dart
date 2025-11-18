@@ -1,6 +1,6 @@
 class AppConstants {
   // API Configuration
-  static const String apiGatewayUrl = 'http://54.81.152.217:8080';
+  static const String apiGatewayUrl = 'http://192.168.100.61:8080';
 
   // Auth endpoints
   static const String authRegisterUrl = '/api/auth/register';

@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:audira_frontend/core/models/rating.dart';
 import 'package:audira_frontend/features/rating/widgets/rating_stars.dart';
 import 'package:audira_frontend/features/rating/widgets/rating_dialog.dart';
-
 import 'package:timeago/timeago.dart' as timeago;
-
 
 /// Widget para mostrar una lista de valoraciones
 class RatingList extends StatelessWidget {
