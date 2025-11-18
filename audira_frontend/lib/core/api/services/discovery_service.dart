@@ -9,7 +9,7 @@ class DiscoveryService {
 
   final ApiClient _apiClient = ApiClient();
 
-  /// Search songs with pagination (GA01-96, GA01-98)
+  /// Search songs 
   Future<ApiResponse<Map<String, dynamic>>> searchSongs(
     String query, {
     int page = 0,
@@ -53,7 +53,7 @@ class DiscoveryService {
     }
   }
 
-  /// Search albums with pagination (GA01-96, GA01-98)
+  /// Search albums 
   Future<ApiResponse<Map<String, dynamic>>> searchAlbums(
     String query, {
     int page = 0,

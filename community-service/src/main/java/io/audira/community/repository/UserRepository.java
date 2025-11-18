@@ -22,7 +22,6 @@ public interface UserRepository extends JpaRepository<User, Long> {
     List<User> findByRole(UserRole role);
     List<User> findByIsActive(Boolean isActive);
 
-    // Search methods for GA01-96
     @Query("SELECT a FROM Artist a WHERE " +
            "LOWER(a.artistName) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
            "LOWER(a.firstName) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
