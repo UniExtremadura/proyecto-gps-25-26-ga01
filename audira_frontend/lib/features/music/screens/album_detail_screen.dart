@@ -250,9 +250,7 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen>
 
     final cartProvider = context.read<CartProvider>();
     try {
-      // CORREGIDO: La llamada a 'addToCart' estaba mal formada.
-      // Asumiendo que los parámetros son nombrados y 'quantity' es el nombre para '1'.
-      await cartProvider.addToCart(
+      final success = await cartProvider.addToCart(
         userId: authProvider.currentUser!.id,
         itemType: 'ALBUM',
         itemId: _album!.id,
@@ -260,13 +258,34 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen>
         quantity: 1,
       );
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Album added to cart')),
-      );
+      if (mounted) {
+        if (success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('${_album!.name} añadido al carrito'),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('${_album!.name} ya está en el carrito'),
+              backgroundColor: Colors.orange,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -520,15 +539,27 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen>
           ),
           const SizedBox(width: 8),
           Expanded(
-            child: ElevatedButton.icon(
-              onPressed: _addToCart,
-              icon: const Icon(Icons.shopping_cart),
-              label: const Text('Add to Cart'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.darkBlue,
-                padding: const EdgeInsets.symmetric(vertical: 12),
-              ),
-            ),
+            child: libraryProvider.isAlbumPurchased(_album!.id)
+                ? ElevatedButton.icon(
+                    onPressed: null, // Botón deshabilitado
+                    icon: const Icon(Icons.check_circle),
+                    label: const Text('Producto Comprado'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      disabledBackgroundColor: Colors.green.withValues(alpha: 0.7),
+                      disabledForegroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  )
+                : ElevatedButton.icon(
+                    onPressed: _addToCart,
+                    icon: const Icon(Icons.shopping_cart),
+                    label: const Text('Add to Cart'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.darkBlue,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
           ),
           const SizedBox(width: 8),
           IconButton(

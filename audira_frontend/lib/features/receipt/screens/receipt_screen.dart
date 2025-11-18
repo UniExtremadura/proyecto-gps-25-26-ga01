@@ -1,5 +1,7 @@
+import 'package:audira_frontend/features/home/screens/main_layout.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../../../config/theme.dart';
 import '../../../core/models/payment.dart';
 import '../../../core/models/receipt.dart';
 import '../../../core/api/services/receipt_service.dart';
@@ -33,8 +35,15 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
     });
 
     try {
-      final response =
+      // Try to get existing receipt
+      var response =
           await _receiptService.getReceiptByPaymentId(widget.payment.id);
+
+      // If receipt doesn't exist, try to generate it
+      if (!response.success) {
+        debugPrint('Receipt not found, attempting to generate...');
+        response = await _receiptService.generateReceipt(widget.payment.id);
+      }
 
       if (response.success && response.data != null) {
         setState(() {
@@ -132,11 +141,13 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
 
     return Card(
       elevation: 4,
+      color: AppTheme.cardBlack,
       child: Container(
         padding: const EdgeInsets.all(24.0),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppTheme.cardBlack,
           borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.grey.shade700, width: 1),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -148,7 +159,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
                   Icon(
                     Icons.receipt_long,
                     size: 48,
-                    color: Colors.green.shade600,
+                    color: Colors.green.shade400,
                   ),
                   const SizedBox(height: 8),
                   const Text(
@@ -156,6 +167,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
                     style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
+                      color: Colors.white,
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -163,14 +175,14 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
                     _receipt!.receiptNumber,
                     style: TextStyle(
                       fontSize: 16,
-                      color: Colors.grey.shade600,
+                      color: Colors.grey.shade400,
                     ),
                   ),
                 ],
               ),
             ),
             const SizedBox(height: 24),
-            const Divider(),
+            Divider(color: Colors.grey.shade700),
             const SizedBox(height: 16),
 
             // Customer Info
@@ -230,6 +242,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
+                color: Colors.white,
               ),
             ),
             const SizedBox(height: 12),
@@ -237,7 +250,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
             const SizedBox(height: 24),
 
             // Totals
-            const Divider(),
+            Divider(color: Colors.grey.shade700),
             const SizedBox(height: 12),
             _buildTotalRow(
               'Subtotal:',
@@ -251,13 +264,13 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
               isBold: false,
             ),
             const SizedBox(height: 8),
-            const Divider(),
+            Divider(color: Colors.grey.shade700),
             const SizedBox(height: 8),
             _buildTotalRow(
               'TOTAL:',
               _receipt!.total,
               isBold: true,
-              color: Colors.green.shade700,
+              color: Colors.green.shade400,
               fontSize: 20,
             ),
             const SizedBox(height: 24),
@@ -268,7 +281,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
                 children: [
                   Icon(
                     Icons.check_circle,
-                    color: Colors.green.shade600,
+                    color: Colors.green.shade400,
                     size: 48,
                   ),
                   const SizedBox(height: 8),
@@ -277,14 +290,14 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: Colors.green.shade700,
+                      color: Colors.green.shade400,
                     ),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     '¡Gracias por tu compra!',
                     style: TextStyle(
-                      color: Colors.grey.shade600,
+                      color: Colors.grey.shade400,
                     ),
                   ),
                 ],
@@ -305,6 +318,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
           style: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,
+            color: Colors.white,
           ),
         ),
         const SizedBox(height: 8),
@@ -324,7 +338,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
             child: Text(
               label,
               style: TextStyle(
-                color: Colors.grey.shade700,
+                color: Colors.grey.shade400,
               ),
             ),
           ),
@@ -333,7 +347,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
               value,
               style: TextStyle(
                 fontWeight: FontWeight.w500,
-                color: statusColor,
+                color: statusColor ?? Colors.white,
               ),
             ),
           ),
@@ -345,7 +359,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
   Widget _buildItemsTable() {
     return Table(
       border: TableBorder.all(
-        color: Colors.grey.shade300,
+        color: Colors.grey.shade700,
         width: 1,
       ),
       columnWidths: const {
@@ -358,7 +372,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
         // Header
         TableRow(
           decoration: BoxDecoration(
-            color: Colors.grey.shade100,
+            color: Colors.grey.shade800,
           ),
           children: const [
             _TableCell(text: 'Artículo', isHeader: true),
@@ -400,7 +414,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
           style: TextStyle(
             fontSize: fontSize,
             fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
-            color: color,
+            color: color ?? Colors.white,
           ),
         ),
         Text(
@@ -408,7 +422,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
           style: TextStyle(
             fontSize: fontSize,
             fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
-            color: color,
+            color: color ?? Colors.white,
           ),
         ),
       ],
@@ -416,27 +430,38 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
   }
 
   Widget _buildActionsRow() {
-    return Row(
+    return Column(
       children: [
-        Expanded(
-          child: ElevatedButton.icon(
-            onPressed: _downloadReceipt,
-            icon: const Icon(Icons.download),
-            label: const Text('Descargar'),
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 12),
+        Row(
+          children: [
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: _downloadReceipt,
+                icon: const Icon(Icons.download),
+                label: const Text('Descargar'),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+              ),
             ),
-          ),
+          ],
         ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: ElevatedButton.icon(
+        const SizedBox(height: 12),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
             onPressed: () {
-              Navigator.of(context).popUntil((route) => route.isFirst);
+              // Navigate to MainLayout (will start at Home tab)
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(
+                  builder: (context) => const MainLayout(),
+                ),
+                (route) => false,
+              );
             },
             icon: const Icon(Icons.home),
-            label: const Text('Inicio'),
-            style: ElevatedButton.styleFrom(
+            label: const Text('Ir al Inicio'),
+            style: OutlinedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 12),
             ),
           ),
@@ -502,6 +527,7 @@ class _TableCell extends StatelessWidget {
             style: TextStyle(
               fontWeight: isHeader ? FontWeight.bold : FontWeight.normal,
               fontSize: isHeader ? 14 : 13,
+              color: Colors.white,
             ),
           ),
           if (subtitle != null) ...[
@@ -510,7 +536,7 @@ class _TableCell extends StatelessWidget {
               subtitle!,
               style: TextStyle(
                 fontSize: 11,
-                color: Colors.grey.shade600,
+                color: Colors.grey.shade400,
               ),
             ),
           ],
