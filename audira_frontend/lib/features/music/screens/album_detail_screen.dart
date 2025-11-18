@@ -5,6 +5,7 @@ import 'package:audira_frontend/core/api/services/music_service.dart';
 import 'package:audira_frontend/core/models/album.dart';
 import 'package:audira_frontend/core/models/artist.dart';
 import 'package:audira_frontend/core/models/rating.dart';
+import 'package:audira_frontend/core/models/rating_stats.dart';
 import 'package:audira_frontend/core/models/song.dart';
 import 'package:audira_frontend/core/providers/audio_provider.dart';
 import 'package:audira_frontend/core/providers/auth_provider.dart';
@@ -17,9 +18,10 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import '../../../core/models/comment.dart';
 import '../../../core/api/services/rating_service.dart';
-import '../../../core/api/services/comment_service.dart';
+import '../../../core/api/services/library_service.dart';
+import '../../../features/rating/widgets/rating_dialog.dart';
+import '../../../features/rating/widgets/rating_list.dart';
 
 class AlbumDetailScreen extends StatefulWidget {
   final int albumId;
@@ -34,28 +36,25 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen>
     with SingleTickerProviderStateMixin {
   final MusicService _musicService = MusicService();
   final RatingService _ratingService = RatingService();
-  final CommentService _commentService = CommentService();
+  final LibraryService _libraryService = LibraryService();
 
   Album? _album;
   Artist? _artist;
   List<Song> _songs = [];
-  Map<String, dynamic>? _ratingStats;
-  List<Rating> _ratings = [];
-  List<Comment> _comments = [];
+  RatingStats? _ratingStats;
+  List<Rating> _ratingsWithComments = [];
+  Rating? _myRating;
 
   bool _isLoading = true;
   bool _isLoadingRatings = true;
-  bool _isLoadingComments = true;
   String? _error;
 
   late TabController _tabController;
-  final TextEditingController _commentController = TextEditingController();
-  int? _userRating;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 2, vsync: this); // Solo Info y Ratings
     _loadAlbumDetails();
     _loadRatingsAndComments();
   }
@@ -63,7 +62,6 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen>
   @override
   void dispose() {
     _tabController.dispose();
-    _commentController.dispose();
     super.dispose();
   }
 
@@ -108,11 +106,10 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen>
   Future<void> _loadRatingsAndComments() async {
     setState(() {
       _isLoadingRatings = true;
-      _isLoadingComments = true;
     });
 
     try {
-      // Load rating stats
+      // Cargar estadísticas (no requiere autenticación)
       final statsResponse = await _ratingService.getEntityRatingStats(
         entityType: 'ALBUM',
         entityId: widget.albumId,
@@ -121,117 +118,122 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen>
         _ratingStats = statsResponse.data;
       }
 
-      // Load all ratings
-      final ratingsResponse = await _ratingService.getEntityRatings(
+      // Cargar valoraciones con comentarios (no requiere autenticación)
+      final ratingsResponse = await _ratingService.getEntityRatingsWithComments(
         entityType: 'ALBUM',
         entityId: widget.albumId,
       );
       if (ratingsResponse.success && ratingsResponse.data != null) {
-        _ratings = ratingsResponse.data!;
+        _ratingsWithComments = ratingsResponse.data!;
       }
 
-      // Load user's rating if authenticated
+      // Obtener mi valoración SOLO si estoy autenticado
       final authProvider = context.read<AuthProvider>();
       if (authProvider.isAuthenticated) {
-        final userRatingResponse = await _ratingService.getUserEntityRating(
-          userId: authProvider.currentUser!.id,
+        final myRatingResponse = await _ratingService.getMyEntityRating(
           entityType: 'ALBUM',
           entityId: widget.albumId,
         );
-        if (userRatingResponse.success && userRatingResponse.data != null) {
-          // CORREGIDO: El campo se llama 'rating', no 'ratingValue'
-          _userRating = userRatingResponse.data!.rating;
+        if (myRatingResponse.success && myRatingResponse.data != null) {
+          _myRating = myRatingResponse.data;
         }
-      }
-
-      setState(() => _isLoadingRatings = false);
-
-      // Load comments
-      final commentsResponse = await _commentService.getEntityComments(
-        entityType: 'ALBUM',
-        entityId: widget.albumId,
-      );
-      if (commentsResponse.success && commentsResponse.data != null) {
-        _comments = commentsResponse.data!;
+      } else {
+        // Usuario no autenticado (invitado)
+        _myRating = null;
       }
     } catch (e) {
       debugPrint('Error loading ratings/comments: $e');
     } finally {
-      setState(() => _isLoadingComments = false);
+      if (mounted) {
+        setState(() => _isLoadingRatings = false);
+      }
     }
   }
 
-  Future<void> _submitRating(int rating) async {
+  /// Mostrar diálogo para crear o editar valoración (con comentario incluido)
+  /// Verifica que el usuario haya comprado el álbum antes de permitir valorar
+  Future<void> _showRatingDialog() async {
     final authProvider = context.read<AuthProvider>();
     if (!authProvider.isAuthenticated) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please login to rate this album')),
-      );
+      // Usuario invitado - mostrar alerta para iniciar sesión
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Inicie Sesión'),
+            content: const Text(
+              'Debe iniciar sesión para valorar productos y acceder a todas las funcionalidades de la plataforma.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Cerrar'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  // Redirigir a pantalla de login
+                  Navigator.pushNamed(context, '/login');
+                },
+                child: const Text('Iniciar Sesión'),
+              ),
+            ],
+          ),
+        );
+      }
       return;
     }
 
-    try {
-      final response = await _ratingService.createRating(
-        userId: authProvider.currentUser!.id,
-        entityType: 'ALBUM',
-        entityId: widget.albumId,
-        ratingValue:
-            rating, // Este es el nombre del PARÁMETRO del servicio, está bien
+    // Si ya tiene una valoración, puede editarla sin verificar compra
+    if (_myRating == null) {
+      // Verificar si ha comprado el álbum
+      final purchaseResponse = await _libraryService.checkIfPurchased(
+        authProvider.currentUser!.id,
+        'ALBUM',
+        widget.albumId,
       );
 
-      if (response.success) {
-        setState(() => _userRating = rating);
-        _loadRatingsAndComments();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Rating submitted successfully')),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(response.error ?? 'Failed to submit rating')),
-        );
+      if (!purchaseResponse.success || !(purchaseResponse.data ?? false)) {
+        // No ha comprado el álbum
+        if (mounted) {
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('Compra requerida'),
+              content: const Text(
+                'Debes comprar este álbum antes de poder valorarlo. '
+                '¿Deseas agregarlo al carrito?',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Cancelar'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    _addToCart();
+                  },
+                  child: const Text('Agregar al carrito'),
+                ),
+              ],
+            ),
+          );
+        }
+        return;
       }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
-    }
-  }
-
-  Future<void> _submitComment() async {
-    final authProvider = context.read<AuthProvider>();
-    if (!authProvider.isAuthenticated) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please login to comment')),
-      );
-      return;
     }
 
-    final content = _commentController.text.trim();
-    if (content.isEmpty) return;
+    final result = await showRatingDialog(
+      context,
+      entityType: 'ALBUM',
+      entityId: widget.albumId,
+      existingRating: _myRating,
+      entityName: _album?.name,
+    );
 
-    try {
-      final response = await _commentService.createComment(
-        userId: authProvider.currentUser!.id,
-        entityType: 'ALBUM',
-        entityId: widget.albumId,
-        content: content,
-      );
-
-      if (response.success) {
-        _commentController.clear();
-        _loadRatingsAndComments();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Comment posted successfully')),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(response.error ?? 'Failed to post comment')),
-        );
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
+    if (result == true) {
+      _loadRatingsAndComments();
     }
   }
 
@@ -240,11 +242,31 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen>
 
     final authProvider = context.read<AuthProvider>();
     if (!authProvider.isAuthenticated) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please login or register to add items to cart'),
-        ),
-      );
+      // Usuario invitado - mostrar alerta para iniciar sesión
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Inicie Sesión'),
+            content: const Text(
+              'Debe iniciar sesión para agregar productos al carrito y realizar compras.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Cerrar'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  Navigator.pushNamed(context, '/login');
+                },
+                child: const Text('Iniciar Sesión'),
+              ),
+            ],
+          ),
+        );
+      }
       return;
     }
 
@@ -469,7 +491,7 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen>
                   ],
                 ),
                 if (_ratingStats != null &&
-                    _ratingStats!['averageRating'] != null)
+                    _ratingStats!.averageRating > 0)
                   Padding(
                     padding: const EdgeInsets.only(top: 8),
                     child: Row(
@@ -477,9 +499,7 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen>
                         ...List.generate(
                           5,
                           (index) => Icon(
-                            index <
-                                    (_ratingStats!['averageRating'] as num)
-                                        .floor()
+                            index < _ratingStats!.averageRating.floor()
                                 ? Icons.star
                                 : Icons.star_border,
                             color: Colors.amber,
@@ -488,7 +508,7 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen>
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          '${(_ratingStats!['averageRating'] as num).toStringAsFixed(1)} (${_ratingStats!['totalRatings']})',
+                          '${_ratingStats!.averageRating.toStringAsFixed(1)} (${_ratingStats!.totalRatings})',
                           style: TextStyle(
                             color: AppTheme.textSecondary,
                             fontSize: 12,
@@ -609,7 +629,6 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen>
           tabs: const [
             Tab(text: 'Songs'),
             Tab(text: 'Ratings'),
-            Tab(text: 'Comments'),
           ],
         ),
         SizedBox(
@@ -619,7 +638,6 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen>
             children: [
               _buildSongsTab(),
               _buildRatingsTab(),
-              _buildCommentsTab(),
             ],
           ),
         ),
@@ -703,171 +721,38 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Rate this album',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(
-              5,
-              (index) => IconButton(
-                icon: Icon(
-                  index < (_userRating ?? 0) ? Icons.star : Icons.star_border,
-                  color: Colors.amber,
-                  size: 32,
-                ),
-                onPressed: () => _submitRating(index + 1),
+          // Botón para crear o editar mi valoración
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: ElevatedButton.icon(
+              onPressed: _showRatingDialog,
+              icon: Icon(_myRating != null ? Icons.edit : Icons.star),
+              label: Text(_myRating != null ? 'Editar mi valoración' : 'Valorar este álbum'),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
               ),
             ),
           ),
-          const SizedBox(height: 16),
+
+          const Divider(),
+
+          // Lista de valoraciones y comentarios unificados
           if (_isLoadingRatings)
-            const Center(child: CircularProgressIndicator())
-          else if (_ratings.isEmpty)
-            const Center(child: Text('No ratings yet'))
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(32.0),
+                child: CircularProgressIndicator(),
+              ),
+            )
           else
-            ..._ratings.map((rating) => Card(
-                  child: ListTile(
-                    leading: CircleAvatar(
-                      child: Text(rating.userId.toString()),
-                    ),
-                    title: Row(
-                      children: List.generate(
-                        5,
-                        (index) => Icon(
-                          // CORREGIDO: El campo se llama 'rating', no 'ratingValue'
-                          index < rating.rating
-                              ? Icons.star
-                              : Icons.star_border,
-                          color: Colors.amber,
-                          size: 16,
-                        ),
-                      ),
-                    ),
-                    // CORREGIDO: Ahora 'comment' existe en el modelo Rating
-                    subtitle:
-                        rating.comment != null ? Text(rating.comment!) : null,
-                    trailing: Text(
-                      rating.createdAt.toString().split(' ')[0],
-                      style: TextStyle(color: AppTheme.textSecondary),
-                    ),
-                  ),
-                )),
+            RatingList(
+              ratings: _ratingsWithComments,
+              currentUserId: context.read<AuthProvider>().currentUser?.id,
+              onRatingChanged: _loadRatingsAndComments,
+            ),
         ],
       ),
     );
   }
 
-  Widget _buildCommentsTab() {
-    return Column(
-      children: [
-        Expanded(
-          child: _isLoadingComments
-              ? const Center(child: CircularProgressIndicator())
-              : _comments.isEmpty
-                  ? const Center(child: Text('No comments yet'))
-                  : ListView.builder(
-                      padding: const EdgeInsets.all(16),
-                      itemCount: _comments.length,
-                      itemBuilder: (context, index) {
-                        final comment = _comments[index];
-                        return Card(
-                          margin: const EdgeInsets.only(bottom: 8),
-                          child: ListTile(
-                            leading: CircleAvatar(
-                              child: Text(comment.userId.toString()[0]),
-                            ),
-                            title: Text('User ${comment.userId}'),
-                            subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(comment.content),
-                                const SizedBox(height: 4),
-                                Text(
-                                  comment.createdAt.toString().split('.')[0],
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: AppTheme.textSecondary,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                IconButton(
-                                  icon: const Icon(Icons.thumb_up_outlined,
-                                      size: 18),
-                                  onPressed: () async {
-                                    try {
-                                      await _commentService
-                                          .likeComment(comment.id);
-                                      _loadRatingsAndComments();
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(
-                                        const SnackBar(
-                                          content: Text('Comment liked'),
-                                          duration: Duration(seconds: 1),
-                                        ),
-                                      );
-                                    } catch (e) {
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(
-                                        SnackBar(content: Text('Error: $e')),
-                                      );
-                                    }
-                                  },
-                                ),
-                                if (comment.likesCount > 0)
-                                  Text('${comment.likesCount}'),
-                              ],
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-        ),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: AppTheme.surfaceBlack,
-            border: Border(
-              // CORREGIDO: 'withOpacity' está obsoleto, usando 'withValues'
-              // según el patrón en tu propio código (línea 346).
-              top: BorderSide(
-                  color: AppTheme.textSecondary.withValues(alpha: 0.2)),
-            ),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _commentController,
-                  decoration: InputDecoration(
-                    hintText: 'Write a comment...',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(24),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
-                    ),
-                  ),
-                  maxLines: null,
-                ),
-              ),
-              const SizedBox(width: 8),
-              IconButton(
-                onPressed: _submitComment,
-                icon: const Icon(Icons.send),
-                color: AppTheme.primaryBlue,
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
 }
