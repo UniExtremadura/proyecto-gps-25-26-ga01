@@ -4,6 +4,9 @@ import 'package:audira_frontend/core/models/rating_stats.dart';
 import 'package:audira_frontend/core/models/create_rating_request.dart';
 
 /// Servicio para gestión de valoraciones
+/// GA01-128: Puntuación de 1-5 estrellas
+/// GA01-129: Comentario opcional (500 chars)
+/// GA01-130: Editar/eliminar valoración
 class RatingService {
   static final RatingService _instance = RatingService._internal();
   factory RatingService() => _instance;
@@ -50,6 +53,49 @@ class RatingService {
       return ApiResponse(
         success: false,
         error: response.error ?? 'Failed to create rating',
+        statusCode: response.statusCode,
+      );
+    } catch (e) {
+      return ApiResponse(success: false, error: e.toString());
+    }
+  }
+
+  /// GA01-130: Actualizar valoración existente
+  Future<ApiResponse<Rating>> updateRating({
+    required int ratingId,
+    int? rating,
+    String? comment,
+  }) async {
+    try {
+      final request = UpdateRatingRequest(
+        rating: rating,
+        comment: comment,
+      );
+
+      if (!request.isValid()) {
+        return ApiResponse(
+          success: false,
+          error: 'Rating must be between 1-5 and comment max 500 chars',
+        );
+      }
+
+      final response = await _apiClient.put(
+        '/api/ratings/$ratingId',
+        body: request.toJson(),
+      );
+
+      if (response.success && response.data != null) {
+        final ratingObj = Rating.fromJson(response.data);
+        return ApiResponse(
+          success: true,
+          data: ratingObj,
+          statusCode: response.statusCode,
+        );
+      }
+
+      return ApiResponse(
+        success: false,
+        error: response.error ?? 'Failed to update rating',
         statusCode: response.statusCode,
       );
     } catch (e) {

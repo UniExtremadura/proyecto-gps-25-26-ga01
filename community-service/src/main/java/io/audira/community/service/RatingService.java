@@ -94,6 +94,60 @@ public class RatingService {
     }
 
     /**
+     * GA01-130: Actualizar valoración existente
+     */
+    @Transactional
+    public RatingDTO updateRating(Long ratingId, Long userId, UpdateRatingRequest request) {
+        log.info("Updating rating {} by user {}", ratingId, userId);
+
+        Rating rating = ratingRepository.findByIdAndUserId(ratingId, userId)
+                .orElseThrow(() -> new RatingException.RatingNotFoundException(ratingId));
+
+        // Validar ownership
+        if (!rating.getUserId().equals(userId)) {
+            throw new RatingException.UnauthorizedRatingAccessException();
+        }
+
+        // Actualizar campos si están presentes
+        if (request.getRating() != null) {
+            validateRatingValue(request.getRating());
+            rating.setRating(request.getRating());
+        }
+
+        if (request.getComment() != null) {
+            validateComment(request.getComment());
+            rating.setComment(request.getComment());
+        }
+
+        Rating updatedRating = ratingRepository.save(rating);
+        log.info("Rating {} updated successfully", ratingId);
+
+        return convertToDTO(updatedRating);
+    }
+
+    /**
+     * GA01-130: Eliminar valoración (soft delete)
+     */
+    @Transactional
+    public void deleteRating(Long ratingId, Long userId) {
+        log.info("Deleting rating {} by user {}", ratingId, userId);
+
+        Rating rating = ratingRepository.findByIdAndUserId(ratingId, userId)
+                .orElseThrow(() -> new RatingException.RatingNotFoundException(ratingId));
+
+        // Validar ownership
+        if (!rating.getUserId().equals(userId)) {
+            throw new RatingException.UnauthorizedRatingAccessException();
+        }
+
+        // Soft delete
+        rating.setIsActive(false);
+        ratingRepository.save(rating);
+
+        log.info("Rating {} deleted successfully", ratingId);
+    }
+
+    /**
      * Obtener valoraciones de un usuario
      */
     @Transactional(readOnly = true)

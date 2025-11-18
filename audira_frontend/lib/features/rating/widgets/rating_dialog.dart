@@ -69,31 +69,63 @@ class _RatingDialogState extends State<RatingDialog> {
 
     try {
       final comment = _commentController.text.trim();
-      final response = await _ratingService.createRating(
-        entityType: widget.entityType,
-        entityId: widget.entityId,
-        rating: _selectedRating,
-        comment: comment.isEmpty ? null : comment,
-      );
 
-      if (response.success) {
-        if (mounted) {
-          Navigator.of(context).pop(true);
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Valoración creada correctamente'),
-              backgroundColor: Colors.green,
-            ),
-          );
+      if (widget.existingRating != null) {
+        // GA01-130: Actualizar valoración existente
+        final response = await _ratingService.updateRating(
+          ratingId: widget.existingRating!.id,
+          rating: _selectedRating,
+          comment: comment.isEmpty ? null : comment,
+        );
+
+        if (response.success) {
+          if (mounted) {
+            Navigator.of(context).pop(true);
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Valoración actualizada correctamente'),
+                backgroundColor: Colors.green,
+              ),
+            );
+          }
+        } else {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(response.error ?? 'Error al actualizar valoración'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
         }
       } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(response.error ?? 'Error al crear valoración'),
-              backgroundColor: Colors.red,
-            ),
-          );
+        // GA01-128, GA01-129: Crear nueva valoración
+        final response = await _ratingService.createRating(
+          entityType: widget.entityType,
+          entityId: widget.entityId,
+          rating: _selectedRating,
+          comment: comment.isEmpty ? null : comment,
+        );
+
+        if (response.success) {
+          if (mounted) {
+            Navigator.of(context).pop(true);
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Valoración creada correctamente'),
+                backgroundColor: Colors.green,
+              ),
+            );
+          }
+        } else {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(response.error ?? 'Error al crear valoración'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
         }
       }
     } catch (e) {

@@ -52,6 +52,55 @@ public class RatingController {
     }
 
     /**
+     * GA01-130: Actualizar valoración existente
+     * PUT /api/ratings/{ratingId}
+     */
+    @PutMapping("/{ratingId}")
+    public ResponseEntity<?> updateRating(
+            @AuthenticationPrincipal UserPrincipal currentUser,
+            @PathVariable Long ratingId,
+            @Valid @RequestBody UpdateRatingRequest request) {
+        try {
+            RatingDTO rating = ratingService.updateRating(ratingId, currentUser.getId(), request);
+            return ResponseEntity.ok(rating);
+        } catch (RatingException.RatingNotFoundException e) {
+            return ResponseEntity.notFound().build();
+        } catch (RatingException.UnauthorizedRatingAccessException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("error", e.getMessage()));
+        } catch (RatingException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            log.error("Unexpected error updating rating", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Internal server error"));
+        }
+    }
+
+    /**
+     * GA01-130: Eliminar valoración
+     * DELETE /api/ratings/{ratingId}
+     */
+    @DeleteMapping("/{ratingId}")
+    public ResponseEntity<?> deleteRating(
+            @AuthenticationPrincipal UserPrincipal currentUser,
+            @PathVariable Long ratingId) {
+        try {
+            ratingService.deleteRating(ratingId, currentUser.getId());
+            return ResponseEntity.noContent().build();
+        } catch (RatingException.RatingNotFoundException e) {
+            return ResponseEntity.notFound().build();
+        } catch (RatingException.UnauthorizedRatingAccessException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            log.error("Unexpected error deleting rating", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Internal server error"));
+        }
+    }
+
+    /**
      * Obtener todas las valoraciones de un usuario
      * GET /api/ratings/user/{userId}
      */
