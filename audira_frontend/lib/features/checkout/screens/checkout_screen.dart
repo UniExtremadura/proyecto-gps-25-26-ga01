@@ -133,18 +133,32 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           ),
         ),
         const SizedBox(height: 12),
-        _buildPaymentMethodOption(
-          PaymentMethod.creditCard,
-          Icons.credit_card,
-        ),
-        _buildPaymentMethodOption(
-          PaymentMethod.debitCard,
-          Icons.payment,
-        ),
-        _buildPaymentMethodOption(
-          PaymentMethod.stripe,
-          Icons.credit_score,
-        ),
+        RadioGroup<PaymentMethod>(
+          groupValue: _selectedPaymentMethod,
+          onChanged: (PaymentMethod? value) { 
+            if (value != null) {
+              setState(() {
+                _selectedPaymentMethod = value; 
+              });
+            }
+          },
+          child: Column(
+            children: [
+              _buildPaymentMethodOption(
+                PaymentMethod.creditCard,
+                Icons.credit_card,
+              ),
+              _buildPaymentMethodOption(
+                PaymentMethod.debitCard,
+                Icons.payment,
+              ),
+              _buildPaymentMethodOption(
+                PaymentMethod.stripe,
+                Icons.credit_score,
+              ),
+            ]
+          )
+        )
       ],
     );
   }
@@ -167,12 +181,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         ),
         trailing: Radio<PaymentMethod>(
           value: method,
-          groupValue: _selectedPaymentMethod,
-          onChanged: (value) {
-            setState(() {
-              _selectedPaymentMethod = value!;
-            });
-          },
         ),
         onTap: () {
           setState(() {
