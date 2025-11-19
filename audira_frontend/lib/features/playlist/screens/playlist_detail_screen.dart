@@ -10,6 +10,8 @@ import '../../../core/models/song.dart';
 import '../../../core/api/services/playlist_service.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/providers/audio_provider.dart';
+import '../../../core/providers/library_provider.dart';
+import 'song_selector_screen.dart';
 
 class PlaylistDetailScreen extends StatefulWidget {
   final int playlistId;
@@ -58,21 +60,23 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
     }
   }
 
+  /// Eliminar canción de la playlist
   Future<void> _removeSongFromPlaylist(Song song) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Remove Song'),
-        content: Text('Remove "${song.name}" from this playlist?'),
+        backgroundColor: AppTheme.surfaceBlack,
+        title: const Text('Eliminar canción'),
+        content: Text('¿Eliminar "${song.name}" de esta playlist?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: const Text('Cancelar'),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Remove'),
+            child: const Text('Eliminar'),
           ),
         ],
       ),
@@ -83,13 +87,65 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
         await _playlistService.removeSongFromPlaylist(
             widget.playlistId, song.id);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Song removed from playlist')),
+          const SnackBar(
+            content: Text('Canción eliminada'),
+            backgroundColor: Colors.green,
+          ),
         );
         _loadPlaylist();
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
+      }
+    }
+  }
+
+  /// Añadir canciones a la playlist
+  Future<void> _addSongsToPlaylist() async {
+    if (_playlist == null) return;
+
+    final currentSongIds = _songs.map((s) => s.id).toList();
+
+    final List<Song>? selectedSongs = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => SongSelectorScreen(
+          currentSongIds: currentSongIds,
+          playlistName: _playlist!.name,
+        ),
+      ),
+    );
+
+    if (selectedSongs != null && selectedSongs.isNotEmpty) {
+      setState(() => _isLoading = true);
+      try {
+        final libraryProvider = context.read<LibraryProvider>();
+        for (final song in selectedSongs) {
+          await libraryProvider.addSongToPlaylist(widget.playlistId, song.id);
+        }
+        // Recargar playlist
+        await _loadPlaylist();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                  '${selectedSongs.length} canción${selectedSongs.length == 1 ? "" : "es"} añadida${selectedSongs.length == 1 ? "" : "s"}'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+          );
+        }
+      } finally {
+        setState(() => _isLoading = false);
       }
     }
   }
@@ -143,7 +199,8 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
           IconButton(
             icon: const Icon(Icons.share),
             onPressed: () async {
-              final shareText = '🎵 Mira mi playlist "${_playlist!.name}" en Audira!\n\n'
+              final shareText =
+                  '🎵 Mira mi playlist "${_playlist!.name}" en Audira!\n\n'
                   '${_songs.length} canciones\n'
                   '${_playlist!.description ?? ""}\n\n'
                   '¡Escúchala ahora!';
@@ -237,13 +294,50 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
                                 onPressed: () {
                                   audioProvider.playSong(song);
                                 },
+                                tooltip: 'Reproducir',
                               ),
                               if (isOwner)
                                 IconButton(
-                                  icon: const Icon(Icons.close,
-                                      color: Colors.red),
-                                  onPressed: () =>
-                                      _removeSongFromPlaylist(song),
+                                  icon: const Icon(Icons.more_vert),
+                                  onPressed: () {
+                                    showModalBottomSheet(
+                                      context: context,
+                                      backgroundColor: AppTheme.surfaceBlack,
+                                      builder: (context) => Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          ListTile(
+                                            leading:
+                                                const Icon(Icons.info_outline),
+                                            title: const Text('Ver detalles'),
+                                            onTap: () {
+                                              Navigator.pop(context);
+                                              Navigator.pushNamed(
+                                                context,
+                                                '/song',
+                                                arguments: song.id,
+                                              );
+                                            },
+                                          ),
+                                          ListTile(
+                                            leading: const Icon(
+                                                Icons.remove_circle_outline,
+                                                color: Colors.red),
+                                            title: const Text(
+                                              'Eliminar de playlist',
+                                              style:
+                                                  TextStyle(color: Colors.red),
+                                            ),
+                                            onTap: () {
+                                              Navigator.pop(context);
+                                              _removeSongFromPlaylist(song);
+                                            },
+                                          ),
+                                          const SizedBox(height: 16),
+                                        ],
+                                      ),
+                                    );
+                                  },
                                 ),
                             ],
                           ),
@@ -254,6 +348,14 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
           ),
         ],
       ),
+      floatingActionButton: isOwner && _songs.isNotEmpty
+          ? FloatingActionButton.extended(
+              onPressed: _addSongsToPlaylist,
+              backgroundColor: AppTheme.primaryBlue,
+              icon: const Icon(Icons.add),
+              label: const Text('Añadir canciones'),
+            ).animate().fadeIn(delay: 500.ms).scale()
+          : null,
     );
   }
 }

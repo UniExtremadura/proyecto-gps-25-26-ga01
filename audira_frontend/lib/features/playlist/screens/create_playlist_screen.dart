@@ -9,6 +9,7 @@ import '../../../core/models/song.dart';
 import '../../../core/models/playlist.dart';
 import '../../../core/api/services/playlist_service.dart';
 import '../../../config/theme.dart';
+import 'song_selector_screen.dart';
 
 /// Pantalla para crear o editar playlists
 /// GA01-113: Crear lista con nombre
@@ -146,6 +147,38 @@ class _CreatePlaylistScreenState extends State<CreatePlaylistScreen> {
     setState(() => _showPreview = !_showPreview);
   }
 
+  /// Abrir pantalla de selección de canciones
+  Future<void> _addSongsToPlaylist() async {
+    final currentSongIds = _selectedSongs.map((s) => s.id).toList();
+    final playlistName = _nameController.text.trim().isEmpty
+        ? 'Nueva Playlist'
+        : _nameController.text.trim();
+
+    final List<Song>? selectedSongs = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => SongSelectorScreen(
+          currentSongIds: currentSongIds,
+          playlistName: playlistName,
+        ),
+      ),
+    );
+
+    if (selectedSongs != null && selectedSongs.isNotEmpty) {
+      // Si estamos creando, añadir a la lista temporal
+      setState(() {
+        _selectedSongs.addAll(selectedSongs);
+      });
+    }
+  }
+
+  /// Eliminar canción de la playlist
+  Future<void> _removeSong(Song song) async {
+    setState(() {
+      _selectedSongs.remove(song);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoadingData) {
@@ -231,7 +264,7 @@ class _CreatePlaylistScreenState extends State<CreatePlaylistScreen> {
                 onChanged: (value) {
                   setState(() => _isPublic = value);
                 },
-                activeColor: AppTheme.primaryBlue,
+                activeThumbColor: AppTheme.primaryBlue,
                 secondary: Icon(
                   _isPublic ? Icons.public : Icons.lock,
                   color: _isPublic ? AppTheme.primaryBlue : AppTheme.textGrey,
@@ -241,43 +274,105 @@ class _CreatePlaylistScreenState extends State<CreatePlaylistScreen> {
 
             const SizedBox(height: 24),
 
-            // Info message
-            Container(
-              padding: const EdgeInsets.all(32),
-              child: Column(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: AppTheme.primaryBlue.withValues(alpha: 0.1),
-                      shape: BoxShape.circle,
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Canciones',
+                      style:
+                          TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                     ),
-                    child: const Icon(
-                      Icons.music_note,
-                      size: 64,
-                      color: AppTheme.primaryBlue,
+                    Text(
+                      '${_selectedSongs.length} ${_selectedSongs.length == 1 ? "canción" : "canciones"}',
+                      style: const TextStyle(color: AppTheme.textGrey),
+                    ),
+                  ],
+                ),
+                ElevatedButton.icon(
+                  onPressed: _isLoading ? null : _addSongsToPlaylist,
+                  icon: const Icon(Icons.add),
+                  label: const Text('Añadir'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primaryBlue,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
+                  ),
+                ),
+              ],
+            ).animate().fadeIn(delay: 300.ms, duration: 300.ms),
+
+            const SizedBox(height: 16),
+
+// Selected songs list
+            if (_selectedSongs.isEmpty)
+              Center(
+                child: Container(
+                  padding: const EdgeInsets.all(32),
+                  child: Column(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primaryBlue.withValues(alpha: 0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.music_note,
+                          size: 64,
+                          color: AppTheme.primaryBlue,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'No hay canciones',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Toca "Añadir" para seleccionar canciones',
+                        style: TextStyle(
+                          color: AppTheme.textSecondary,
+                          fontSize: 14,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+              ).animate().fadeIn(delay: 400.ms)
+            else
+              ..._selectedSongs.asMap().entries.map((entry) {
+                final index = entry.key;
+                final song = entry.value;
+                return Card(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  color: AppTheme.surfaceBlack,
+                  child: ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: AppTheme.primaryBlue,
+                      child: Text(
+                        '${index + 1}',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    title: Text(song.name),
+                    subtitle: Text(
+                      '${song.artistName} • ${song.durationFormatted}',
+                      style: const TextStyle(color: AppTheme.textGrey),
+                    ),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.close, color: Colors.red),
+                      onPressed: () => _removeSong(song),
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Añadir canciones',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Podrás añadir canciones después de crear la playlist',
-                    style: TextStyle(
-                      color: AppTheme.textSecondary,
-                      fontSize: 14,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            ).animate().fadeIn(delay: 300.ms),
+                ).animate(delay: (index * 50).ms).fadeIn().slideX(begin: -0.1);
+              }),
           ],
         ),
       ),
@@ -376,6 +471,42 @@ class _CreatePlaylistScreenState extends State<CreatePlaylistScreen> {
             'Así es como se verá tu playlist',
             style: TextStyle(color: AppTheme.textSecondary),
           ),
+          const SizedBox(height: 24),
+
+          if (_selectedSongs.isEmpty)
+            Center(
+              child: Column(
+                children: [
+                  const Icon(Icons.music_note,
+                      size: 64, color: AppTheme.textGrey),
+                  const SizedBox(height: 16),
+                  Text(
+                    'No hay canciones en esta playlist',
+                    style: TextStyle(color: AppTheme.textSecondary),
+                  ),
+                ],
+              ),
+            )
+          else
+            ..._selectedSongs.asMap().entries.map((entry) {
+              final index = entry.key;
+              final song = entry.value;
+              return Card(
+                color: AppTheme.surfaceBlack,
+                margin: const EdgeInsets.only(bottom: 8),
+                child: ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: AppTheme.primaryBlue,
+                    child: Text('${index + 1}'),
+                  ),
+                  title: Text(song.name),
+                  subtitle: Text(
+                    '${song.artistName} • ${song.durationFormatted}',
+                  ),
+                  trailing: const Icon(Icons.play_arrow),
+                ),
+              ).animate(delay: (index * 50).ms).fadeIn().slideX(begin: -0.2);
+            }),
         ],
       ),
     );
