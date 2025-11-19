@@ -2,7 +2,7 @@ class AppConstants {
   // API Configuration
   static const String apiGatewayUrl = 'http://68.221.240.178:8080';
 
-  static const String ipPublicaCommunity = 'http://188.227.140.98:9001';
+  static const String ipPublicaCommunity = 'http://158.49.189.75:9001';
 
   // Auth endpoints
   static const String authRegisterUrl = '/api/auth/register';
