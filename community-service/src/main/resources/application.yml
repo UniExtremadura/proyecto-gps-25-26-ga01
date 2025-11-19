@@ -5,7 +5,7 @@ spring:
   application:
     name: community-service
   datasource:
-    url: jdbc:postgresql://188.227.140.98:5432/audira_community
+    url: jdbc:postgresql://62.36.96.71:5432/audira_community
     username: postgres
     password: postgres
     driver-class-name: org.postgresql.Driver
@@ -26,7 +26,7 @@ jwt:
 
 file:
   upload-dir: uploads
-  base-url: http://188.227.140.98:9001
+  base-url: http://62.36.96.71:9001
   service:
     url: http://file-service:9005  # URL del file-service para subida de archivos
 
@@ -38,7 +38,7 @@ spring.servlet.multipart:
 eureka:
   client:
     service-url:
-      defaultZone: http://188.227.140.98:8761/eureka/
+      defaultZone: http://62.36.96.71:8761/eureka/
     fetch-registry: true
     register-with-eureka: true
   instance:
