@@ -247,12 +247,14 @@ class AuthService {
         body: updates,
       );
 
-      debugPrint('🟦 AuthService - Response recibido: success=${response.success}, data=${response.data != null}');
+      debugPrint(
+          '🟦 AuthService - Response recibido: success=${response.success}, data=${response.data != null}');
 
       if (response.success && response.data != null) {
         final userJson = response.data as Map<String, dynamic>;
         debugPrint('🟦 AuthService - userJson keys: ${userJson.keys.toList()}');
-        debugPrint('🟦 AuthService - twitterUrl en JSON: ${userJson['twitterUrl']}');
+        debugPrint(
+            '🟦 AuthService - twitterUrl en JSON: ${userJson['twitterUrl']}');
 
         final role = userJson['role'] as String;
 
@@ -263,7 +265,8 @@ class AuthService {
           user = User.fromJson(userJson);
         }
 
-        debugPrint('🟦 AuthService - User creado, twitterUrl: ${user.twitterUrl}');
+        debugPrint(
+            '🟦 AuthService - User creado, twitterUrl: ${user.twitterUrl}');
 
         // Update stored user data
         await _storage.write(
@@ -336,24 +339,24 @@ class AuthService {
         error: 'Excepción al obtener usuarios: $e',
       );
     }
-  } 
+  }
 
   /// Upload profile image
   Future<ApiResponse<User>> uploadProfileImage(
       File imageFile, int userId) async {
     try {
-      final uri = Uri.parse(
-          '${AppConstants.apiGatewayUrl}/api/users/profile/image');
+      final uri =
+          Uri.parse('http://188.227.140.98:9001/api/users/profile/image');
 
       final request = http.MultipartRequest('POST', uri);
       request.fields['userId'] = userId.toString();
 
       final token = await getAuthToken();
       if (token != null) {
-          request.headers['Authorization'] = 'Bearer $token';
+        request.headers['Authorization'] = 'Bearer $token';
       } else {
-          // Manejar el caso de token nulo si es necesario
-          throw Exception('No hay token de autenticación disponible.');
+        // Manejar el caso de token nulo si es necesario
+        throw Exception('No hay token de autenticación disponible.');
       }
 
       // Determinar el content-type basándose en la extensión
@@ -429,17 +432,17 @@ class AuthService {
   Future<ApiResponse<User>> uploadBannerImage(
       File imageFile, int userId) async {
     try {
-      final uri = Uri.parse(
-          '${AppConstants.apiGatewayUrl}/api/users/profile/banner');
+      final uri =
+          Uri.parse('${AppConstants.apiGatewayUrl}/api/users/profile/banner');
 
       final request = http.MultipartRequest('POST', uri);
       request.fields['userId'] = userId.toString();
 
       final token = await getAuthToken();
       if (token != null) {
-          request.headers['Authorization'] = 'Bearer $token';
+        request.headers['Authorization'] = 'Bearer $token';
       } else {
-          throw Exception('No hay token de autenticación disponible.');
+        throw Exception('No hay token de autenticación disponible.');
       }
 
       // Determinar el content-type basándose en la extensión
