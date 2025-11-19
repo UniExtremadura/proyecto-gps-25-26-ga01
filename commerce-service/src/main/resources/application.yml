@@ -28,7 +28,7 @@ services:
 eureka:
   client:
     service-url:
-      defaultZone: http://172.16.0.4:8761/eureka/
+      defaultZone: http://discovery-server:8761/eureka/
     fetch-registry: true
     register-with-eureka: true
   instance:

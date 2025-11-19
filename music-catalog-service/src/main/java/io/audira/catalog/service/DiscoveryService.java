@@ -24,7 +24,7 @@ public class DiscoveryService {
     private final AlbumRepository albumRepository;
     private final RestTemplate restTemplate = new RestTemplate();
 
-    @Value("${community.service.url:http://172.16.0.4:8081}")
+    @Value("${community.service.url:http://community-service:9001}")
     private String communityServiceUrl;
 
     public List<Song> getTrendingSongs() {

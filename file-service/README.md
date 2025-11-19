@@ -145,7 +145,7 @@ spring:
 
 file:
   upload-dir: /uploads
-  base-url: http://172.16.0.4:9005
+  base-url: http://file-service:9005
 ```
 
 ### Variables de Entorno

@@ -16,7 +16,7 @@ public class UserClient {
 
     private final RestTemplate restTemplate;
 
-    @Value("${services.user.url:http://172.16.0.4:9001/api/users}")
+    @Value("${services.user.url:http://community-service:9001/api/users}")
     private String userServiceUrl;
 
     public UserDTO getUserById(Long userId) {
