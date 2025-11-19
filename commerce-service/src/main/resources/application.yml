@@ -5,7 +5,7 @@ spring:
   application:
     name: commerce-service
   datasource:
-    url: jdbc:postgresql://158.49.189.75:5432/audira_commerce
+    url: jdbc:postgresql://172.16.0.4:5432/audira_commerce
     username: postgres
     password: postgres
     driver-class-name: org.postgresql.Driver
@@ -28,7 +28,7 @@ services:
 eureka:
   client:
     service-url:
-      defaultZone: http://158.49.189.75:8761/eureka/
+      defaultZone: http://172.16.0.4:8761/eureka/
     fetch-registry: true
     register-with-eureka: true
   instance:
