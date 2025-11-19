@@ -345,8 +345,8 @@ class AuthService {
   Future<ApiResponse<User>> uploadProfileImage(
       File imageFile, int userId) async {
     try {
-      final uri =
-          Uri.parse('http://188.227.140.98:9001/api/users/profile/image');
+      final uri = Uri.parse(
+          '${AppConstants.ipPublicaCommunity}/api/users/profile/image');
 
       final request = http.MultipartRequest('POST', uri);
       request.fields['userId'] = userId.toString();
@@ -432,8 +432,8 @@ class AuthService {
   Future<ApiResponse<User>> uploadBannerImage(
       File imageFile, int userId) async {
     try {
-      final uri =
-          Uri.parse('${AppConstants.apiGatewayUrl}/api/users/profile/banner');
+      final uri = Uri.parse(
+          '${AppConstants.ipPublicaCommunity}/api/users/profile/banner');
 
       final request = http.MultipartRequest('POST', uri);
       request.fields['userId'] = userId.toString();
