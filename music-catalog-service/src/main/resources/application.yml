@@ -5,7 +5,7 @@ spring:
   application:
     name: music-catalog-service
   datasource:
-    url: jdbc:postgresql://62.36.96.71:5432/audira_catalog
+    url: jdbc:postgresql://172.16.0.4:5432/audira_catalog
     username: postgres
     password: postgres
     driver-class-name: org.postgresql.Driver
@@ -23,7 +23,7 @@ spring:
 eureka:
   client:
     service-url:
-      defaultZone: http://62.36.96.71:8761/eureka/
+      defaultZone: http://172.16.0.4:8761/eureka/
     fetch-registry: true
     register-with-eureka: true
   instance:

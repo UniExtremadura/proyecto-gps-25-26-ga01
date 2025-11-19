@@ -12,12 +12,12 @@ spring:
 
 file:
   upload-dir: /uploads
-  base-url: http://62.36.96.71:9005
+  base-url: http://172.16.0.4:9005
 
 eureka:
   client:
     service-url:
-      defaultZone: http://62.36.96.71:8761/eureka/
+      defaultZone: http://172.16.0.4:8761/eureka/
     fetch-registry: true
     register-with-eureka: true
   instance:
