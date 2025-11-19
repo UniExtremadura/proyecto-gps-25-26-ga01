@@ -41,7 +41,7 @@ Max Size: 50MB
 Response:
 {
   "message": "Archivo de audio subido exitosamente",
-  "fileUrl": "http://68.221.240.178:9005/api/files/audio-files/abc-123.mp3",
+  "fileUrl": "http://172.16.0.4:9005/api/files/audio-files/abc-123.mp3",
   "filePath": "audio-files/abc-123.mp3",
   "fileName": "cancion.mp3",
   "fileSize": 5242880
@@ -57,7 +57,7 @@ Max Size: 10MB
 Response:
 {
   "message": "Imagen subida exitosamente",
-  "fileUrl": "http://68.221.240.178:9005/api/files/images/def-456.jpg",
+  "fileUrl": "http://172.16.0.4:9005/api/files/images/def-456.jpg",
   "filePath": "images/def-456.jpg",
   "fileName": "cover.jpg",
   "fileSize": 1048576
@@ -93,7 +93,7 @@ Body:
 Response:
 {
   "message": "Archivos comprimidos exitosamente",
-  "zipFileUrl": "http://68.221.240.178:9005/api/files/compressed/xyz-789.zip",
+  "zipFileUrl": "http://172.16.0.4:9005/api/files/compressed/xyz-789.zip",
   "zipFilePath": "compressed/xyz-789.zip",
   "filesCompressed": 2,
   "originalSize": 7340032,
@@ -145,7 +145,7 @@ spring:
 
 file:
   upload-dir: /uploads
-  base-url: http://68.221.240.178:9005
+  base-url: http://172.16.0.4:9005
 ```
 
 ### Variables de Entorno
@@ -157,7 +157,7 @@ EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://discovery-server:8761/eureka/
 ## 📊 Health Check
 
 ```bash
-curl http://68.221.240.178:9005/actuator/health
+curl http://172.16.0.4:9005/actuator/health
 ```
 
 ## 🎵 Streaming de Audio
@@ -166,7 +166,7 @@ El servicio soporta HTTP Range Requests para streaming eficiente:
 
 ```bash
 # Reproducir desde el byte 1000
-curl -H "Range: bytes=1000-" http://68.221.240.178:9005/api/files/audio-files/song.mp3
+curl -H "Range: bytes=1000-" http://172.16.0.4:9005/api/files/audio-files/song.mp3
 
 # Response: 206 Partial Content
 # Headers:
@@ -203,7 +203,7 @@ Este servicio puede:
 El API Gateway enruta `/api/files/**` a este servicio:
 
 ```
-http://68.221.240.178:8080/api/files/upload/audio
+http://172.16.0.4:8080/api/files/upload/audio
   → file-service:9005/api/files/upload/audio
 ```
 
@@ -250,4 +250,4 @@ docker logs audira_v2-file-service-1 -f
 
 **Puerto**: 9005
 **Registro en Eureka**: file-service
-**Health**: http://68.221.240.178:9005/actuator/health
+**Health**: http://172.16.0.4:9005/actuator/health

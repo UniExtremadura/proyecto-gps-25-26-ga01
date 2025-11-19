@@ -18,7 +18,7 @@ public class CommerceClient {
 
     private final RestTemplate restTemplate;
 
-    @Value("${services.commerce.url:http://localhost:8083}")
+    @Value("${services.commerce.url:http://172.16.0.4:8083}")
     private String commerceServiceUrl;
 
     /**
