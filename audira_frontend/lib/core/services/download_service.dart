@@ -1,7 +1,6 @@
-// ignore_for_file: avoid_print
-
 import 'dart:io';
 import 'package:dio/dio.dart';
+import 'package:flutter/widgets.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../models/song.dart';
@@ -115,9 +114,9 @@ class DownloadService {
       final fileName = '${song.id}_$safeFileName.$format';
       final filePath = '${downloadsDir.path}/$fileName';
 
-      print('Descargando canción: ${song.name}');
-      print('URL: ${song.audioUrl}');
-      print('Destino: $filePath');
+      debugPrint('Descargando canción: ${song.name}');
+      debugPrint('URL: ${song.audioUrl}');
+      debugPrint('Destino: $filePath');
 
       // Descargar archivo
       await _dio.download(
@@ -146,7 +145,7 @@ class DownloadService {
       }
 
       final fileSize = await file.length();
-      print('Descarga completada: $fileSize bytes');
+      debugPrint('Descarga completada: $fileSize bytes');
 
       // Crear registro de descarga
       final downloadedSong = DownloadedSong(
@@ -165,7 +164,7 @@ class DownloadService {
 
       return downloadedSong;
     } catch (e) {
-      print('Error al descargar canción: $e');
+      debugPrint('Error al descargar canción: $e');
       rethrow;
     }
   }
@@ -176,12 +175,12 @@ class DownloadService {
       final file = File(localFilePath);
       if (await file.exists()) {
         await file.delete();
-        print('Archivo eliminado: $localFilePath');
+        debugPrint('Archivo eliminado: $localFilePath');
         return true;
       }
       return false;
     } catch (e) {
-      print('Error al eliminar archivo: $e');
+      debugPrint('Error al eliminar archivo: $e');
       return false;
     }
   }
@@ -231,7 +230,7 @@ class DownloadService {
       }
       return false;
     } catch (e) {
-      print('Error al limpiar descargas: $e');
+      debugPrint('Error al limpiar descargas: $e');
       return false;
     }
   }

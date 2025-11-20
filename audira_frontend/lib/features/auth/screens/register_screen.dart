@@ -1,5 +1,3 @@
-// ignore_for_file: deprecated_member_use
-
 import 'package:audira_frontend/features/home/screens/main_layout.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -118,35 +116,31 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
                 const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: RadioListTile<String>(
-                        title: const Text('Usuario'),
-                        value: AppConstants.roleUser,
-                        groupValue: _selectedRole,
-                        onChanged: (value) {
-                          setState(() {
-                            _selectedRole = value!;
-                          });
-                        },
-                        contentPadding: EdgeInsets.zero,
+                RadioGroup<String>(
+                  groupValue: _selectedRole,
+                  onChanged: (value) {
+                    setState(() {
+                      _selectedRole = value!;
+                    });
+                  },
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: RadioListTile<String>(
+                          title: const Text('Usuario'),
+                          value: AppConstants.roleUser,
+                          contentPadding: EdgeInsets.zero,
+                        ),
                       ),
-                    ),
-                    Expanded(
-                      child: RadioListTile<String>(
-                        title: const Text('Artista'),
-                        value: AppConstants.roleArtist,
-                        groupValue: _selectedRole,
-                        onChanged: (value) {
-                          setState(() {
-                            _selectedRole = value!;
-                          });
-                        },
-                        contentPadding: EdgeInsets.zero,
+                      Expanded(
+                        child: RadioListTile<String>(
+                          title: const Text('Artista'),
+                          value: AppConstants.roleArtist,
+                          contentPadding: EdgeInsets.zero,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
 
                 const SizedBox(height: 24),
