@@ -162,6 +162,16 @@ class MusicService {
     return ApiResponse(success: false, error: response.error);
   }
 
+  Future<ApiResponse<Song>> publishSong(int id, bool published) async {
+    final response = await _apiClient.patch(
+      '${AppConstants.songsUrl}/$id/publish?published=$published',
+    );
+    if (response.success && response.data != null) {
+      return ApiResponse(success: true, data: Song.fromJson(response.data));
+    }
+    return ApiResponse(success: false, error: response.error);
+  }
+
   // Publish/Unpublish Album (Artist only)
   Future<ApiResponse<Album>> publishAlbum(int id, bool published) async {
     final response = await _apiClient.patch(

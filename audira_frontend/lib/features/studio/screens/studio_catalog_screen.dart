@@ -312,6 +312,55 @@ class _StudioCatalogScreenState extends State<StudioCatalogScreen>
     priceController.dispose();
   }
 
+  Future<void> _toggleSongPublished(Song song) async {
+    try {
+      final response = await _musicService.publishSong(song.id, !song.published);
+      if (response.success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(song.published
+                ? 'Canción ocultada exitosamente'
+                : 'Canción publicada exitosamente'),
+          ),
+        );
+        _loadCatalog();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: ${response.error}')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
+      );
+    }
+  }
+
+  Future<void> _toggleAlbumPublished(Album album) async {
+    try {
+      final response =
+          await _musicService.publishAlbum(album.id, !album.published);
+      if (response.success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(album.published
+                ? 'Álbum ocultado exitosamente'
+                : 'Álbum publicado exitosamente'),
+          ),
+        );
+        _loadCatalog();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: ${response.error}')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
