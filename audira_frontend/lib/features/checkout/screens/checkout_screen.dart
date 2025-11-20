@@ -230,9 +230,16 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             border: OutlineInputBorder(),
           ),
           textCapitalization: TextCapitalization.characters,
+          inputFormatters: [
+            FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z\s]')),
+          ],
           validator: (value) {
             if (value == null || value.isEmpty) {
               return 'Ingresa el nombre del titular';
+            }
+
+            if (!RegExp(r'^[a-zA-Z\s]+$').hasMatch(value)) {
+              return 'El nombre no debe contener números';
             }
             return null;
           },
@@ -252,7 +259,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 keyboardType: TextInputType.number,
                 inputFormatters: [
                   FilteringTextInputFormatter.digitsOnly,
-                  LengthLimitingTextInputFormatter(4),
+                  LengthLimitingTextInputFormatter(5),
                   _ExpiryDateFormatter(),
                 ],
                 validator: (value) {
@@ -262,6 +269,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   if (!value.contains('/') || value.length != 5) {
                     return 'Formato MM/AA';
                   }
+                  final parts = value.split('/');
+                  final month = int.tryParse(parts[0]);
+                  
+                  if (month == null || month < 1 || month > 12) {
+                    return 'Mes inválido (01-12)';
+                  }
+
                   return null;
                 },
               ),
@@ -280,14 +294,14 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 obscureText: true,
                 inputFormatters: [
                   FilteringTextInputFormatter.digitsOnly,
-                  LengthLimitingTextInputFormatter(4),
+                  LengthLimitingTextInputFormatter(3),
                 ],
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'CVV requerido';
                   }
-                  if (value.length < 3) {
-                    return 'CVV inválido';
+                  if (value.length != 3) {
+                    return 'CVV debe ser 3 dígitos';
                   }
                   return null;
                 },
