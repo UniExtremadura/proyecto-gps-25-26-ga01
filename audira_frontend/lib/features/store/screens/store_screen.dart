@@ -38,8 +38,8 @@ class _StoreScreenState extends State<StoreScreen>
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
 
-    final songsResponse = await _musicService.getAllSongs();
-    final albumsResponse = await _musicService.getAllAlbums();
+    final songsResponse = await _musicService.getRecentPublishedSongs();
+    final albumsResponse = await _musicService.getRecentPublishedAlbums();
 
     if (songsResponse.success && songsResponse.data != null) {
       _songs = songsResponse.data!;
