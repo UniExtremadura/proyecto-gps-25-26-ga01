@@ -26,6 +26,9 @@ class _StudioCatalogScreenState extends State<StudioCatalogScreen>
   bool _isLoading = false;
   String? _error;
 
+  String _filterStatus = 'all'; // all, published, hidden
+  String _sortBy = 'recent'; // recent, name, plays
+
   @override
   void initState() {
     super.initState();
@@ -140,6 +143,57 @@ class _StudioCatalogScreenState extends State<StudioCatalogScreen>
         );
       }
     }
+  }
+
+  List<Song> get _filteredSongs {
+    var filtered = _songs.where((song) {
+      if (_filterStatus == 'published') return song.published;
+      if (_filterStatus == 'hidden') return !song.published;
+      return true;
+    }).toList();
+
+    switch (_sortBy) {
+      case 'name':
+        filtered.sort((a, b) => a.name.compareTo(b.name));
+        break;
+      case 'plays':
+        filtered.sort((a, b) => b.plays.compareTo(a.plays));
+        break;
+      case 'recent':
+      default:
+        filtered.sort((a, b) {
+          if (a.createdAt == null && b.createdAt == null) return 0;
+          if (a.createdAt == null) return 1;
+          if (b.createdAt == null) return -1;
+          return b.createdAt!.compareTo(a.createdAt!);
+        });
+    }
+
+    return filtered;
+  }
+
+  List<Album> get _filteredAlbums {
+    var filtered = _albums.where((album) {
+      if (_filterStatus == 'published') return album.published;
+      if (_filterStatus == 'hidden') return !album.published;
+      return true;
+    }).toList();
+
+    switch (_sortBy) {
+      case 'name':
+        filtered.sort((a, b) => a.name.compareTo(b.name));
+        break;
+      case 'recent':
+      default:
+        filtered.sort((a, b) {
+          if (a.createdAt == null && b.createdAt == null) return 0;
+          if (a.createdAt == null) return 1;
+          if (b.createdAt == null) return -1;
+          return b.createdAt!.compareTo(a.createdAt!);
+        });
+    }
+
+    return filtered;
   }
 
   Future<void> _editSong(Song song) async {
@@ -365,79 +419,240 @@ class _StudioCatalogScreenState extends State<StudioCatalogScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('My Catalog'),
+        title: const Text('Mi Catálogo'),
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
-            Tab(text: 'Songs', icon: Icon(Icons.music_note)),
-            Tab(text: 'Albums', icon: Icon(Icons.album)),
+            Tab(text: 'Canciones', icon: Icon(Icons.music_note)),
+            Tab(text: 'Álbumes', icon: Icon(Icons.album)),
           ],
         ),
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _error != null
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.error_outline,
-                          size: 64, color: Colors.red),
-                      const SizedBox(height: 16),
-                      Text(_error!),
-                      ElevatedButton(
-                        onPressed: _loadCatalog,
-                        child: const Text('Retry'),
-                      ),
-                    ],
-                  ),
-                )
-              : TabBarView(
-                  controller: _tabController,
+        actions: [
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.filter_list),
+            onSelected: (value) {
+              setState(() {
+                if (value == 'all' ||
+                    value == 'published' ||
+                    value == 'hidden') {
+                  _filterStatus = value;
+                } else {
+                  _sortBy = value;
+                }
+              });
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'filter_header',
+                enabled: false,
+                child: Text('FILTRAR POR ESTADO',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+              PopupMenuItem(
+                value: 'all',
+                child: Row(
                   children: [
-                    _buildSongsList(),
-                    _buildAlbumsList(),
+                    if (_filterStatus == 'all')
+                      const Icon(Icons.check, size: 20),
+                    if (_filterStatus != 'all') const SizedBox(width: 20),
+                    const SizedBox(width: 8),
+                    const Text('Todas'),
                   ],
                 ),
+              ),
+              PopupMenuItem(
+                value: 'published',
+                child: Row(
+                  children: [
+                    if (_filterStatus == 'published')
+                      const Icon(Icons.check, size: 20),
+                    if (_filterStatus != 'published') const SizedBox(width: 20),
+                    const SizedBox(width: 8),
+                    const Text('Publicadas'),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'hidden',
+                child: Row(
+                  children: [
+                    if (_filterStatus == 'hidden')
+                      const Icon(Icons.check, size: 20),
+                    if (_filterStatus != 'hidden') const SizedBox(width: 20),
+                    const SizedBox(width: 8),
+                    const Text('Ocultas'),
+                  ],
+                ),
+              ),
+              const PopupMenuDivider(),
+              const PopupMenuItem(
+                value: 'sort_header',
+                enabled: false,
+                child: Text('ORDENAR POR',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+              PopupMenuItem(
+                value: 'recent',
+                child: Row(
+                  children: [
+                    if (_sortBy == 'recent') const Icon(Icons.check, size: 20),
+                    if (_sortBy != 'recent') const SizedBox(width: 20),
+                    const SizedBox(width: 8),
+                    const Text('Más recientes'),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'name',
+                child: Row(
+                  children: [
+                    if (_sortBy == 'name') const Icon(Icons.check, size: 20),
+                    if (_sortBy != 'name') const SizedBox(width: 20),
+                    const SizedBox(width: 8),
+                    const Text('Nombre'),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'plays',
+                child: Row(
+                  children: [
+                    if (_sortBy == 'plays') const Icon(Icons.check, size: 20),
+                    if (_sortBy != 'plays') const SizedBox(width: 20),
+                    const SizedBox(width: 8),
+                    const Text('Reproducciones'),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+      body: _isLoading
+        ? const Center(child: CircularProgressIndicator())
+        : _error != null
+          ? Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.error_outline,
+                    size: 64, color: Colors.red),
+                const SizedBox(height: 16),
+                Text(_error!),
+                ElevatedButton(
+                  onPressed: _loadCatalog,
+                  child: const Text('Retry'),
+                ),
+              ],
+            ),
+          )
+        : TabBarView(
+            controller: _tabController,
+            children: [
+              _buildSongsList(),
+              _buildAlbumsList(),
+            ],
+          ),
     );
   }
 
   Widget _buildSongsList() {
-    if (_songs.isEmpty) {
-      return const Center(child: Text('No songs yet. Upload your first song!'));
+    final songs = _filteredSongs;
+
+    if (songs.isEmpty) {
+      String message = 'No hay canciones';
+      if (_filterStatus == 'published') {
+        message = 'No hay canciones publicadas';
+      } else if (_filterStatus == 'hidden') {
+        message = 'No hay canciones ocultas';
+      }
+      return Center(child: Text(message));
     }
 
     return ListView.builder(
       padding: const EdgeInsets.all(16),
-      itemCount: _songs.length,
+      itemCount: songs.length,
       itemBuilder: (context, index) {
-        final song = _songs[index];
+        final song = songs[index];
         return Card(
           margin: const EdgeInsets.only(bottom: 12),
           child: ListTile(
-            leading: const CircleAvatar(
-              backgroundColor: AppTheme.primaryBlue,
-              child: Icon(Icons.music_note, color: Colors.white),
+            leading: CircleAvatar(
+              backgroundColor:
+                  song.published ? AppTheme.primaryBlue : Colors.grey,
+              child: Icon(
+                song.published ? Icons.music_note : Icons.visibility_off,
+                color: Colors.white,
+              ),
             ),
-            title: Text(song.name),
-            subtitle: Text(
-                '\$${song.price.toStringAsFixed(2)} • ${song.durationFormatted}'),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
+            title: Row(
               children: [
-                IconButton(
-                  icon: const Icon(Icons.edit, color: AppTheme.primaryBlue),
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Edit - Coming soon')),
-                    );
-                  },
+                Expanded(child: Text(song.name)),
+                if (!song.published)
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Text(
+                      'OCULTO',
+                      style: TextStyle(fontSize: 10),
+                    ),
+                  ),
+              ],
+            ),
+            subtitle: Text(
+                '\$${song.price.toStringAsFixed(2)} • ${song.durationFormatted} • ${song.plays} plays'),
+            trailing: PopupMenuButton<String>(
+              itemBuilder: (context) => <PopupMenuEntry<String>>[
+                const PopupMenuItem<String>(
+                  value: 'edit',
+                  child: Row(
+                    children: [
+                      Icon(Icons.edit, color: AppTheme.primaryBlue),
+                      SizedBox(width: 8),
+                      Text('Editar'),
+                    ],
+                  ),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.delete, color: Colors.red),
-                  onPressed: () => _deleteSong(song.id),
+                PopupMenuItem<String>(
+                  value: 'toggle',
+                  child: Row(
+                    children: [
+                      Icon(
+                        song.published
+                            ? Icons.visibility_off
+                            : Icons.visibility,
+                        color: AppTheme.primaryBlue,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(song.published ? 'Ocultar' : 'Publicar'),
+                    ],
+                  ),
+                ),
+                const PopupMenuDivider(),
+                const PopupMenuItem<String>(
+                  value: 'delete',
+                  child: Row(
+                    children: [
+                      Icon(Icons.delete, color: Colors.red),
+                      SizedBox(width: 8),
+                      Text('Eliminar', style: TextStyle(color: Colors.red)),
+                    ],
+                  ),
                 ),
               ],
+              onSelected: (value) {
+                if (value == 'edit') {
+                  _editSong(song);
+                } else if (value == 'toggle') {
+                  _toggleSongPublished(song);
+                } else if (value == 'delete') {
+                  _deleteSong(song.id);
+                }
+              },
             ),
           ),
         ).animate().fadeIn(delay: (index * 50).ms);
@@ -446,41 +661,101 @@ class _StudioCatalogScreenState extends State<StudioCatalogScreen>
   }
 
   Widget _buildAlbumsList() {
-    if (_albums.isEmpty) {
-      return const Center(
-          child: Text('No albums yet. Create your first album!'));
+    final albums = _filteredAlbums;
+
+    if (albums.isEmpty) {
+      String message = 'No hay álbumes';
+      if (_filterStatus == 'published') {
+        message = 'No hay álbumes publicados';
+      } else if (_filterStatus == 'hidden') {
+        message = 'No hay álbumes ocultos';
+      }
+      return Center(child: Text(message));
     }
 
     return ListView.builder(
       padding: const EdgeInsets.all(16),
-      itemCount: _albums.length,
+      itemCount: albums.length,
       itemBuilder: (context, index) {
-        final album = _albums[index];
+        final album = albums[index];
         return Card(
           margin: const EdgeInsets.only(bottom: 12),
           child: ListTile(
-            leading: const CircleAvatar(
-              backgroundColor: AppTheme.primaryBlue,
-              child: Icon(Icons.album, color: Colors.white),
+            leading: CircleAvatar(
+              backgroundColor:
+                  album.published ? AppTheme.primaryBlue : Colors.grey,
+              child: Icon(
+                album.published ? Icons.album : Icons.visibility_off,
+                color: Colors.white,
+              ),
             ),
-            title: Text(album.name),
-            subtitle: Text('\$${album.price.toStringAsFixed(2)}'),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
+            title: Row(
               children: [
-                IconButton(
-                  icon: const Icon(Icons.edit, color: AppTheme.primaryBlue),
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Edit - Coming soon')),
-                    );
-                  },
+                Expanded(child: Text(album.name)),
+                if (!album.published)
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Text(
+                      'OCULTO',
+                      style: TextStyle(fontSize: 10),
+                    ),
+                  ),
+              ],
+            ),
+            subtitle: Text('\$${album.price.toStringAsFixed(2)}'),
+            trailing: PopupMenuButton<String>(
+              itemBuilder: (context) => <PopupMenuEntry<String>>[
+                const PopupMenuItem<String>(
+                  value: 'edit',
+                  child: Row(
+                    children: [
+                      Icon(Icons.edit, color: AppTheme.primaryBlue),
+                      SizedBox(width: 8),
+                      Text('Editar'),
+                    ],
+                  ),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.delete, color: Colors.red),
-                  onPressed: () => _deleteAlbum(album.id),
+                PopupMenuItem<String>(
+                  value: 'toggle',
+                  child: Row(
+                    children: [
+                      Icon(
+                        album.published
+                            ? Icons.visibility_off
+                            : Icons.visibility,
+                        color: AppTheme.primaryBlue,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(album.published ? 'Ocultar' : 'Publicar'),
+                    ],
+                  ),
+                ),
+                const PopupMenuDivider(),
+                const PopupMenuItem<String>(
+                  value: 'delete',
+                  child: Row(
+                    children: [
+                      Icon(Icons.delete, color: Colors.red),
+                      SizedBox(width: 8),
+                      Text('Eliminar', style: TextStyle(color: Colors.red)),
+                    ],
+                  ),
                 ),
               ],
+              onSelected: (value) {
+                if (value == 'edit') {
+                  _editAlbum(album);
+                } else if (value == 'toggle') {
+                  _toggleAlbumPublished(album);
+                } else if (value == 'delete') {
+                  _deleteAlbum(album.id);
+                }
+              },
             ),
           ),
         ).animate().fadeIn(delay: (index * 50).ms);
