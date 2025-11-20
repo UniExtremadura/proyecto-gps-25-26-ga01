@@ -1,5 +1,3 @@
-// ignore_for_file: use_build_context_synchronously
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -62,6 +60,7 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
 
   /// Eliminar canción de la playlist
   Future<void> _removeSongFromPlaylist(Song song) async {
+    final currentContext = context;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -86,7 +85,8 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
       try {
         await _playlistService.removeSongFromPlaylist(
             widget.playlistId, song.id);
-        ScaffoldMessenger.of(context).showSnackBar(
+        if (!currentContext.mounted) return;
+        ScaffoldMessenger.of(currentContext).showSnackBar(
           const SnackBar(
             content: Text('Canción eliminada'),
             backgroundColor: Colors.green,
@@ -94,7 +94,8 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
         );
         _loadPlaylist();
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        if (!currentContext.mounted) return;
+        ScaffoldMessenger.of(currentContext).showSnackBar(
           SnackBar(
             content: Text('Error: $e'),
             backgroundColor: Colors.red,

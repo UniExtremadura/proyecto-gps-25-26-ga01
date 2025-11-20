@@ -1,5 +1,3 @@
-// ignore_for_file: use_build_context_synchronously
-
 import 'package:audira_frontend/config/theme.dart';
 import 'package:audira_frontend/core/providers/auth_provider.dart';
 import 'package:flutter/material.dart';
@@ -49,6 +47,7 @@ class _ContactScreenState extends State<ContactScreen> {
   }
 
   Future<void> _submitForm() async {
+    final currentContext = context;
     if (!_formKey.currentState!.validate()) {
       return;
     }
@@ -65,9 +64,10 @@ class _ContactScreenState extends State<ContactScreen> {
         userId:
             authProvider.isAuthenticated ? authProvider.currentUser!.id : null,
       );
-
+      if(!currentContext.mounted) return;
       if (response.success) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        if(!currentContext.mounted) return;
+        ScaffoldMessenger.of(currentContext).showSnackBar(
           const SnackBar(
             content: Text(
                 'Message sent successfully! We will get back to you soon.'),
@@ -83,7 +83,8 @@ class _ContactScreenState extends State<ContactScreen> {
           _emailController.clear();
         }
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
+        if(!currentContext.mounted) return;
+        ScaffoldMessenger.of(currentContext).showSnackBar(
           SnackBar(
             content: Text(response.error ?? 'Failed to send message'),
             backgroundColor: Colors.red,
@@ -91,7 +92,8 @@ class _ContactScreenState extends State<ContactScreen> {
         );
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      if(!currentContext.mounted) return;
+      ScaffoldMessenger.of(currentContext).showSnackBar(
         SnackBar(
           content: Text('Error: $e'),
           backgroundColor: Colors.red,
