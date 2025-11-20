@@ -124,8 +124,24 @@ class _CreatePlaylistScreenState extends State<CreatePlaylistScreen> {
           throw Exception('No se pudo crear la playlist');
         }
       } else {
-        // EDITAR (se implementa en GA01-115)
-        throw UnimplementedError('Edición disponible en GA01-115');
+        await libraryProvider.updatePlaylist(
+          playlistId: widget.playlistId!,
+          name: _nameController.text.trim(),
+          description: _descriptionController.text.trim().isEmpty
+              ? null
+              : _descriptionController.text.trim(),
+          isPublic: _isPublic,
+        );
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Playlist actualizada exitosamente'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          Navigator.pop(context, true);
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -139,6 +155,70 @@ class _CreatePlaylistScreenState extends State<CreatePlaylistScreen> {
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  /// Eliminar playlist
+  Future<void> _deletePlaylist() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppTheme.surfaceBlack,
+        title: Row(
+          children: const [
+            Icon(Icons.warning, color: Colors.red),
+            SizedBox(width: 12),
+            Text('Eliminar Playlist'),
+          ],
+        ),
+        content: Text(
+          '¿Estás seguro de que deseas eliminar "${_nameController.text}"?\n\nEsta acción no se puede deshacer.',
+          style: const TextStyle(fontSize: 16),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && widget.playlistId != null) {
+      setState(() => _isLoading = true);
+
+      try {
+        final libraryProvider = context.read<LibraryProvider>();
+        await libraryProvider.deletePlaylist(widget.playlistId!);
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Playlist eliminada exitosamente'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          Navigator.pop(context, true);
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error al eliminar: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } finally {
+        if (mounted) {
+          setState(() => _isLoading = false);
+        }
       }
     }
   }
@@ -165,18 +245,95 @@ class _CreatePlaylistScreenState extends State<CreatePlaylistScreen> {
     );
 
     if (selectedSongs != null && selectedSongs.isNotEmpty) {
-      // Si estamos creando, añadir a la lista temporal
-      setState(() {
-        _selectedSongs.addAll(selectedSongs);
-      });
+      // Si estamos editando, añadir directamente al backend
+      if (widget.playlistId != null) {
+        setState(() => _isLoading = true);
+        try {
+          final libraryProvider = context.read<LibraryProvider>();
+          for (final song in selectedSongs) {
+            await libraryProvider.addSongToPlaylist(widget.playlistId!, song.id);
+          }
+          // Recargar datos
+          await _loadPlaylistData();
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                    '${selectedSongs.length} canción${selectedSongs.length == 1 ? "" : "es"} añadida${selectedSongs.length == 1 ? "" : "s"}'),
+                backgroundColor: Colors.green,
+              ),
+            );
+          }
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+            );
+          }
+        } finally {
+          setState(() => _isLoading = false);
+        }
+      } else {
+        // Si estamos creando, añadir a la lista temporal
+        setState(() {
+          _selectedSongs.addAll(selectedSongs);
+        });
+      }
     }
   }
 
   /// Eliminar canción de la playlist
   Future<void> _removeSong(Song song) async {
-    setState(() {
-      _selectedSongs.remove(song);
-    });
+    if (widget.playlistId != null) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Eliminar canción'),
+          content: Text('¿Eliminar "${song.name}" de esta playlist?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancelar'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              child: const Text('Eliminar'),
+            ),
+          ],
+        ),
+      );
+
+      if (confirmed == true) {
+        setState(() => _isLoading = true);
+        try {
+          final libraryProvider = context.read<LibraryProvider>();
+          await libraryProvider.removeSongFromPlaylist(
+              widget.playlistId!, song.id);
+          await _loadPlaylistData();
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Canción eliminada'),
+                backgroundColor: Colors.green,
+              ),
+            );
+          }
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+            );
+          }
+        } finally {
+          setState(() => _isLoading = false);
+        }
+      }
+    } else {
+      setState(() {
+        _selectedSongs.remove(song);
+      });
+    }
   }
 
   @override
@@ -194,6 +351,12 @@ class _CreatePlaylistScreenState extends State<CreatePlaylistScreen> {
           widget.playlistId == null ? 'Crear Playlist' : 'Editar Playlist',
         ),
         actions: [
+          if (widget.playlistId != null)
+            IconButton(
+              icon: const Icon(Icons.delete, color: Colors.red),
+              onPressed: _deletePlaylist,
+              tooltip: 'Eliminar playlist',
+            ),
           IconButton(
             icon: Icon(_showPreview ? Icons.edit : Icons.preview),
             onPressed: _togglePreview,
