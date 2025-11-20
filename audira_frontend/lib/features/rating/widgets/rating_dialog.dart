@@ -37,8 +37,7 @@ class _RatingDialogState extends State<RatingDialog> {
   void initState() {
     super.initState();
     if (widget.existingRating != null) {
-      // Asegúrate que en tu modelo Dart el campo se llame 'rating' o 'ratingValue' según corresponda
-      _selectedRating = widget.existingRating!.rating; // OJO: Validar nombre campo
+      _selectedRating = widget.existingRating!.rating;
       _commentController.text = widget.existingRating!.comment ?? '';
     }
   }
@@ -228,7 +227,7 @@ class _RatingDialogState extends State<RatingDialog> {
             Text(
               isEditing
                   ? 'Editar valoración'
-                  : 'Valorar ${widget.entityName ?? "item"}',
+                  : 'Nueva valoración ${widget.entityName ?? "item"}',
               style: const TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
@@ -255,6 +254,7 @@ class _RatingDialogState extends State<RatingDialog> {
           ],
         ),
       ),
+
       content: SingleChildScrollView(
         child: Form(
           key: _formKey,
@@ -278,11 +278,11 @@ class _RatingDialogState extends State<RatingDialog> {
               const SizedBox(height: 8),
               Center(
                 child: RatingStars(
-                  rating: _selectedRating.toDouble(), // Aseguramos double para el widget
+                  rating: _selectedRating, // Aseguramos double para el widget
                   isInteractive: true,
                   onRatingChanged: (rating) {
                     setState(() {
-                      _selectedRating = rating.toInt(); // Guardamos como int
+                      _selectedRating = rating; // Guardamos como int
                     });
                   },
                   size: 40.0,
@@ -302,7 +302,7 @@ class _RatingDialogState extends State<RatingDialog> {
                 decoration: const InputDecoration(
                   hintText: 'Escribe tu opinión...',
                   border: OutlineInputBorder(),
-                  counterText: '', // Ocultamos el contador por defecto del input
+                  counterText: '', 
                 ),
                 validator: (value) {
                   if (value != null && value.length > 500) {

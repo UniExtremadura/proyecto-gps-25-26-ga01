@@ -83,135 +83,135 @@ class RatingCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Usamos Container o Card según prefieras el diseño.
-    // Al estar en una lista con separadores, a veces es mejor quitar el Card
-    // para que no se vea doble borde, pero lo dejo como Card si te gusta ese estilo.
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header con usuario y estrellas
-          Row(
-            children: [
-              // Avatar del usuario
-              CircleAvatar(
-                radius: 20,
-                backgroundImage: rating.userProfileImageUrl != null
-                    ? NetworkImage(rating.userProfileImageUrl!)
-                    : null,
-                child: rating.userProfileImageUrl == null
-                    ? Text(
-                        rating.userName?.substring(0, 1).toUpperCase() ?? 'U',
-                        style: const TextStyle(fontSize: 18),
-                      )
-                    : null,
-              ),
-              const SizedBox(width: 12),
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 0),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header con usuario y estrellas
+            Row(
+              children: [
+                // Avatar del usuario
+                CircleAvatar(
+                  radius: 20,
+                  backgroundImage: rating.userProfileImageUrl != null
+                      ? NetworkImage(rating.userProfileImageUrl!)
+                      : null,
+                  child: rating.userProfileImageUrl == null
+                      ? Text(
+                          rating.userName?.substring(0, 1).toUpperCase() ?? 'U',
+                          style: const TextStyle(fontSize: 18),
+                        )
+                      : null,
+                ),
+                const SizedBox(width: 12),
 
-              // Nombre y estrellas
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Text(
-                          rating.userName ?? 'Usuario',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
+                // Nombre y estrellas
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            rating.userName ?? 'Usuario',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
                           ),
-                        ),
-                        if (isOwnRating) ...[
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.blue,
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: const Text(
-                              'Tú',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
+                          if (isOwnRating) ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.blue,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: const Text(
+                                'Tú',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
-                          ),
+                          ],
                         ],
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    // AQUI: Asegúrate que tu modelo Rating usa 'rating' o 'ratingValue'
-                    RatingStars(
-                      rating: rating.rating.toDouble(), 
-                      size: 16,
-                    ),
-                  ],
-                ),
-              ),
-
-              // Botón editar si es mi valoración
-              if (isOwnRating && onEdit != null)
-                IconButton(
-                  icon: const Icon(Icons.edit, size: 20, color: Colors.grey),
-                  onPressed: onEdit,
-                  tooltip: 'Editar valoración',
-                ),
-            ],
-          ),
-
-          // Comentario si existe
-          if (rating.comment != null && rating.comment!.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Text(
-              rating.comment!,
-              style: const TextStyle(fontSize: 14),
-            ),
-          ],
-
-          // Fecha y estado de edición
-          const SizedBox(height: 8),
-          Builder(
-            builder: (context) {
-              // Lógica para determinar si fue editado
-              final bool isEdited = rating.updatedAt != null &&
-                  rating.createdAt != null &&
-                  rating.updatedAt!.isAfter(rating.createdAt!);
-              
-              // Qué fecha mostrar (Prioridad a la de actualización)
-              final displayDate = isEdited ? rating.updatedAt : rating.createdAt;
-
-              return Row(
-                children: [
-                  Text(
-                    _formatDate(displayDate),
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey,
-                    ),
+                      ),
+                      const SizedBox(height: 4),
+                      // AQUI: Asegúrate que tu modelo Rating usa 'rating' o 'ratingValue'
+                      RatingStars(
+                        rating: rating.rating, 
+                        size: 16,
+                      ),
+                    ],
                   ),
-                  if (isEdited) ...[
-                    const SizedBox(width: 4),
-                    const Text(
-                      '(Editado)',
-                      style: TextStyle(
-                        fontSize: 11,
+                ),
+
+                // Botón editar si es mi valoración
+                if (isOwnRating && onEdit != null)
+                  IconButton(
+                    icon: const Icon(Icons.edit, size: 20),
+                    onPressed: onEdit,
+                    tooltip: 'Editar valoración',
+                  ),
+              ],
+            ),
+
+            // Comentario si existe
+            if (rating.comment != null && rating.comment!.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Text(
+                rating.comment!,
+                style: const TextStyle(fontSize: 14),
+              ),
+            ],
+
+            // Fecha y estado de edición
+            const SizedBox(height: 8),
+            Builder(
+              builder: (context) {
+                // Lógica para determinar si fue editado
+                final bool isEdited = rating.updatedAt != null &&
+                    rating.createdAt != null &&
+                    rating.updatedAt!.isAfter(rating.createdAt!);
+                
+                // Qué fecha mostrar (Prioridad a la de actualización)
+                final displayDate = isEdited ? rating.updatedAt : rating.createdAt;
+
+                return Row(
+                  children: [
+                    Text(
+                      _formatDate(displayDate),
+                      style: const TextStyle(
+                        fontSize: 12,
                         color: Colors.grey,
-                        fontStyle: FontStyle.italic,
                       ),
                     ),
+                    if (isEdited) ...[
+                      const SizedBox(width: 4),
+                      const Text(
+                        '(Editado)',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.grey,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ],
                   ],
-                ],
-              );
-            }
-          ),
-        ],
+                );
+              }
+            ),
+          ],
+        ),
       ),
     );
   }
