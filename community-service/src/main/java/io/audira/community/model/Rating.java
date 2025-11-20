@@ -11,7 +11,7 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
-import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 
 /**
  * Entidad Rating para el sistema de valoraciones
@@ -73,14 +73,14 @@ public class Rating {
      */
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
+    private ZonedDateTime createdAt;
 
     /**
      * Fecha de última actualización (para edición - GA01-130)
      */
     @UpdateTimestamp
     @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
+    private ZonedDateTime updatedAt;
 
     /**
      * Indica si la valoración está activa

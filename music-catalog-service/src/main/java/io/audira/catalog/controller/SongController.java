@@ -107,4 +107,13 @@ public class SongController {
             return ResponseEntity.notFound().build();
         }
     }
+
+    @PatchMapping("/{id}/publish")
+    public ResponseEntity<Song> publishSong(@PathVariable Long id, @RequestParam boolean published) {
+        try {
+            return ResponseEntity.ok(songService.publishSong(id, published));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
 }

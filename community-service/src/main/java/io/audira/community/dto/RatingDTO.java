@@ -4,8 +4,8 @@ import io.audira.community.model.Rating;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
-import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
+import java.util.TimeZone;
 
 /**
  * DTO para respuesta de valoración
@@ -21,8 +21,8 @@ public class RatingDTO {
     private Long entityId;
     private Integer rating;
     private String comment;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
+    private ZonedDateTime createdAt;
+    private ZonedDateTime updatedAt;
     private Boolean isActive;
 
     /**

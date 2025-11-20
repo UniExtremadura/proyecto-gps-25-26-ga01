@@ -23,6 +23,7 @@ import '../../../core/api/services/rating_service.dart';
 import '../../../core/api/services/library_service.dart';
 import '../../../features/rating/widgets/rating_dialog.dart';
 import '../../../features/rating/widgets/rating_list.dart';
+import '../../../features/downloads/widgets/download_button.dart';
 
 class SongDetailScreen extends StatefulWidget {
   final int songId;
@@ -56,7 +57,8 @@ class _SongDetailScreenState extends State<SongDetailScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this); // Solo Info y Ratings
+    _tabController =
+        TabController(length: 2, vsync: this); // Solo Info y Ratings
     _loadSongDetails();
     _loadRatingsAndComments();
   }
@@ -502,8 +504,7 @@ class _SongDetailScreenState extends State<SongDetailScreen>
                     ),
                   ],
                 ),
-                if (_ratingStats != null &&
-                    _ratingStats!.averageRating > 0)
+                if (_ratingStats != null && _ratingStats!.averageRating > 0)
                   Padding(
                     padding: const EdgeInsets.only(top: 8),
                     child: Row(
@@ -574,7 +575,8 @@ class _SongDetailScreenState extends State<SongDetailScreen>
                     label: const Text('Comprado'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green,
-                      disabledBackgroundColor: Colors.green.withValues(alpha: 0.7),
+                      disabledBackgroundColor:
+                          Colors.green.withValues(alpha: 0.7),
                       disabledForegroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 12),
                     ),
@@ -621,6 +623,7 @@ class _SongDetailScreenState extends State<SongDetailScreen>
             icon: Icon(isFavorite ? Icons.favorite : Icons.favorite_border),
             color: isFavorite ? Colors.red : AppTheme.primaryBlue,
           ),
+          if (_song != null) DownloadButton(song: _song!),
         ],
       ),
     ).animate().fadeIn(delay: 200.ms);
@@ -728,9 +731,12 @@ class _SongDetailScreenState extends State<SongDetailScreen>
             child: ElevatedButton.icon(
               onPressed: _showRatingDialog,
               icon: Icon(_myRating != null ? Icons.edit : Icons.star),
-              label: Text(_myRating != null ? 'Editar mi valoración' : 'Valorar esta canción'),
+              label: Text(_myRating != null
+                  ? 'Editar mi valoración'
+                  : 'Valorar esta canción'),
               style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
+                padding:
+                    const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
               ),
             ),
           ),
@@ -755,5 +761,4 @@ class _SongDetailScreenState extends State<SongDetailScreen>
       ),
     );
   }
-
 }
