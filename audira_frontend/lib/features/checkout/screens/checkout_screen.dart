@@ -280,10 +280,26 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   }
                   final parts = value.split('/');
                   final month = int.tryParse(parts[0]);
+
+                  final year = int.tryParse(parts[1]); // Úsalo si quieres validar año pasado
                   
                   if (month == null || month < 1 || month > 12) {
                     return 'Mes inválido (01-12)';
                   }
+
+                  if (year != null) {
+                      final now = DateTime.now();
+                      final currentYear = now.year % 100; 
+                      final currentMonth = now.month;
+
+                      if (year < currentYear) {
+                        return 'Tarjeta caducada';
+                      }
+                      
+                      if (year == currentYear && month < currentMonth) {
+                        return 'Tarjeta caducada';
+                      }
+                    }
 
                   return null;
                 },
