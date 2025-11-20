@@ -1,6 +1,7 @@
 import 'package:audira_frontend/features/profile/screens/followed_artists_screen.dart';
 import 'package:audira_frontend/features/studio/screens/file_upload_demo_screen.dart';
 import 'package:flutter/material.dart';
+import '../core/models/payment.dart';
 import '../features/auth/screens/login_screen.dart';
 import '../features/auth/screens/register_screen.dart';
 import '../features/home/screens/main_layout.dart';
@@ -32,6 +33,9 @@ import '../features/studio/screens/studio_dashboard_screen.dart';
 import '../features/studio/screens/upload_song_screen.dart';
 import '../features/studio/screens/upload_album_screen.dart';
 import '../features/studio/screens/studio_stats_screen.dart';
+import '../features/library/screens/library_screen.dart';
+import '../features/receipt/screens/receipt_screen.dart';
+import '../features/downloads/screens/downloads_screen.dart';
 
 class AppRoutes {
   static const String home = '/';
@@ -54,6 +58,8 @@ class AppRoutes {
   static const String search = '/search';
   static const String notifications = '/notifications';
   static const String purchaseHistory = '/profile/purchase-history';
+  static const String library = '/library';
+  static const String receipt = '/receipt';
   static const String studio = '/studio';
   static const String studioUploadSong = '/studio/upload-song';
   static const String studioUploadAlbum = '/studio/upload-album';
@@ -69,6 +75,7 @@ class AppRoutes {
   static const String adminContacts = '/admin/contacts';
   static const String adminOrders = '/admin/orders';
   static const String adminStats = '/admin/stats';
+  static const String downloads = '/downloads';
 
   static Route<dynamic> generateRoute(RouteSettings settings) {
     switch (settings.name) {
@@ -128,7 +135,24 @@ class AppRoutes {
 
       case purchaseHistory:
         return MaterialPageRoute(builder: (_) => const PurchaseHistoryScreen());
-        
+
+      case library:
+        return MaterialPageRoute(
+          builder: (_) => Scaffold(
+            appBar: AppBar(
+              title: const Text('Mi Biblioteca'),
+              centerTitle: true,
+            ),
+            body: const LibraryScreen(),
+          ),
+        );
+
+      case receipt:
+        final payment = settings.arguments as Payment;
+        return MaterialPageRoute(
+          builder: (_) => ReceiptScreen(payment: payment),
+        );
+
       case studio:
         return MaterialPageRoute(builder: (_) => const StudioDashboardScreen());
 
@@ -197,6 +221,9 @@ class AppRoutes {
 
       case adminStats:
         return MaterialPageRoute(builder: (_) => const AdminStatsScreen());
+
+      case downloads:
+        return MaterialPageRoute(builder: (_) => const DownloadsScreen());
 
       default:
         return MaterialPageRoute(

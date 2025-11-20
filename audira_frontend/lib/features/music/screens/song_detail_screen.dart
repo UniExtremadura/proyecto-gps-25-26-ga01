@@ -6,19 +6,24 @@ import 'package:audira_frontend/core/models/album.dart';
 import 'package:audira_frontend/core/models/artist.dart';
 import 'package:audira_frontend/core/models/collaborator.dart';
 import 'package:audira_frontend/core/models/rating.dart';
+import 'package:audira_frontend/core/models/rating_stats.dart';
 import 'package:audira_frontend/core/models/song.dart';
 import 'package:audira_frontend/core/providers/audio_provider.dart';
 import 'package:audira_frontend/core/providers/auth_provider.dart';
 import 'package:audira_frontend/core/providers/cart_provider.dart';
 import 'package:audira_frontend/core/providers/library_provider.dart';
+import 'package:audira_frontend/features/common/widgets/app_bottom_navigation_bar.dart';
+import 'package:audira_frontend/features/common/widgets/mini_player.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import '../../../core/models/comment.dart';
 import '../../../core/api/services/rating_service.dart';
-import '../../../core/api/services/comment_service.dart';
+import '../../../core/api/services/library_service.dart';
+import '../../../features/rating/widgets/rating_dialog.dart';
+import '../../../features/rating/widgets/rating_list.dart';
+import '../../../features/downloads/widgets/download_button.dart';
 
 class SongDetailScreen extends StatefulWidget {
   final int songId;
@@ -33,29 +38,27 @@ class _SongDetailScreenState extends State<SongDetailScreen>
     with SingleTickerProviderStateMixin {
   final MusicService _musicService = MusicService();
   final RatingService _ratingService = RatingService();
-  final CommentService _commentService = CommentService();
+  final LibraryService _libraryService = LibraryService();
 
   Song? _song;
   Album? _album;
   Artist? _artist;
   List<Collaborator> _collaborators = [];
-  Map<String, dynamic>? _ratingStats;
-  List<Rating> _ratings = [];
-  List<Comment> _comments = [];
+  RatingStats? _ratingStats;
+  List<Rating> _ratingsWithComments = [];
+  Rating? _myRating;
 
   bool _isLoading = true;
   bool _isLoadingRatings = true;
-  bool _isLoadingComments = true;
   String? _error;
 
   late TabController _tabController;
-  final TextEditingController _commentController = TextEditingController();
-  int? _userRating;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController =
+        TabController(length: 2, vsync: this); // Solo Info y Ratings
     _loadSongDetails();
     _loadRatingsAndComments();
   }
@@ -63,7 +66,6 @@ class _SongDetailScreenState extends State<SongDetailScreen>
   @override
   void dispose() {
     _tabController.dispose();
-    _commentController.dispose();
     super.dispose();
   }
 
@@ -108,12 +110,13 @@ class _SongDetailScreenState extends State<SongDetailScreen>
   }
 
   Future<void> _loadRatingsAndComments() async {
+    if (!mounted) return;
     setState(() {
       _isLoadingRatings = true;
-      _isLoadingComments = true;
     });
 
     try {
+      // Cargar estadísticas (no requiere autenticación)
       final statsResponse = await _ratingService.getEntityRatingStats(
         entityType: 'SONG',
         entityId: widget.songId,
@@ -122,112 +125,122 @@ class _SongDetailScreenState extends State<SongDetailScreen>
         _ratingStats = statsResponse.data;
       }
 
-      final ratingsResponse = await _ratingService.getEntityRatings(
+      // Cargar valoraciones con comentarios (no requiere autenticación)
+      final ratingsResponse = await _ratingService.getEntityRatingsWithComments(
         entityType: 'SONG',
         entityId: widget.songId,
       );
       if (ratingsResponse.success && ratingsResponse.data != null) {
-        _ratings = ratingsResponse.data!;
+        _ratingsWithComments = ratingsResponse.data!;
       }
 
+      // Obtener mi valoración SOLO si estoy autenticado
       final authProvider = context.read<AuthProvider>();
       if (authProvider.isAuthenticated) {
-        final userRatingResponse = await _ratingService.getUserEntityRating(
-          userId: authProvider.currentUser!.id,
+        final myRatingResponse = await _ratingService.getMyEntityRating(
           entityType: 'SONG',
           entityId: widget.songId,
         );
-        if (userRatingResponse.success && userRatingResponse.data != null) {
-          _userRating = userRatingResponse.data!.rating;
+        if (myRatingResponse.success && myRatingResponse.data != null) {
+          _myRating = myRatingResponse.data;
         }
-      }
-
-      setState(() => _isLoadingRatings = false);
-
-      final commentsResponse = await _commentService.getEntityComments(
-        entityType: 'SONG',
-        entityId: widget.songId,
-      );
-      if (commentsResponse.success && commentsResponse.data != null) {
-        _comments = commentsResponse.data!;
+      } else {
+        // Usuario no autenticado (invitado)
+        _myRating = null;
       }
     } catch (e) {
       debugPrint('Error loading ratings/comments: $e');
     } finally {
-      setState(() => _isLoadingComments = false);
+      if (mounted) {
+        setState(() => _isLoadingRatings = false);
+      }
     }
   }
 
-  Future<void> _submitRating(int rating) async {
+  /// Mostrar diálogo para crear o editar valoración (con comentario incluido)
+  /// Verifica que el usuario haya comprado la canción antes de permitir valorar
+  Future<void> _showRatingDialog() async {
     final authProvider = context.read<AuthProvider>();
     if (!authProvider.isAuthenticated) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please login to rate this song')),
-      );
+      // Usuario invitado - mostrar alerta para iniciar sesión
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Inicie Sesión'),
+            content: const Text(
+              'Debe iniciar sesión para valorar productos y acceder a todas las funcionalidades de la plataforma.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Cerrar'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  // Redirigir a pantalla de login
+                  Navigator.pushNamed(context, '/login');
+                },
+                child: const Text('Iniciar Sesión'),
+              ),
+            ],
+          ),
+        );
+      }
       return;
     }
 
-    try {
-      final response = await _ratingService.createRating(
-        userId: authProvider.currentUser!.id,
-        entityType: 'SONG',
-        entityId: widget.songId,
-        ratingValue: rating,
+    // Si ya tiene una valoración, puede editarla sin verificar compra
+    if (_myRating == null) {
+      // Verificar si ha comprado la canción
+      final purchaseResponse = await _libraryService.checkIfPurchased(
+        authProvider.currentUser!.id,
+        'SONG',
+        widget.songId,
       );
 
-      if (response.success) {
-        setState(() => _userRating = rating);
-        _loadRatingsAndComments();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Rating submitted successfully')),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(response.error ?? 'Failed to submit rating')),
-        );
+      if (!purchaseResponse.success || !(purchaseResponse.data ?? false)) {
+        // No ha comprado la canción
+        if (mounted) {
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('Compra requerida'),
+              content: const Text(
+                'Debes comprar esta canción antes de poder valorarla. '
+                '¿Deseas agregarla al carrito?',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Cancelar'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    _addToCart();
+                  },
+                  child: const Text('Agregar al carrito'),
+                ),
+              ],
+            ),
+          );
+        }
+        return;
       }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
-    }
-  }
-
-  Future<void> _submitComment() async {
-    final authProvider = context.read<AuthProvider>();
-    if (!authProvider.isAuthenticated) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please login to comment')),
-      );
-      return;
     }
 
-    final content = _commentController.text.trim();
-    if (content.isEmpty) return;
+    final result = await showRatingDialog(
+      context,
+      entityType: 'SONG',
+      entityId: widget.songId,
+      existingRating: _myRating,
+      entityName: _song?.name,
+    );
 
-    try {
-      final response = await _commentService.createComment(
-        userId: authProvider.currentUser!.id,
-        entityType: 'SONG',
-        entityId: widget.songId,
-        content: content,
-      );
-
-      if (response.success) {
-        _commentController.clear();
-        _loadRatingsAndComments();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Comment posted successfully')),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(response.error ?? 'Failed to post comment')),
-        );
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
+    if (result == true) {
+      _loadRatingsAndComments();
     }
   }
 
@@ -236,17 +249,37 @@ class _SongDetailScreenState extends State<SongDetailScreen>
 
     final authProvider = context.read<AuthProvider>();
     if (!authProvider.isAuthenticated) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please login or register to add items to cart'),
-        ),
-      );
+      // Usuario invitado - mostrar alerta para iniciar sesión
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Inicie Sesión'),
+            content: const Text(
+              'Debe iniciar sesión para agregar productos al carrito y realizar compras.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Cerrar'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  Navigator.pushNamed(context, '/login');
+                },
+                child: const Text('Iniciar Sesión'),
+              ),
+            ],
+          ),
+        );
+      }
       return;
     }
 
     final cartProvider = context.read<CartProvider>();
     try {
-      await cartProvider.addToCart(
+      final success = await cartProvider.addToCart(
         userId: authProvider.currentUser!.id,
         itemType: 'SONG',
         itemId: _song!.id,
@@ -254,13 +287,34 @@ class _SongDetailScreenState extends State<SongDetailScreen>
         quantity: 1,
       );
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Song added to cart')),
-      );
+      if (mounted) {
+        if (success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('${_song!.name} añadido al carrito'),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('${_song!.name} ya está en el carrito'),
+              backgroundColor: Colors.orange,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -324,7 +378,11 @@ class _SongDetailScreenState extends State<SongDetailScreen>
               ),
             ),
           ),
+          const MiniPlayer(),
         ],
+      ),
+      bottomNavigationBar: const AppBottomNavigationBar(
+        selectedIndex: null,
       ),
     );
   }
@@ -446,8 +504,7 @@ class _SongDetailScreenState extends State<SongDetailScreen>
                     ),
                   ],
                 ),
-                if (_ratingStats != null &&
-                    _ratingStats!['averageRating'] != null)
+                if (_ratingStats != null && _ratingStats!.averageRating > 0)
                   Padding(
                     padding: const EdgeInsets.only(top: 8),
                     child: Row(
@@ -455,9 +512,7 @@ class _SongDetailScreenState extends State<SongDetailScreen>
                         ...List.generate(
                           5,
                           (index) => Icon(
-                            index <
-                                    (_ratingStats!['averageRating'] as num)
-                                        .floor()
+                            index < _ratingStats!.averageRating.floor()
                                 ? Icons.star
                                 : Icons.star_border,
                             color: Colors.amber,
@@ -466,7 +521,7 @@ class _SongDetailScreenState extends State<SongDetailScreen>
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          '${(_ratingStats!['averageRating'] as num).toStringAsFixed(1)} (${_ratingStats!['totalRatings']} ratings)',
+                          '${_ratingStats!.averageRating.toStringAsFixed(1)} (${_ratingStats!.totalRatings} ratings)',
                           style: TextStyle(color: AppTheme.textSecondary),
                         ),
                       ],
@@ -494,17 +549,17 @@ class _SongDetailScreenState extends State<SongDetailScreen>
             child: ElevatedButton.icon(
               onPressed: () {
                 if (_song != null) {
-                  audioProvider.playSong(_song!, demo: true);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Playing 10-second demo...'),
-                      duration: Duration(seconds: 2),
-                    ),
+                  audioProvider.playSong(
+                    _song!,
+                    isUserAuthenticated: authProvider.isAuthenticated,
                   );
+
+                  Navigator.pushNamed(context, '/playback');
                 }
               },
               icon: const Icon(Icons.play_arrow),
-              label: const Text('Play Demo'),
+              label: Text(
+                  authProvider.isAuthenticated ? 'Reproducir' : 'Vista previa'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primaryBlue,
                 padding: const EdgeInsets.symmetric(vertical: 12),
@@ -513,15 +568,28 @@ class _SongDetailScreenState extends State<SongDetailScreen>
           ),
           const SizedBox(width: 8),
           Expanded(
-            child: ElevatedButton.icon(
-              onPressed: _addToCart,
-              icon: const Icon(Icons.shopping_cart),
-              label: const Text('Add to Cart'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.darkBlue,
-                padding: const EdgeInsets.symmetric(vertical: 12),
-              ),
-            ),
+            child: libraryProvider.isSongPurchased(_song!.id)
+                ? ElevatedButton.icon(
+                    onPressed: null, // Botón deshabilitado
+                    icon: const Icon(Icons.check_circle),
+                    label: const Text('Comprado'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      disabledBackgroundColor:
+                          Colors.green.withValues(alpha: 0.7),
+                      disabledForegroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  )
+                : ElevatedButton.icon(
+                    onPressed: _addToCart,
+                    icon: const Icon(Icons.shopping_cart),
+                    label: const Text('Add to Cart'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.darkBlue,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
           ),
           const SizedBox(width: 8),
           IconButton(
@@ -555,6 +623,7 @@ class _SongDetailScreenState extends State<SongDetailScreen>
             icon: Icon(isFavorite ? Icons.favorite : Icons.favorite_border),
             color: isFavorite ? Colors.red : AppTheme.primaryBlue,
           ),
+          if (_song != null) DownloadButton(song: _song!),
         ],
       ),
     ).animate().fadeIn(delay: 200.ms);
@@ -571,7 +640,6 @@ class _SongDetailScreenState extends State<SongDetailScreen>
           tabs: const [
             Tab(text: 'Details'),
             Tab(text: 'Ratings'),
-            Tab(text: 'Comments'),
           ],
         ),
         SizedBox(
@@ -581,7 +649,6 @@ class _SongDetailScreenState extends State<SongDetailScreen>
             children: [
               _buildDetailsTab(),
               _buildRatingsTab(),
-              _buildCommentsTab(),
             ],
           ),
         ),
@@ -658,167 +725,40 @@ class _SongDetailScreenState extends State<SongDetailScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Rate this song',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(
-              5,
-              (index) => IconButton(
-                icon: Icon(
-                  index < (_userRating ?? 0) ? Icons.star : Icons.star_border,
-                  color: Colors.amber,
-                  size: 32,
-                ),
-                onPressed: () => _submitRating(index + 1),
+          // Botón para crear o editar mi valoración
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: ElevatedButton.icon(
+              onPressed: _showRatingDialog,
+              icon: Icon(_myRating != null ? Icons.edit : Icons.star),
+              label: Text(_myRating != null
+                  ? 'Editar mi valoración'
+                  : 'Valorar esta canción'),
+              style: ElevatedButton.styleFrom(
+                padding:
+                    const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
               ),
             ),
           ),
-          const SizedBox(height: 16),
+
+          const Divider(),
+
+          // Lista de valoraciones y comentarios unificados
           if (_isLoadingRatings)
-            const Center(child: CircularProgressIndicator())
-          else if (_ratings.isEmpty)
-            const Center(child: Text('No ratings yet'))
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(32.0),
+                child: CircularProgressIndicator(),
+              ),
+            )
           else
-            ..._ratings.map((rating) => Card(
-                  child: ListTile(
-                    leading: CircleAvatar(
-                      child: Text(rating.userId.toString()),
-                    ),
-                    title: Row(
-                      children: List.generate(
-                        5,
-                        (index) => Icon(
-                          index < rating.rating
-                              ? Icons.star
-                              : Icons.star_border,
-                          color: Colors.amber,
-                          size: 16,
-                        ),
-                      ),
-                    ),
-                    subtitle:
-                        rating.comment != null ? Text(rating.comment!) : null,
-                    trailing: Text(
-                      rating.createdAt.toString().split(' ')[0],
-                      style: TextStyle(color: AppTheme.textSecondary),
-                    ),
-                  ),
-                )),
+            RatingList(
+              ratings: _ratingsWithComments,
+              currentUserId: context.read<AuthProvider>().currentUser?.id,
+              onRatingChanged: _loadRatingsAndComments,
+            ),
         ],
       ),
-    );
-  }
-
-  Widget _buildCommentsTab() {
-    return Column(
-      children: [
-        Expanded(
-          child: _isLoadingComments
-              ? const Center(child: CircularProgressIndicator())
-              : _comments.isEmpty
-                  ? const Center(child: Text('No comments yet'))
-                  : ListView.builder(
-                      padding: const EdgeInsets.all(16),
-                      itemCount: _comments.length,
-                      itemBuilder: (context, index) {
-                        final comment = _comments[index];
-                        return Card(
-                          margin: const EdgeInsets.only(bottom: 8),
-                          child: ListTile(
-                            leading: CircleAvatar(
-                              child: Text(comment.userId.toString()[0]),
-                            ),
-                            title: Text('User ${comment.userId}'),
-                            subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(comment.content),
-                                const SizedBox(height: 4),
-                                Text(
-                                  comment.createdAt.toString().split('.')[0],
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: AppTheme.textSecondary,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                IconButton(
-                                  icon: const Icon(Icons.thumb_up_outlined,
-                                      size: 18),
-                                  onPressed: () async {
-                                    try {
-                                      await _commentService
-                                          .likeComment(comment.id);
-                                      _loadRatingsAndComments();
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(
-                                        const SnackBar(
-                                          content: Text('Comment liked'),
-                                          duration: Duration(seconds: 1),
-                                        ),
-                                      );
-                                    } catch (e) {
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(
-                                        SnackBar(content: Text('Error: $e')),
-                                      );
-                                    }
-                                  },
-                                ),
-                                if (comment.likesCount > 0)
-                                  Text('${comment.likesCount}'),
-                              ],
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-        ),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: AppTheme.surfaceBlack,
-            border: Border(
-              top: BorderSide(
-                  color: AppTheme.textSecondary.withValues(alpha: 0.2)),
-            ),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _commentController,
-                  decoration: InputDecoration(
-                    hintText: 'Write a comment...',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(24),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
-                    ),
-                  ),
-                  maxLines: null,
-                ),
-              ),
-              const SizedBox(width: 8),
-              IconButton(
-                onPressed: _submitComment,
-                icon: const Icon(Icons.send),
-                color: AppTheme.primaryBlue,
-              ),
-            ],
-          ),
-        ),
-      ],
     );
   }
 }

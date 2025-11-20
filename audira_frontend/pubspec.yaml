@@ -9,10 +9,6 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  provider: ^6.0.0
-  equatable: ^2.0.0
-  intl: ^0.18.0
-  flutter_animate: ^4.0.0
 
   # UI & Icons
   cupertino_icons: ^1.0.6
@@ -56,6 +52,7 @@ dependencies:
   intl: ^0.20.2
   uuid: ^4.3.3
   equatable: ^2.0.5
+  timeago: ^3.7.0
 
   # Image Picker
   image_picker: ^1.0.7
@@ -66,6 +63,9 @@ dependencies:
   # Share
   share_plus: ^10.1.2
 
+  # URL Launcher
+  url_launcher: ^6.2.5
+
   # Charts for statistics
   fl_chart: ^1.1.1
 
@@ -74,6 +74,12 @@ dependencies:
 
   # Loading indicators
   flutter_spinkit: ^5.2.0
+
+  # Permissions
+  permission_handler: ^11.0.1
+
+  # Path Provider
+  path_provider: ^2.1.1
 
 dev_dependencies:
   flutter_test:

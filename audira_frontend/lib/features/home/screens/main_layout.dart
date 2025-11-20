@@ -88,6 +88,39 @@ class _MainLayoutState extends State<MainLayout> {
     ];
   }
 
+  void _onDestinationSelected(int index) async {
+    setState(() {
+      _currentIndex = index;
+    });
+
+    // Reload cart when cart tab is selected
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final cartProvider = Provider.of<CartProvider>(context, listen: false);
+
+    // Check if cart tab was selected (index 3 for authenticated users, or dynamic based on auth)
+    final isCartTab = _isCartTab(index);
+
+    if (isCartTab && authProvider.currentUser != null) {
+      debugPrint('=== Cart tab selected, reloading cart ===');
+      await cartProvider.loadCart(authProvider.currentUser!.id);
+    }
+  }
+
+  bool _isCartTab(int index) {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final isAuthenticated = authProvider.isAuthenticated;
+
+    // Calculate cart tab index based on authentication
+    // 0: Home, 1: Store
+    if (isAuthenticated) {
+      // 2: Library, 3: Cart
+      return index == 3;
+    } else {
+      // 2: Cart (no Library when not authenticated)
+      return index == 2;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -149,6 +182,47 @@ class _MainLayoutState extends State<MainLayout> {
       ),
       body: Column(
         children: [
+          Consumer<AuthProvider>(
+            builder: (context, authProvider, child) {
+              if (!authProvider.isAuthenticated) {
+                return Container(
+                  width: double.infinity,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  color: AppTheme.primaryBlue.withValues(alpha: 0.9),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          '¿Quieres acceso completo? Inicia sesión gratis',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          Navigator.pushNamed(context, '/login');
+                        },
+                        style: TextButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: AppTheme.primaryBlue,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
+                        ),
+                        child: const Text('Iniciar sesión'),
+                      ),
+                    ],
+                  ),
+                );
+              }
+              return const SizedBox.shrink();
+            },
+          ),
           Expanded(
             child: PageTransitionSwitcher(
               transitionBuilder: (child, primaryAnimation, secondaryAnimation) {
@@ -166,11 +240,7 @@ class _MainLayoutState extends State<MainLayout> {
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
-        onDestinationSelected: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
+        onDestinationSelected: _onDestinationSelected,
         destinations: _destinations,
         backgroundColor: AppTheme.surfaceBlack,
         indicatorColor: AppTheme.primaryBlue.withValues(alpha: 0.2),

@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../config/theme.dart';
 import '../../../core/providers/auth_provider.dart';
+import '../../../core/providers/library_provider.dart';
 import '../../../core/api/services/playlist_service.dart';
 import '../../../core/models/playlist.dart';
+import '../../../core/providers/download_provider.dart';
+import '../../../config/routes.dart';
 
 class LibraryScreen extends StatefulWidget {
   const LibraryScreen({super.key});
@@ -23,8 +26,22 @@ class _LibraryScreenState extends State<LibraryScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
-    _loadPlaylists();
+    _tabController = TabController(length: 5, vsync: this);
+    // Schedule loading after the first frame to avoid setState during build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadPlaylists();
+      _loadLibrary();
+    });
+  }
+
+  Future<void> _loadLibrary() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final libraryProvider =
+        Provider.of<LibraryProvider>(context, listen: false);
+
+    if (authProvider.currentUser != null) {
+      await libraryProvider.loadLibrary(authProvider.currentUser!.id);
+    }
   }
 
   @override
@@ -50,85 +67,460 @@ class _LibraryScreenState extends State<LibraryScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Container(
-          color: AppTheme.surfaceBlack,
-          child: TabBar(
-            controller: _tabController,
-            isScrollable: true,
-            indicatorColor: AppTheme.primaryBlue,
-            labelColor: AppTheme.primaryBlue,
-            unselectedLabelColor: AppTheme.textGrey,
-            tabs: const [
-              Tab(text: 'Canciones'),
-              Tab(text: 'Álbumes'),
-              Tab(text: 'Playlists'),
-              Tab(text: 'Favoritos'),
-            ],
-          ),
-        ),
-        Expanded(
-          child: TabBarView(
-            controller: _tabController,
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Mi Biblioteca'),
+        centerTitle: true,
+      ),
+      body: Consumer<LibraryProvider>(
+        builder: (context, libraryProvider, child) {
+          return Column(
             children: [
-              // Songs
-              _buildEmptyState('Canciones', Icons.music_note),
+              Material(
+                color: AppTheme.surfaceBlack,
+                child: TabBar(
+                  controller: _tabController,
+                  isScrollable: true,
+                  indicatorColor: AppTheme.primaryBlue,
+                  labelColor: AppTheme.primaryBlue,
+                  unselectedLabelColor: AppTheme.textGrey,
+                  tabs: const [
+                    Tab(text: 'Canciones'),
+                    Tab(text: 'Álbumes'),
+                    Tab(text: 'Playlists'),
+                    Tab(text: 'Favoritos'),
+                    Tab(text: 'Descargas'),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: TabBarView(
+                  controller: _tabController,
+                  children: [
+                    // Songs
+                    _buildSongsTab(libraryProvider),
 
-              // Albums
-              _buildEmptyState('Álbumes', Icons.album),
+                    // Albums
+                    _buildAlbumsTab(libraryProvider),
 
-              // Playlists
-              _isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : _playlists.isEmpty
-                      ? _buildEmptyState('Playlists', Icons.playlist_play)
-                      : ListView.builder(
-                          padding: const EdgeInsets.all(16),
-                          itemCount: _playlists.length,
-                          itemBuilder: (context, index) {
-                            final playlist = _playlists[index];
-                            return Card(
-                              margin: const EdgeInsets.only(bottom: 12),
-                              child: ListTile(
-                                leading: Container(
-                                  width: 50,
-                                  height: 50,
-                                  decoration: BoxDecoration(
-                                    color: AppTheme.primaryBlue
-                                        .withValues(alpha: 0.2),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: const Icon(Icons.playlist_play),
-                                ),
-                                title: Text(playlist.name),
-                                subtitle: Text(
-                                  '${playlist.songCount} canciones',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .bodySmall
-                                      ?.copyWith(
+                    // Playlists
+                    _isLoading
+                        ? const Center(child: CircularProgressIndicator())
+                        : _playlists.isEmpty
+                            ? _buildEmptyState('Playlists', Icons.playlist_play)
+                            : ListView.builder(
+                                padding: const EdgeInsets.all(16),
+                                itemCount: _playlists.length,
+                                itemBuilder: (context, index) {
+                                  final playlist = _playlists[index];
+                                  return Card(
+                                    margin: const EdgeInsets.only(bottom: 12),
+                                    child: ListTile(
+                                      leading: Container(
+                                        width: 50,
+                                        height: 50,
+                                        decoration: BoxDecoration(
+                                          color: AppTheme.primaryBlue
+                                              .withValues(alpha: 0.2),
+                                          borderRadius:
+                                              BorderRadius.circular(8),
+                                        ),
+                                        child: const Icon(Icons.playlist_play),
+                                      ),
+                                      title: Text(playlist.name),
+                                      subtitle: Text(
+                                        '${playlist.songCount} canciones',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall
+                                            ?.copyWith(
+                                              color: AppTheme.textGrey,
+                                            ),
+                                      ),
+                                      trailing: Icon(
+                                        playlist.isPublic
+                                            ? Icons.public
+                                            : Icons.lock,
                                         color: AppTheme.textGrey,
                                       ),
-                                ),
-                                trailing: Icon(
-                                  playlist.isPublic ? Icons.public : Icons.lock,
-                                  color: AppTheme.textGrey,
-                                ),
-                                onTap: () {
-                                  // Navigate to playlist detail page
+                                      onTap: () {
+                                        Navigator.pushNamed(
+                                          context,
+                                          '/playlist',
+                                          arguments: playlist.id,
+                                        );
+                                      },
+                                    ),
+                                  );
                                 },
                               ),
-                            );
-                          },
-                        ),
 
-              // Favorites
-              _buildEmptyState('Favoritos', Icons.favorite),
+                    // Favorites
+                    _buildFavoritesTab(libraryProvider),
+                    _buildDownloadsTab(context),
+                  ],
+                ),
+              ),
             ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildSongsTab(LibraryProvider libraryProvider) {
+    final songs = libraryProvider.purchasedSongs;
+
+    if (songs.isEmpty) {
+      return _buildEmptyState('Canciones', Icons.music_note);
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: songs.length,
+      itemBuilder: (context, index) {
+        final song = songs[index];
+        return Card(
+          margin: const EdgeInsets.only(bottom: 12),
+          child: ListTile(
+            leading: Container(
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                color: AppTheme.primaryBlue.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(Icons.music_note),
+            ),
+            title: Text(song.name),
+            subtitle: Text(
+              song.artistName,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppTheme.textGrey,
+                  ),
+            ),
+            trailing: Text(
+              '\$${song.price.toStringAsFixed(2)}',
+              style: const TextStyle(
+                color: AppTheme.primaryBlue,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            onTap: () {
+              Navigator.pushNamed(
+                context,
+                '/song',
+                arguments: song.id,
+              );
+            },
           ),
-        ),
+        );
+      },
+    );
+  }
+
+  Widget _buildAlbumsTab(LibraryProvider libraryProvider) {
+    final albums = libraryProvider.purchasedAlbums;
+
+    if (albums.isEmpty) {
+      return _buildEmptyState('Álbumes', Icons.album);
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: albums.length,
+      itemBuilder: (context, index) {
+        final album = albums[index];
+        return Card(
+          margin: const EdgeInsets.only(bottom: 12),
+          child: ListTile(
+            leading: Container(
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                color: AppTheme.primaryBlue.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(Icons.album),
+            ),
+            title: Text(album.name),
+            subtitle: Text(
+              'Artista ID: ${album.artistId}',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppTheme.textGrey,
+                  ),
+            ),
+            trailing: Text(
+              '\$${album.price.toStringAsFixed(2)}',
+              style: const TextStyle(
+                color: AppTheme.primaryBlue,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            onTap: () {
+              Navigator.pushNamed(
+                context,
+                '/album',
+                arguments: album.id,
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildFavoritesTab(LibraryProvider libraryProvider) {
+    final favoriteSongs = libraryProvider.favoriteSongs;
+    final favoriteAlbums = libraryProvider.favoriteAlbums;
+
+    if (favoriteSongs.isEmpty && favoriteAlbums.isEmpty) {
+      return _buildEmptyState('Favoritos', Icons.favorite);
+    }
+
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        if (favoriteSongs.isNotEmpty) ...[
+          Text(
+            'Canciones favoritas',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: 12),
+          ...favoriteSongs.map((song) => Card(
+                margin: const EdgeInsets.only(bottom: 12),
+                child: ListTile(
+                  leading: Container(
+                    width: 50,
+                    height: 50,
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryBlue.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.music_note),
+                  ),
+                  title: Text(song.name),
+                  subtitle: Text(
+                    song.artistName,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppTheme.textGrey,
+                        ),
+                  ),
+                  trailing: const Icon(Icons.favorite, color: Colors.red),
+                  onTap: () {
+                    Navigator.pushNamed(
+                      context,
+                      '/song',
+                      arguments: song.id,
+                    );
+                  },
+                ),
+              )),
+          const SizedBox(height: 24),
+        ],
+        if (favoriteAlbums.isNotEmpty) ...[
+          Text(
+            'Álbumes favoritos',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: 12),
+          ...favoriteAlbums.map((album) => Card(
+                margin: const EdgeInsets.only(bottom: 12),
+                child: ListTile(
+                  leading: Container(
+                    width: 50,
+                    height: 50,
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryBlue.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.album),
+                  ),
+                  title: Text(album.name),
+                  subtitle: Text(
+                    'Artista ID: ${album.artistId}',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppTheme.textGrey,
+                        ),
+                  ),
+                  trailing: const Icon(Icons.favorite, color: Colors.red),
+                  onTap: () {
+                    Navigator.pushNamed(
+                      context,
+                      '/album',
+                      arguments: album.id,
+                    );
+                  },
+                ),
+              )),
+        ],
       ],
+    );
+  }
+
+  Widget _buildDownloadsTab(BuildContext context) {
+    return Consumer<DownloadProvider>(
+      builder: (context, downloadProvider, child) {
+        final downloads = downloadProvider.downloadedSongs;
+
+        if (downloads.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(
+                  Icons.download_outlined,
+                  size: 80,
+                  color: AppTheme.textGrey,
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'No tienes descargas',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w500,
+                    color: AppTheme.textGrey,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Las canciones que descargues aparecerán aquí',
+                  style: TextStyle(color: AppTheme.textGrey),
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.pushNamed(context, AppRoutes.downloads);
+                  },
+                  icon: const Icon(Icons.explore),
+                  label: const Text('Explorar música'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primaryBlue,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 12,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        return Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    '${downloads.length} canciones descargadas',
+                    style: const TextStyle(
+                      color: AppTheme.textGrey,
+                      fontSize: 14,
+                    ),
+                  ),
+                  TextButton.icon(
+                    onPressed: () {
+                      Navigator.pushNamed(context, AppRoutes.downloads);
+                    },
+                    icon: const Icon(Icons.open_in_new, size: 16),
+                    label: const Text('Ver todas'),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: ListView.builder(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: downloads.length > 5 ? 5 : downloads.length,
+                itemBuilder: (context, index) {
+                  final download = downloads[index];
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    color: AppTheme.surfaceBlack,
+                    child: ListTile(
+                      leading: download.coverImageUrl != null
+                          ? ClipRRect(
+                              borderRadius: BorderRadius.circular(4),
+                              child: Image.network(
+                                download.coverImageUrl!,
+                                width: 50,
+                                height: 50,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) =>
+                                    Container(
+                                  width: 50,
+                                  height: 50,
+                                  color: AppTheme.darkBlue,
+                                  child: const Icon(Icons.music_note,
+                                      color: Colors.white),
+                                ),
+                              ),
+                            )
+                          : Container(
+                              width: 50,
+                              height: 50,
+                              decoration: BoxDecoration(
+                                color: AppTheme.darkBlue,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: const Icon(Icons.music_note,
+                                  color: Colors.white),
+                            ),
+                      title: Text(
+                        download.songName,
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      subtitle: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              download.artistName,
+                              style: const TextStyle(color: AppTheme.textGrey),
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          const Text('•',
+                              style: TextStyle(color: AppTheme.textGrey)),
+                          const SizedBox(width: 8),
+                          Text(
+                            download.fileSizeFormatted,
+                            style: const TextStyle(color: AppTheme.textGrey),
+                          ),
+                        ],
+                      ),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.download_done,
+                            color: Colors.green[400],
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          const Icon(
+                            Icons.chevron_right,
+                            color: AppTheme.textGrey,
+                          ),
+                        ],
+                      ),
+                      onTap: () {
+                        Navigator.pushNamed(context, AppRoutes.downloads);
+                      },
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 

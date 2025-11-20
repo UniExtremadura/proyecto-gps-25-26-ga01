@@ -9,20 +9,36 @@ class DiscoveryService {
 
   final ApiClient _apiClient = ApiClient();
 
-  /// Search songs
-  Future<ApiResponse<List<Song>>> searchSongs(String query) async {
+  /// Search songs 
+  Future<ApiResponse<Map<String, dynamic>>> searchSongs(
+    String query, {
+    int page = 0,
+    int size = 20,
+  }) async {
     try {
       final response = await _apiClient.get(
         '/api/discovery/search/songs',
-        queryParameters: {'query': query},
+        queryParameters: {
+          'query': query,
+          'page': page.toString(),
+          'size': size.toString(),
+        },
       );
 
       if (response.success && response.data != null) {
-        final List<dynamic> data = response.data as List;
-        final songs = data.map((json) => Song.fromJson(json)).toList();
+        final Map<String, dynamic> data = response.data as Map<String, dynamic>;
+        final List<dynamic> content = data['content'] as List;
+        final songs = content.map((json) => Song.fromJson(json)).toList();
+
         return ApiResponse(
           success: true,
-          data: songs,
+          data: {
+            'songs': songs,
+            'currentPage': data['currentPage'],
+            'totalItems': data['totalItems'],
+            'totalPages': data['totalPages'],
+            'hasMore': data['hasMore'],
+          },
           statusCode: response.statusCode,
         );
       }
@@ -37,20 +53,36 @@ class DiscoveryService {
     }
   }
 
-  /// Search albums
-  Future<ApiResponse<List<Album>>> searchAlbums(String query) async {
+  /// Search albums 
+  Future<ApiResponse<Map<String, dynamic>>> searchAlbums(
+    String query, {
+    int page = 0,
+    int size = 20,
+  }) async {
     try {
       final response = await _apiClient.get(
         '/api/discovery/search/albums',
-        queryParameters: {'query': query},
+        queryParameters: {
+          'query': query,
+          'page': page.toString(),
+          'size': size.toString(),
+        },
       );
 
       if (response.success && response.data != null) {
-        final List<dynamic> data = response.data as List;
-        final albums = data.map((json) => Album.fromJson(json)).toList();
+        final Map<String, dynamic> data = response.data as Map<String, dynamic>;
+        final List<dynamic> content = data['content'] as List;
+        final albums = content.map((json) => Album.fromJson(json)).toList();
+
         return ApiResponse(
           success: true,
-          data: albums,
+          data: {
+            'albums': albums,
+            'currentPage': data['currentPage'],
+            'totalItems': data['totalItems'],
+            'totalPages': data['totalPages'],
+            'hasMore': data['hasMore'],
+          },
           statusCode: response.statusCode,
         );
       }
@@ -71,6 +103,7 @@ class DiscoveryService {
       final response = await _apiClient.get(
         '/api/discovery/trending/songs',
         queryParameters: {'limit': limit.toString()},
+        requiresAuth: false,
       );
 
       if (response.success && response.data != null) {
@@ -127,6 +160,7 @@ class DiscoveryService {
       final response = await _apiClient.get(
         '/api/albums/latest-releases',
         queryParameters: {'limit': limit.toString()},
+        requiresAuth: false,
       );
 
       if (response.success && response.data != null) {

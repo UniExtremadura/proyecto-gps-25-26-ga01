@@ -14,6 +14,8 @@ class Album extends Equatable {
   final double discountPercentage;
   final DateTime? createdAt;
   final DateTime? updatedAt;
+  final bool published;
+  final int? songCount;
 
   const Album({
     required this.id,
@@ -29,6 +31,8 @@ class Album extends Equatable {
     this.discountPercentage = 15.0,
     this.createdAt,
     this.updatedAt,
+    this.published = false,
+    this.songCount,
   });
 
   double get discountedPrice {
@@ -59,6 +63,8 @@ class Album extends Equatable {
       updatedAt: json['updatedAt'] != null
           ? DateTime.parse(json['updatedAt'] as String)
           : null,
+      published: json['published'] as bool? ?? false,
+      songCount: json['songCount'] as int?, 
     );
   }
 
@@ -66,17 +72,19 @@ class Album extends Equatable {
     return {
       'id': id,
       'artistId': artistId,
-      'name': name,
+      'title': name,
       'description': description,
       'price': price,
       'stock': stock,
       'category': category,
       'coverImageUrl': coverImageUrl,
       'genreIds': genreIds,
-      'releaseDate': releaseDate?.toIso8601String(),
+      'releaseDate': releaseDate?.toIso8601String().split('T')[0],
       'discountPercentage': discountPercentage,
       'createdAt': createdAt?.toIso8601String(),
       'updatedAt': updatedAt?.toIso8601String(),
+      'published': published,
+      'songCount': songCount
     };
   }
 
@@ -94,6 +102,8 @@ class Album extends Equatable {
     double? discountPercentage,
     DateTime? createdAt,
     DateTime? updatedAt,
+    bool? published,
+    int? songCount,
   }) {
     return Album(
       id: id ?? this.id,
@@ -109,6 +119,8 @@ class Album extends Equatable {
       discountPercentage: discountPercentage ?? this.discountPercentage,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      published: published ?? this.published,
+      songCount: songCount ?? this.songCount,
     );
   }
 
@@ -127,5 +139,7 @@ class Album extends Equatable {
         discountPercentage,
         createdAt,
         updatedAt,
+        published,
+        songCount,
       ];
 }

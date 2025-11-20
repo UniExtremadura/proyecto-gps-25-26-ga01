@@ -5,6 +5,8 @@ import io.audira.community.model.*;
 import io.audira.community.repository.UserRepository;
 import io.audira.community.security.JwtTokenProvider;
 import io.audira.community.security.UserPrincipal;
+import io.audira.community.client.FileServiceClient;
+import io.audira.community.util.SocialMediaValidator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -13,6 +15,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -27,6 +30,7 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final JwtTokenProvider tokenProvider;
+    private final FileServiceClient fileServiceClient;
     private static final Logger logger = LoggerFactory.getLogger(UserService.class);
 
     @Transactional
@@ -155,6 +159,65 @@ public class UserService {
             user.setWebsite(request.getWebsite());
         }
 
+        // Update artist-specific fields if user is an artist
+        if (user instanceof Artist) {
+            Artist artist = (Artist) user;
+            if (request.getArtistName() != null) {
+                artist.setArtistName(request.getArtistName());
+            }
+            if (request.getArtistBio() != null) {
+                artist.setArtistBio(request.getArtistBio());
+            }
+            if (request.getRecordLabel() != null) {
+                artist.setRecordLabel(request.getRecordLabel());
+            }
+        }
+
+        // Update social media links with validation
+        // Only update if the field is not null AND not empty (to avoid overwriting with empty strings)
+        if (request.getTwitterUrl() != null && !request.getTwitterUrl().trim().isEmpty()) {
+            String twitterUrl = request.getTwitterUrl().trim();
+            if (!SocialMediaValidator.isValidTwitterUrl(twitterUrl)) {
+                throw new IllegalArgumentException("URL de Twitter/X inválida. Formato: https://twitter.com/username o https://x.com/username");
+            }
+            user.setTwitterUrl(twitterUrl);
+        }
+        if (request.getInstagramUrl() != null && !request.getInstagramUrl().trim().isEmpty()) {
+            String instagramUrl = request.getInstagramUrl().trim();
+            if (!SocialMediaValidator.isValidInstagramUrl(instagramUrl)) {
+                throw new IllegalArgumentException("URL de Instagram inválida. Formato: https://instagram.com/username");
+            }
+            user.setInstagramUrl(instagramUrl);
+        }
+        if (request.getFacebookUrl() != null && !request.getFacebookUrl().trim().isEmpty()) {
+            String facebookUrl = request.getFacebookUrl().trim();
+            if (!SocialMediaValidator.isValidFacebookUrl(facebookUrl)) {
+                throw new IllegalArgumentException("URL de Facebook inválida. Formato: https://facebook.com/username");
+            }
+            user.setFacebookUrl(facebookUrl);
+        }
+        if (request.getYoutubeUrl() != null && !request.getYoutubeUrl().trim().isEmpty()) {
+            String youtubeUrl = request.getYoutubeUrl().trim();
+            if (!SocialMediaValidator.isValidYoutubeUrl(youtubeUrl)) {
+                throw new IllegalArgumentException("URL de YouTube inválida. Formato: https://youtube.com/@channel o https://youtube.com/c/channel");
+            }
+            user.setYoutubeUrl(youtubeUrl);
+        }
+        if (request.getSpotifyUrl() != null && !request.getSpotifyUrl().trim().isEmpty()) {
+            String spotifyUrl = request.getSpotifyUrl().trim();
+            if (!SocialMediaValidator.isValidSpotifyUrl(spotifyUrl)) {
+                throw new IllegalArgumentException("URL de Spotify inválida. Formato: https://open.spotify.com/artist/...");
+            }
+            user.setSpotifyUrl(spotifyUrl);
+        }
+        if (request.getTiktokUrl() != null && !request.getTiktokUrl().trim().isEmpty()) {
+            String tiktokUrl = request.getTiktokUrl().trim();
+            if (!SocialMediaValidator.isValidTiktokUrl(tiktokUrl)) {
+                throw new IllegalArgumentException("URL de TikTok inválida. Formato: https://tiktok.com/@username");
+            }
+            user.setTiktokUrl(tiktokUrl);
+        }
+
         user = userRepository.save(user);
         return mapToDTO(user);
     }
@@ -184,6 +247,77 @@ public class UserService {
         }
         if (updates.containsKey("website")) {
             user.setWebsite((String) updates.get("website"));
+        }
+
+        // Update artist-specific fields if user is an artist
+        if (user instanceof Artist) {
+            Artist artist = (Artist) user;
+            if (updates.containsKey("artistName")) {
+                artist.setArtistName((String) updates.get("artistName"));
+            }
+            if (updates.containsKey("artistBio")) {
+                artist.setArtistBio((String) updates.get("artistBio"));
+            }
+            if (updates.containsKey("recordLabel")) {
+                artist.setRecordLabel((String) updates.get("recordLabel"));
+            }
+        }
+
+        // Update social media links with validation
+        // Only update if the field exists AND is not empty (to avoid overwriting with empty strings)
+        if (updates.containsKey("twitterUrl")) {
+            String twitterUrl = (String) updates.get("twitterUrl");
+            if (twitterUrl != null && !twitterUrl.trim().isEmpty()) {
+                if (!SocialMediaValidator.isValidTwitterUrl(twitterUrl)) {
+                    throw new IllegalArgumentException("URL de Twitter/X inválida. Formato: https://twitter.com/username o https://x.com/username");
+                }
+                user.setTwitterUrl(twitterUrl.trim());
+            }
+        }
+        if (updates.containsKey("instagramUrl")) {
+            String instagramUrl = (String) updates.get("instagramUrl");
+            if (instagramUrl != null && !instagramUrl.trim().isEmpty()) {
+                if (!SocialMediaValidator.isValidInstagramUrl(instagramUrl)) {
+                    throw new IllegalArgumentException("URL de Instagram inválida. Formato: https://instagram.com/username");
+                }
+                user.setInstagramUrl(instagramUrl.trim());
+            }
+        }
+        if (updates.containsKey("facebookUrl")) {
+            String facebookUrl = (String) updates.get("facebookUrl");
+            if (facebookUrl != null && !facebookUrl.trim().isEmpty()) {
+                if (!SocialMediaValidator.isValidFacebookUrl(facebookUrl)) {
+                    throw new IllegalArgumentException("URL de Facebook inválida. Formato: https://facebook.com/username");
+                }
+                user.setFacebookUrl(facebookUrl.trim());
+            }
+        }
+        if (updates.containsKey("youtubeUrl")) {
+            String youtubeUrl = (String) updates.get("youtubeUrl");
+            if (youtubeUrl != null && !youtubeUrl.trim().isEmpty()) {
+                if (!SocialMediaValidator.isValidYoutubeUrl(youtubeUrl)) {
+                    throw new IllegalArgumentException("URL de YouTube inválida. Formato: https://youtube.com/@channel o https://youtube.com/c/channel");
+                }
+                user.setYoutubeUrl(youtubeUrl.trim());
+            }
+        }
+        if (updates.containsKey("spotifyUrl")) {
+            String spotifyUrl = (String) updates.get("spotifyUrl");
+            if (spotifyUrl != null && !spotifyUrl.trim().isEmpty()) {
+                if (!SocialMediaValidator.isValidSpotifyUrl(spotifyUrl)) {
+                    throw new IllegalArgumentException("URL de Spotify inválida. Formato: https://open.spotify.com/artist/...");
+                }
+                user.setSpotifyUrl(spotifyUrl.trim());
+            }
+        }
+        if (updates.containsKey("tiktokUrl")) {
+            String tiktokUrl = (String) updates.get("tiktokUrl");
+            if (tiktokUrl != null && !tiktokUrl.trim().isEmpty()) {
+                if (!SocialMediaValidator.isValidTiktokUrl(tiktokUrl)) {
+                    throw new IllegalArgumentException("URL de TikTok inválida. Formato: https://tiktok.com/@username");
+                }
+                user.setTiktokUrl(tiktokUrl.trim());
+            }
         }
 
         user = userRepository.save(user);
@@ -263,7 +397,11 @@ public class UserService {
     }
 
     private UserDTO mapToDTO(User user) {
-        return UserDTO.builder()
+        logger.info("🔍 mapToDTO called for user: {} (id: {})", user.getUsername(), user.getId());
+        logger.info("📱 User Twitter URL from entity: '{}'", user.getTwitterUrl());
+        logger.info("📱 User Instagram URL from entity: '{}'", user.getInstagramUrl());
+
+        UserDTO.UserDTOBuilder builder = UserDTO.builder()
                 .id(user.getId())
                 .email(user.getEmail())
                 .username(user.getUsername())
@@ -280,8 +418,37 @@ public class UserService {
                 .followerIds(user.getFollowerIds())
                 .followingIds(user.getFollowingIds())
                 .createdAt(user.getCreatedAt())
-                .updatedAt(user.getUpdatedAt())
-                .build();
+                .updatedAt(user.getUpdatedAt());
+
+        // Add artist-specific fields if user is an artist
+        if (user instanceof Artist) {
+            Artist artist = (Artist) user;
+            builder.artistName(artist.getArtistName())
+                   .artistBio(artist.getArtistBio())
+                   .recordLabel(artist.getRecordLabel())
+                   .verifiedArtist(artist.getVerifiedArtist());
+        }
+
+        // Add social media links
+        String twitterUrl = user.getTwitterUrl();
+        String instagramUrl = user.getInstagramUrl();
+        String facebookUrl = user.getFacebookUrl();
+        String youtubeUrl = user.getYoutubeUrl();
+        String spotifyUrl = user.getSpotifyUrl();
+        String tiktokUrl = user.getTiktokUrl();
+
+        logger.info("🐦 Adding Twitter URL to DTO: '{}'", twitterUrl);
+
+        builder.twitterUrl(twitterUrl)
+               .instagramUrl(instagramUrl)
+               .facebookUrl(facebookUrl)
+               .youtubeUrl(youtubeUrl)
+               .spotifyUrl(spotifyUrl)
+               .tiktokUrl(tiktokUrl);
+
+        UserDTO dto = builder.build();
+        logger.info("✅ DTO built - Twitter URL in DTO: '{}'", dto.getTwitterUrl());
+        return dto;
     }
 
     @Transactional
@@ -331,5 +498,61 @@ public class UserService {
         // Actualizar la contraseña
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
         userRepository.save(user);
+    }
+
+    // Search methods for GA01-96
+    public List<UserDTO> searchArtists(String query) {
+        List<Artist> artists = userRepository.searchArtistsByName(query);
+        return artists.stream()
+                .map(this::mapToDTO)
+                .collect(Collectors.toList());
+    }
+
+    public List<Long> searchArtistIds(String query) {
+        return userRepository.searchArtistIdsByName(query);
+    }
+
+    @Transactional
+    public UserDTO uploadProfileImage(Long userId, MultipartFile imageFile) {
+        try {
+            // Upload image to file service
+            String imageUrl = fileServiceClient.uploadImage(imageFile);
+
+            // Update user with new profile image URL
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+
+            user.setProfileImageUrl(imageUrl);
+            user = userRepository.save(user);
+
+            logger.info("Profile image updated for user: {} ({})", user.getUsername(), user.getEmail());
+
+            return mapToDTO(user);
+        } catch (Exception e) {
+            logger.error("Error uploading profile image for user {}: {}", userId, e.getMessage());
+            throw new RuntimeException("Error al subir la imagen de perfil: " + e.getMessage());
+        }
+    }
+
+    @Transactional
+    public UserDTO uploadBannerImage(Long userId, MultipartFile imageFile) {
+        try {
+            // Upload image to file service
+            String imageUrl = fileServiceClient.uploadImage(imageFile);
+
+            // Update user with new banner image URL
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+
+            user.setBannerImageUrl(imageUrl);
+            user = userRepository.save(user);
+
+            logger.info("Banner image updated for user: {} ({})", user.getUsername(), user.getEmail());
+
+            return mapToDTO(user);
+        } catch (Exception e) {
+            logger.error("Error uploading banner image for user {}: {}", userId, e.getMessage());
+            throw new RuntimeException("Error al subir la imagen de banner: " + e.getMessage());
+        }
     }
 }

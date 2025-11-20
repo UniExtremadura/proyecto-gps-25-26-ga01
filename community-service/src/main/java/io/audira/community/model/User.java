@@ -56,6 +56,19 @@ public abstract class User {
 
     private String website;
 
+    // Social media links
+    private String twitterUrl;
+
+    private String instagramUrl;
+
+    private String facebookUrl;
+
+    private String youtubeUrl;
+
+    private String spotifyUrl;
+
+    private String tiktokUrl;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private UserRole role;
