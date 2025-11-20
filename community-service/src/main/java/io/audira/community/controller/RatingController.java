@@ -12,6 +12,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Map;
 
@@ -40,6 +42,8 @@ public class RatingController {
             @Valid @RequestBody CreateRatingRequest request) {
         try {
             RatingDTO rating = ratingService.createOrUpdateRating(currentUser.getId(), request);
+            rating.setCreatedAt(ZonedDateTime.now(ZoneId.of("Europe/Madrid")));
+            rating.setUpdatedAt(ZonedDateTime.now(ZoneId.of("Europe/Madrid")));
             return ResponseEntity.status(HttpStatus.CREATED).body(rating);
         } catch (RatingException e) {
             log.error("Error creating rating: {}", e.getMessage());
@@ -62,6 +66,7 @@ public class RatingController {
             @Valid @RequestBody UpdateRatingRequest request) {
         try {
             RatingDTO rating = ratingService.updateRating(ratingId, currentUser.getId(), request);
+            rating.setUpdatedAt(ZonedDateTime.now(ZoneId.of("Europe/Madrid")));
             return ResponseEntity.ok(rating);
         } catch (RatingException.RatingNotFoundException e) {
             return ResponseEntity.notFound().build();
