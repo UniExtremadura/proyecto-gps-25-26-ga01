@@ -1,5 +1,3 @@
-// ignore_for_file: use_build_context_synchronously
-
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../../core/models/faq.dart';
@@ -96,26 +94,32 @@ class _FAQScreenState extends State<FAQScreen> {
   }
 
   Future<void> _markFAQAsHelpful(int faqId) async {
+    final currentContext = context;
     try {
       await _faqService.markAsHelpful(faqId);
-      ScaffoldMessenger.of(context).showSnackBar(
+      if(!currentContext.mounted) return;
+      ScaffoldMessenger.of(currentContext).showSnackBar(
         const SnackBar(content: Text('Thanks for your feedback!')),
       );
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      if(!currentContext.mounted) return;
+      ScaffoldMessenger.of(currentContext).showSnackBar(
         SnackBar(content: Text('Error: $e')),
       );
     }
   }
 
   Future<void> _markFAQAsNotHelpful(int faqId) async {
+    final currentContext = context;
     try {
       await _faqService.markAsNotHelpful(faqId);
-      ScaffoldMessenger.of(context).showSnackBar(
+      if(!currentContext.mounted) return;
+      ScaffoldMessenger.of(currentContext).showSnackBar(
         const SnackBar(content: Text('Thanks for your feedback!')),
       );
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      if(!currentContext.mounted) return;
+      ScaffoldMessenger.of(currentContext).showSnackBar(
         SnackBar(content: Text('Error: $e')),
       );
     }

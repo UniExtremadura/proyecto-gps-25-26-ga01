@@ -1,5 +1,3 @@
-// ignore_for_file: use_build_context_synchronously
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -65,23 +63,27 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   Future<void> _markAllAsRead() async {
+    final currentContext = context;
     final authProvider = context.read<AuthProvider>();
     if (!authProvider.isAuthenticated) return;
 
     try {
       await _notificationService.markAllAsRead(authProvider.currentUser!.id);
       _loadNotifications();
-      ScaffoldMessenger.of(context).showSnackBar(
+      if(!currentContext.mounted) return;
+      ScaffoldMessenger.of(currentContext).showSnackBar(
         const SnackBar(content: Text('All notifications marked as read')),
       );
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      if(!currentContext.mounted) return;
+      ScaffoldMessenger.of(currentContext).showSnackBar(
         SnackBar(content: Text('Error: $e')),
       );
     }
   }
 
   Future<void> _deleteAll() async {
+    final currentContext = context;
     final authProvider = context.read<AuthProvider>();
     if (!authProvider.isAuthenticated) return;
 
@@ -104,17 +106,19 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         ],
       ),
     );
-
+    if(!currentContext.mounted) return;
     if (confirmed == true) {
       try {
         await _notificationService
             .deleteAllNotifications(authProvider.currentUser!.id);
         _loadNotifications();
-        ScaffoldMessenger.of(context).showSnackBar(
+        if(!currentContext.mounted) return;
+        ScaffoldMessenger.of(currentContext).showSnackBar(
           const SnackBar(content: Text('All notifications deleted')),
         );
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        if(!currentContext.mounted) return;
+        ScaffoldMessenger.of(currentContext).showSnackBar(
           SnackBar(content: Text('Error: $e')),
         );
       }
@@ -303,25 +307,30 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   Future<void> _markAsRead(int notificationId) async {
+    final currentContext = context;
     try {
       await _notificationService.markAsRead(notificationId);
       _loadNotifications();
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      if(!currentContext.mounted) return;
+      ScaffoldMessenger.of(currentContext).showSnackBar(
         SnackBar(content: Text('Error: $e')),
       );
     }
   }
 
   Future<void> _deleteNotification(int notificationId) async {
+    final currentContext = context;
     try {
       await _notificationService.deleteNotification(notificationId);
       _loadNotifications();
-      ScaffoldMessenger.of(context).showSnackBar(
+      if(!currentContext.mounted) return;
+      ScaffoldMessenger.of(currentContext).showSnackBar(
         const SnackBar(content: Text('Notification deleted')),
       );
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      if(!currentContext.mounted) return;
+      ScaffoldMessenger.of(currentContext).showSnackBar(
         SnackBar(content: Text('Error: $e')),
       );
     }

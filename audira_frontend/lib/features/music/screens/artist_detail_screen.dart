@@ -1,5 +1,3 @@
-// ignore_for_file: use_build_context_synchronously
-
 import 'package:audira_frontend/config/theme.dart';
 import 'package:audira_frontend/core/api/services/music_service.dart';
 import 'package:audira_frontend/core/models/album.dart';
@@ -48,6 +46,7 @@ class _ArtistDetailScreenState extends State<ArtistDetailScreen>
   }
 
   Future<void> _loadArtistDetails() async {
+    final currentContext = context;
     setState(() {
       _isLoading = true;
       _error = null;
@@ -69,8 +68,8 @@ class _ArtistDetailScreenState extends State<ArtistDetailScreen>
         if (albumsResponse.success && albumsResponse.data != null) {
           _albums = albumsResponse.data!;
         }
-
-        final authProvider = context.read<AuthProvider>();
+        if(!currentContext.mounted) return;
+        final authProvider = currentContext.read<AuthProvider>();
         if (authProvider.isAuthenticated) {
           _isFollowing =
               authProvider.currentUser!.followingIds.contains(widget.artistId);
