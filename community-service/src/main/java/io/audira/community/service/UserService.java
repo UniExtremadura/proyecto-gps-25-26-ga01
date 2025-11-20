@@ -143,11 +143,12 @@ public class UserService {
 
     @Transactional
     public UserDTO updateProfile(Long userId, UpdateProfileRequest request) {
+        // Refresh entity to get latest version from database (prevents optimistic locking errors)
+        entityManager.clear();
+
+        // Reload user with fresh data from database
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
-
-        // Refresh entity to get latest version from database (prevents optimistic locking errors)
-        entityManager.refresh(user);
 
         if (request.getFirstName() != null) {
             user.setFirstName(request.getFirstName());
