@@ -27,6 +27,7 @@ class Collaborator extends Equatable {
   final String role; // feature, producer, composer, etc.
   final CollaborationStatus status; // GA01-154: Invitation status
   final int invitedBy; // GA01-154: User who created the invitation
+  final double revenuePercentage;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -38,6 +39,7 @@ class Collaborator extends Equatable {
     required this.role,
     required this.status,
     required this.invitedBy,
+    required this.revenuePercentage,
     this.createdAt,
     this.updatedAt,
   });
@@ -53,6 +55,7 @@ class Collaborator extends Equatable {
           ? CollaborationStatus.fromJson(json['status'] as String)
           : CollaborationStatus.pending,
       invitedBy: json['invitedBy'] as int,
+      revenuePercentage: (json['revenuePercentage'] as num?)?.toDouble() ?? 0.0,
       createdAt: json['createdAt'] != null
           ? DateTime.parse(json['createdAt'] as String)
           : null,
@@ -71,6 +74,7 @@ class Collaborator extends Equatable {
       'role': role,
       'status': status.toJson(),
       'invitedBy': invitedBy,
+      'revenuePercentage': revenuePercentage,
       if (createdAt != null) 'createdAt': createdAt!.toIso8601String(),
       if (updatedAt != null) 'updatedAt': updatedAt!.toIso8601String(),
     };
@@ -105,6 +109,7 @@ class Collaborator extends Equatable {
     String? role,
     CollaborationStatus? status,
     int? invitedBy,
+    double? revenuePercentage,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -116,6 +121,7 @@ class Collaborator extends Equatable {
       role: role ?? this.role,
       status: status ?? this.status,
       invitedBy: invitedBy ?? this.invitedBy,
+      revenuePercentage: revenuePercentage ?? this.revenuePercentage,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -130,6 +136,7 @@ class Collaborator extends Equatable {
         role,
         status,
         invitedBy,
+        revenuePercentage,
         createdAt,
         updatedAt,
       ];

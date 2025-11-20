@@ -6,6 +6,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
@@ -44,6 +45,10 @@ public class Collaborator {
     @Column(name = "invited_by", nullable = false)
     private Long invitedBy; // GA01-154: ID of user who created the invitation
 
+    @Column(name = "revenue_percentage", precision = 5, scale = 2)
+    @Builder.Default
+    private BigDecimal revenuePercentage = BigDecimal.ZERO; // GA01-155: Percentage of revenue (0-100)
+ 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
@@ -56,6 +61,9 @@ public class Collaborator {
         this.updatedAt = LocalDateTime.now();
         if (this.status == null) {
             this.status = CollaborationStatus.PENDING;
+        }
+        if (this.revenuePercentage == null) {
+            this.revenuePercentage = BigDecimal.ZERO;
         }
     }
 

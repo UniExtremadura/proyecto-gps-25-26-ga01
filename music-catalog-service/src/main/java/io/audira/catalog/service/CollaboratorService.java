@@ -1,6 +1,7 @@
 package io.audira.catalog.service;
 
 import io.audira.catalog.dto.CollaborationRequest;
+import io.audira.catalog.dto.UpdateRevenueRequest;
 import io.audira.catalog.model.CollaborationStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,6 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
@@ -226,5 +228,85 @@ public class CollaboratorService {
     @Transactional
     public void deleteCollaboratorsByAlbumId(Long albumId) {
         collaboratorRepository.deleteByAlbumId(albumId);
+    }
+
+    /**
+     * Update revenue percentage for a collaboration
+     * GA01-155: Definir porcentaje de ganancias
+     */
+    @Transactional
+    public Collaborator updateRevenuePercentage(Long collaborationId, UpdateRevenueRequest request, Long userId) {
+        Collaborator collaborator = collaboratorRepository.findById(collaborationId)
+                .orElseThrow(() -> new RuntimeException("Collaboration not found with id: " + collaborationId));
+
+        // Verify the user is the one who created the invitation
+        if (!collaborator.getInvitedBy().equals(userId)) {
+            throw new IllegalArgumentException("Only the creator can update revenue percentage");
+        }
+
+        // Verify collaboration is accepted
+        if (collaborator.getStatus() != CollaborationStatus.ACCEPTED) {
+            throw new IllegalArgumentException("Can only set revenue percentage for accepted collaborations");
+        }
+
+        // Validate total revenue percentage doesn't exceed 100%
+        BigDecimal currentTotal = calculateTotalRevenuePercentage(
+                collaborator.getSongId(),
+                collaborator.getAlbumId(),
+                collaborationId
+        );
+
+        BigDecimal newTotal = currentTotal.add(request.getRevenuePercentage());
+        if (newTotal.compareTo(BigDecimal.valueOf(100)) > 0) {
+            throw new IllegalArgumentException(
+                    String.format("Total revenue percentage would exceed 100%%. Current: %.2f%%, Requested: %.2f%%, Total would be: %.2f%%",
+                            currentTotal, request.getRevenuePercentage(), newTotal)
+            );
+        }
+
+        collaborator.setRevenuePercentage(request.getRevenuePercentage());
+        Collaborator saved = collaboratorRepository.save(collaborator);
+
+        logger.info("Revenue percentage updated: collaboration {} set to {}%",
+                collaborationId, request.getRevenuePercentage());
+
+        return saved;
+    }
+
+    /**
+     * Calculate total revenue percentage for a song or album (excluding specific collaboration)
+     * GA01-155: Definir porcentaje de ganancias
+     */
+    private BigDecimal calculateTotalRevenuePercentage(Long songId, Long albumId, Long excludeCollaborationId) {
+        List<Collaborator> collaborators;
+
+        if (songId != null) {
+            collaborators = collaboratorRepository.findBySongIdAndStatus(songId, CollaborationStatus.ACCEPTED);
+        } else if (albumId != null) {
+            collaborators = collaboratorRepository.findByAlbumIdAndStatus(albumId, CollaborationStatus.ACCEPTED);
+        } else {
+            return BigDecimal.ZERO;
+        }
+
+        return collaborators.stream()
+                .filter(c -> !c.getId().equals(excludeCollaborationId))
+                .map(Collaborator::getRevenuePercentage)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    /**
+     * Get total revenue percentage for a song
+     * GA01-155: Definir porcentaje de ganancias
+     */
+    public BigDecimal getTotalRevenuePercentageForSong(Long songId) {
+        return calculateTotalRevenuePercentage(songId, null, null);
+    }
+
+    /**
+     * Get total revenue percentage for an album
+     * GA01-155: Definir porcentaje de ganancias
+     */
+    public BigDecimal getTotalRevenuePercentageForAlbum(Long albumId) {
+        return calculateTotalRevenuePercentage(null, albumId, null);
     }
 }

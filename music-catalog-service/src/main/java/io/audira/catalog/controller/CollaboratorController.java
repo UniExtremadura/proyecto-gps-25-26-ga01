@@ -8,9 +8,12 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import io.audira.catalog.dto.CollaborationRequest;
+import io.audira.catalog.dto.UpdateRevenueRequest;
 import jakarta.validation.Valid;
 
+import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Controller for managing collaborations
@@ -192,5 +195,44 @@ public class CollaboratorController {
     public ResponseEntity<Void> deleteCollaboratorsByAlbumId(@PathVariable Long albumId) {
         collaboratorService.deleteCollaboratorsByAlbumId(albumId);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Update revenue percentage for a collaboration
+     * GA01-155: Definir porcentaje de ganancias
+     */
+    @PutMapping("/{id}/revenue")
+    public ResponseEntity<Collaborator> updateRevenuePercentage(
+            @PathVariable Long id,
+            @Valid @RequestBody UpdateRevenueRequest request,
+            @RequestParam Long userId) {
+        try {
+            Collaborator collaboration = collaboratorService.updateRevenuePercentage(id, request, userId);
+            return ResponseEntity.ok(collaboration);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
+        } catch (RuntimeException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    /**
+     * Get total revenue percentage for a song
+     * GA01-155: Definir porcentaje de ganancias
+     */
+    @GetMapping("/song/{songId}/revenue-total")
+    public ResponseEntity<Map<String, BigDecimal>> getTotalRevenuePercentageForSong(@PathVariable Long songId) {
+        BigDecimal total = collaboratorService.getTotalRevenuePercentageForSong(songId);
+        return ResponseEntity.ok(Map.of("totalPercentage", total));
+    }
+
+    /**
+     * Get total revenue percentage for an album
+     * GA01-155: Definir porcentaje de ganancias
+     */
+    @GetMapping("/album/{albumId}/revenue-total")
+    public ResponseEntity<Map<String, BigDecimal>> getTotalRevenuePercentageForAlbum(@PathVariable Long albumId) {
+        BigDecimal total = collaboratorService.getTotalRevenuePercentageForAlbum(albumId);
+        return ResponseEntity.ok(Map.of("totalPercentage", total));
     }
 }
