@@ -37,6 +37,7 @@ import '../features/studio/screens/studio_stats_screen.dart';
 import '../features/library/screens/library_screen.dart';
 import '../features/receipt/screens/receipt_screen.dart';
 import '../features/downloads/screens/downloads_screen.dart';
+import '../features/collaborations/screens/collaborations_screen.dart';
 
 class AppRoutes {
   static const String home = '/';
@@ -67,6 +68,7 @@ class AppRoutes {
   static const String studioStats = '/studio/stats';
   static const String studioCatalog = '/studio/catalog';
   static const String studioFileDemo = '/studio/file-demo';
+  static const String studioCollaborations = '/studio/collaborations';
   static const String admin = '/admin';
   static const String adminSongs = '/admin/songs';
   static const String adminAlbums = '/admin/albums';
@@ -133,6 +135,9 @@ class AppRoutes {
 
       case editProfile:
         return MaterialPageRoute(builder: (_) => const EditProfileScreen());
+
+      case studioCollaborations:
+        return MaterialPageRoute(builder: (_) => const CollaborationsScreen());
 
       case purchaseHistory:
         return MaterialPageRoute(builder: (_) => const PurchaseHistoryScreen());
