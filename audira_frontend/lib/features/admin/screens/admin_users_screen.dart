@@ -1,4 +1,4 @@
-import 'package:audira_frontend/core/api/auth_service.dart';
+import 'package:audira_frontend/core/api/services/admin_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../../config/theme.dart';
@@ -12,7 +12,7 @@ class AdminUsersScreen extends StatefulWidget {
 }
 
 class _AdminUsersScreenState extends State<AdminUsersScreen> {
-  final AuthService _authService = AuthService();
+  final AdminService _adminService = AdminService();
   final TextEditingController _searchController = TextEditingController();
 
   List<User> _users = [];
@@ -40,7 +40,8 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     });
 
     try {
-      final response = await _authService.getAllUsers();
+      // GA01-164: Using admin endpoint for user management
+      final response = await _adminService.getAllUsersAdmin();
       if (response.success && response.data != null) {
         setState(() {
           _users = response.data!;
@@ -80,25 +81,19 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
   }
 
   Future<void> _changeUserRole(User user) async {
-    final currentContext = context;
     final selectedRole = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Change User Role'),
         content: RadioGroup<String>(
           groupValue: user.role,
-          onChanged: (String? value) {
-            if (value != null) {
-              Navigator.pop(context, value);
-            }
-          },
+          onChanged: (value) => Navigator.pop(context, value),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: ['USER', 'ARTIST', 'ADMIN'].map((role) {
               return RadioListTile<String>(
                 title: Text(role),
                 value: role,
-                selected: user.role == role,
               );
             }).toList(),
           ),
@@ -106,24 +101,67 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
       ),
     );
 
-    if(!currentContext.mounted) return;
     if (selectedRole != null && selectedRole != user.role) {
-      if(!currentContext.mounted) return;
-      ScaffoldMessenger.of(currentContext).showSnackBar(
-        SnackBar(content: Text('User role changed to $selectedRole')),
+      // Show loading indicator
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(),
+        ),
       );
-      _loadUsers();
+
+      try {
+        // GA01-164: Change user role via admin endpoint
+        final response = await _adminService.changeUserRole(
+          user.id,
+          selectedRole,
+        );
+
+        if (!mounted) return;
+        Navigator.pop(context); // Close loading dialog
+
+        if (response.success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('User role changed to $selectedRole'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          await _loadUsers();
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error: ${response.error}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } catch (e) {
+        if (!mounted) return;
+        Navigator.pop(context); // Close loading dialog
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
   Future<void> _toggleUserStatus(User user) async {
-    final currentContext = context;
-    final action = user.isActive ? 'deactivate' : 'activate';
+    final action = user.isActive ? 'suspend' : 'activate';
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: Text('${action.toUpperCase()} User'),
-        content: Text('Are you sure you want to $action this user?'),
+        content: Text(
+          user.isActive
+              ? 'Are you sure you want to suspend this user? They will not be able to access the platform.'
+              : 'Are you sure you want to activate this user? They will regain access to the platform.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -139,13 +177,53 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
         ],
       ),
     );
-    if(!currentContext.mounted) return;
+
     if (confirmed == true) {
-      if(!currentContext.mounted) return;
-      ScaffoldMessenger.of(currentContext).showSnackBar(
-        SnackBar(content: Text('User ${action}d successfully')),
+      // Show loading indicator
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(),
+        ),
       );
-      _loadUsers();
+      try {
+        // GA01-165: Change user status via admin endpoint
+        final response = await _adminService.changeUserStatus(
+          user.id,
+          !user.isActive,
+        );
+
+        if (!mounted) return;
+        Navigator.pop(context); // Close loading dialog
+
+        if (response.success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('User ${action}d successfully'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          await _loadUsers();
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error: ${response.error}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } catch (e) {
+        if (!mounted) return;
+        Navigator.pop(context); // Close loading dialog
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
