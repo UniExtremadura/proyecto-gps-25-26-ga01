@@ -105,6 +105,126 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
     }
   }
 
+  Future<void> _deletePlaylist() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppTheme.surfaceBlack,
+        title: Row(
+          children: const [
+            Icon(Icons.warning, color: Colors.red),
+            SizedBox(width: 12),
+            Text('Eliminar Playlist'),
+          ],
+        ),
+        content: Text(
+          '¿Estás seguro de que deseas eliminar "${_playlist!.name}"?\n\nEsta acción no se puede deshacer.',
+          style: const TextStyle(fontSize: 16),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        final libraryProvider = context.read<LibraryProvider>();
+        await libraryProvider.deletePlaylist(widget.playlistId);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Playlist eliminada exitosamente'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          Navigator.pop(context, true);
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  /// Mostrar opciones de la playlist
+  void _showPlaylistOptions() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppTheme.surfaceBlack,
+      builder: (context) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ListTile(
+            leading: const Icon(Icons.edit, color: AppTheme.primaryBlue),
+            title: const Text('Editar playlist'),
+            onTap: () async {
+              Navigator.pop(context);
+              final result = await Navigator.pushNamed(
+                context,
+                '/playlist/edit',
+                arguments: widget.playlistId,
+              );
+              if (result == true) {
+                _loadPlaylist();
+              }
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.add, color: AppTheme.primaryBlue),
+            title: const Text('Añadir canciones'),
+            onTap: () {
+              Navigator.pop(context);
+              _addSongsToPlaylist();
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.share, color: AppTheme.primaryBlue),
+            title: const Text('Compartir'),
+            onTap: () async {
+              Navigator.pop(context);
+              final shareText =
+                  '🎵 Mira mi playlist "${_playlist!.name}" en Audira!\n\n'
+                  '${_songs.length} canciones\n'
+                  '${_playlist!.description ?? ""}\n\n'
+                  '¡Escúchala ahora!';
+
+              await Share.share(
+                shareText,
+                subject: 'Mira esta playlist en Audira',
+              );
+            },
+          ),
+          const Divider(),
+          ListTile(
+            leading: const Icon(Icons.delete, color: Colors.red),
+            title: const Text('Eliminar playlist',
+                style: TextStyle(color: Colors.red)),
+            onTap: () {
+              Navigator.pop(context);
+              _deletePlaylist();
+            },
+          ),
+          const SizedBox(height: 16),
+        ],
+      ),
+    );
+  }
+
   /// Añadir canciones a la playlist
   Future<void> _addSongsToPlaylist() async {
     if (_playlist == null) return;
@@ -165,21 +285,32 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
 
     if (_error != null || _playlist == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Error')),
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.error_outline, size: 64, color: Colors.red),
-              const SizedBox(height: 16),
-              Text(_error ?? 'Playlist not found'),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Go Back'),
+        appBar: AppBar(
+          title: Text(_playlist!.name),
+          actions: [
+            if (isOwner)
+              IconButton(
+                icon: const Icon(Icons.more_vert),
+                onPressed: _showPlaylistOptions,
+                tooltip: 'Opciones',
               ),
-            ],
-          ),
+            if (!isOwner)
+              IconButton(
+                icon: const Icon(Icons.share),
+                onPressed: () async {
+                  final shareText =
+                      '🎵 Mira esta playlist "${_playlist!.name}" en Audira!\n\n'
+                      '${_songs.length} canciones\n'
+                      '${_playlist!.description ?? ""}\n\n'
+                      '¡Escúchala ahora!';
+
+                  await Share.share(
+                    shareText,
+                    subject: 'Mira esta playlist en Audira',
+                  );
+                },
+              ),
+          ],
         ),
       );
     }
