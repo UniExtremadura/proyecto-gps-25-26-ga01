@@ -105,8 +105,9 @@ class _StudioCatalogScreenState extends State<StudioCatalogScreen>
   Future<void> _toggleSongPublished(Song song) async {
     final currentContext = context;
     try {
-      final response = await _musicService.publishSong(song.id, !song.published);
-      if(!currentContext.mounted) return;
+      final response =
+          await _musicService.publishSong(song.id, !song.published);
+      if (!currentContext.mounted) return;
       if (response.success) {
         ScaffoldMessenger.of(currentContext).showSnackBar(
           SnackBar(
@@ -117,13 +118,13 @@ class _StudioCatalogScreenState extends State<StudioCatalogScreen>
         );
         _loadCatalog();
       } else {
-        if(!currentContext.mounted) return;
+        if (!currentContext.mounted) return;
         ScaffoldMessenger.of(currentContext).showSnackBar(
           SnackBar(content: Text('Error: ${response.error}')),
         );
       }
     } catch (e) {
-      if(!currentContext.mounted) return;
+      if (!currentContext.mounted) return;
       ScaffoldMessenger.of(currentContext).showSnackBar(
         SnackBar(content: Text('Error: $e')),
       );
@@ -136,7 +137,7 @@ class _StudioCatalogScreenState extends State<StudioCatalogScreen>
     try {
       final response =
           await _musicService.publishAlbum(album.id, !album.published);
-      if(!currentContext.mounted) return;
+      if (!currentContext.mounted) return;
       if (response.success) {
         ScaffoldMessenger.of(currentContext).showSnackBar(
           SnackBar(
@@ -147,13 +148,13 @@ class _StudioCatalogScreenState extends State<StudioCatalogScreen>
         );
         _loadCatalog();
       } else {
-        if(!currentContext.mounted) return;
+        if (!currentContext.mounted) return;
         ScaffoldMessenger.of(currentContext).showSnackBar(
           SnackBar(content: Text('Error: ${response.error}')),
         );
       }
     } catch (e) {
-      if(!currentContext.mounted) return;
+      if (!currentContext.mounted) return;
       ScaffoldMessenger.of(currentContext).showSnackBar(
         SnackBar(content: Text('Error: $e')),
       );
@@ -166,8 +167,7 @@ class _StudioCatalogScreenState extends State<StudioCatalogScreen>
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Eliminar Canción'),
-        content:
-            const Text('¿Estás seguro? Esta acción no se puede deshacer.'),
+        content: const Text('¿Estás seguro? Esta acción no se puede deshacer.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -181,7 +181,7 @@ class _StudioCatalogScreenState extends State<StudioCatalogScreen>
         ],
       ),
     );
-    if(!currentContext.mounted) return;
+    if (!currentContext.mounted) return;
     if (confirmed == true) {
       try {
         final response = await _musicService.deleteSong(songId);
@@ -204,7 +204,7 @@ class _StudioCatalogScreenState extends State<StudioCatalogScreen>
   Future<void> _deleteAlbum(int albumId) async {
     final currentContext = context;
     final confirmed = await showDialog<bool>(
-      context: currentContext, 
+      context: currentContext,
       builder: (context) => AlertDialog(
         title: const Text('Eliminar Álbum'),
         content: const Text(
@@ -227,7 +227,7 @@ class _StudioCatalogScreenState extends State<StudioCatalogScreen>
       try {
         final response = await _musicService.deleteAlbum(albumId);
         if (!currentContext.mounted) return;
-        
+
         if (response.success) {
           ScaffoldMessenger.of(currentContext).showSnackBar(
             const SnackBar(content: Text('Álbum eliminado exitosamente')),
@@ -299,7 +299,7 @@ class _StudioCatalogScreenState extends State<StudioCatalogScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[100],
+      backgroundColor: AppTheme.surfaceBlack,
       appBar: AppBar(
         elevation: 0,
         title: const Text('Mi Catálogo'),
@@ -578,7 +578,8 @@ class _StudioCatalogScreenState extends State<StudioCatalogScreen>
                           children: [
                             Icon(Icons.delete, color: Colors.red),
                             SizedBox(width: 8),
-                            Text('Eliminar', style: TextStyle(color: Colors.red)),
+                            Text('Eliminar',
+                                style: TextStyle(color: Colors.red)),
                           ],
                         ),
                       ),
@@ -742,7 +743,8 @@ class _StudioCatalogScreenState extends State<StudioCatalogScreen>
                           children: [
                             Icon(Icons.delete, color: Colors.red),
                             SizedBox(width: 8),
-                            Text('Eliminar', style: TextStyle(color: Colors.red)),
+                            Text('Eliminar',
+                                style: TextStyle(color: Colors.red)),
                           ],
                         ),
                       ),
@@ -799,7 +801,7 @@ class _StudioCatalogScreenState extends State<StudioCatalogScreen>
               width: 60,
               height: 60,
               decoration: BoxDecoration(
-                color: AppTheme.primaryBlue.withValues(alpha:0.1),
+                color: AppTheme.primaryBlue.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: const Icon(
@@ -818,7 +820,7 @@ class _StudioCatalogScreenState extends State<StudioCatalogScreen>
       width: 60,
       height: 60,
       decoration: BoxDecoration(
-        color: AppTheme.primaryBlue.withValues(alpha:0.1),
+        color: AppTheme.primaryBlue.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
       ),
       child: const Icon(
@@ -862,7 +864,7 @@ class _StudioCatalogScreenState extends State<StudioCatalogScreen>
               width: 60,
               height: 60,
               decoration: BoxDecoration(
-                color: AppTheme.primaryBlue.withValues(alpha:0.1),
+                color: AppTheme.primaryBlue.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: const Icon(
@@ -881,7 +883,7 @@ class _StudioCatalogScreenState extends State<StudioCatalogScreen>
       width: 60,
       height: 60,
       decoration: BoxDecoration(
-        color: AppTheme.primaryBlue.withValues(alpha:0.1),
+        color: AppTheme.primaryBlue.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
       ),
       child: const Icon(
