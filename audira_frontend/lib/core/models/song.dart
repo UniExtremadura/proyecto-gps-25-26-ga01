@@ -19,6 +19,7 @@ class Song extends Equatable {
   final int plays;
   final DateTime? createdAt;
   final DateTime? updatedAt;
+  final bool published;
 
   const Song({
     required this.id,
@@ -39,6 +40,7 @@ class Song extends Equatable {
     this.plays = 0,
     this.createdAt,
     this.updatedAt,
+    this.published = false,
   });
 
   String get durationFormatted {
@@ -73,6 +75,7 @@ class Song extends Equatable {
       updatedAt: json['updatedAt'] != null
           ? DateTime.parse(json['updatedAt'] as String)
           : null,
+      published: json['published'] as bool? ?? false,
     );
   }
 
@@ -96,6 +99,7 @@ class Song extends Equatable {
       'plays': plays,
       'createdAt': createdAt?.toIso8601String(),
       'updatedAt': updatedAt?.toIso8601String(),
+      'published': published,
     };
   }
 
@@ -118,6 +122,7 @@ class Song extends Equatable {
     int? plays,
     DateTime? createdAt,
     DateTime? updatedAt,
+    bool? published,
   }) {
     return Song(
       id: id ?? this.id,
@@ -138,6 +143,7 @@ class Song extends Equatable {
       plays: plays ?? this.plays,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      published: published ?? this.published,
     );
   }
 
@@ -161,5 +167,6 @@ class Song extends Equatable {
         plays,
         createdAt,
         updatedAt,
+        published,
       ];
 }

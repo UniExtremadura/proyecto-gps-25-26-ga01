@@ -1,5 +1,3 @@
-// ignore_for_file: use_build_context_synchronously
-
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../../config/theme.dart';
@@ -67,20 +65,25 @@ class _AdminFaqsScreenState extends State<AdminFaqsScreen> {
     );
 
     if (confirmed == true) {
+      final currentContext = context;
       try {
         final response = await _faqService.deleteFaq(id);
+        if(!currentContext.mounted) return;
         if (response.success) {
-          ScaffoldMessenger.of(context).showSnackBar(
+          if(!currentContext.mounted) return;
+          ScaffoldMessenger.of(currentContext).showSnackBar(
             const SnackBar(content: Text('FAQ deleted successfully')),
           );
           _loadFaqs();
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
+          if(!currentContext.mounted) return;
+          ScaffoldMessenger.of(currentContext).showSnackBar(
             SnackBar(content: Text(response.error ?? 'Failed to delete FAQ')),
           );
         }
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        if(!currentContext.mounted) return;
+        ScaffoldMessenger.of(currentContext).showSnackBar(
           SnackBar(content: Text('Error: $e')),
         );
       }
@@ -205,6 +208,7 @@ class _AdminFaqsScreenState extends State<AdminFaqsScreen> {
   }
 
   void _showFaqForm(FAQ? faq) {
+    final currentContext = context;
     final isEditing = faq != null;
     final questionController = TextEditingController(text: faq?.question ?? '');
     final answerController = TextEditingController(text: faq?.answer ?? '');
@@ -282,8 +286,8 @@ class _AdminFaqsScreenState extends State<AdminFaqsScreen> {
                     category: category,
                   );
                 }
-
-                ScaffoldMessenger.of(context).showSnackBar(
+                if(!currentContext.mounted) return;
+                ScaffoldMessenger.of(currentContext).showSnackBar(
                   SnackBar(
                     content: Text(
                       isEditing
@@ -294,7 +298,8 @@ class _AdminFaqsScreenState extends State<AdminFaqsScreen> {
                 );
                 _loadFaqs();
               } catch (e) {
-                ScaffoldMessenger.of(context).showSnackBar(
+                if(!currentContext.mounted) return;
+                ScaffoldMessenger.of(currentContext).showSnackBar(
                   SnackBar(content: Text('Error: $e')),
                 );
               }

@@ -1,7 +1,6 @@
-// ignore_for_file: empty_catches
-
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
@@ -169,7 +168,9 @@ class AuthService {
         }
         return User.fromJson(userJson);
       }
-    } catch (e) {}
+    } catch (e) {
+      // Error
+    }
     return null;
   }
 
@@ -240,13 +241,19 @@ class AuthService {
 
   Future<ApiResponse<User>> updateProfile(Map<String, dynamic> updates) async {
     try {
+      debugPrint('🟦 AuthService.updateProfile - Enviando request');
       final response = await _apiClient.put(
         AppConstants.userProfileUrl,
         body: updates,
       );
 
+      debugPrint('🟦 AuthService - Response recibido: success=${response.success}, data=${response.data != null}');
+
       if (response.success && response.data != null) {
         final userJson = response.data as Map<String, dynamic>;
+        debugPrint('🟦 AuthService - userJson keys: ${userJson.keys.toList()}');
+        debugPrint('🟦 AuthService - twitterUrl en JSON: ${userJson['twitterUrl']}');
+
         final role = userJson['role'] as String;
 
         User user;
@@ -256,12 +263,15 @@ class AuthService {
           user = User.fromJson(userJson);
         }
 
+        debugPrint('🟦 AuthService - User creado, twitterUrl: ${user.twitterUrl}');
+
         // Update stored user data
         await _storage.write(
           key: AppConstants.userDataKey,
           value: jsonEncode(user.toJson()),
         );
 
+        debugPrint('🟦 AuthService - Retornando ApiResponse con user');
         return ApiResponse(
           success: true,
           data: user,
@@ -269,12 +279,15 @@ class AuthService {
         );
       }
 
+      debugPrint('🔴 AuthService - Response no exitoso o sin data');
       return ApiResponse(
         success: false,
         error: response.error,
         statusCode: response.statusCode,
       );
-    } catch (e) {
+    } catch (e, stackTrace) {
+      debugPrint('🔴 AuthService - Exception: $e');
+      debugPrint('🔴 StackTrace: $stackTrace');
       return ApiResponse(
         success: false,
         error: 'Error al actualizar perfil: $e',
@@ -408,6 +421,92 @@ class AuthService {
       return ApiResponse(
         success: false,
         error: 'Error al subir imagen: $e',
+      );
+    }
+  }
+
+  /// Upload banner image
+  Future<ApiResponse<User>> uploadBannerImage(
+      File imageFile, int userId) async {
+    try {
+      final uri = Uri.parse(
+          '${AppConstants.apiGatewayUrl}/api/users/profile/banner');
+
+      final request = http.MultipartRequest('POST', uri);
+      request.fields['userId'] = userId.toString();
+
+      final token = await getAuthToken();
+      if (token != null) {
+          request.headers['Authorization'] = 'Bearer $token';
+      } else {
+          throw Exception('No hay token de autenticación disponible.');
+      }
+
+      // Determinar el content-type basándose en la extensión
+      String? contentType;
+      final extension = imageFile.path.split('.').last.toLowerCase();
+      switch (extension) {
+        case 'jpg':
+        case 'jpeg':
+          contentType = 'image/jpeg';
+          break;
+        case 'png':
+          contentType = 'image/png';
+          break;
+        case 'gif':
+          contentType = 'image/gif';
+          break;
+        case 'webp':
+          contentType = 'image/webp';
+          break;
+        default:
+          contentType = 'application/octet-stream';
+      }
+
+      request.files.add(await http.MultipartFile.fromPath(
+        'file',
+        imageFile.path,
+        contentType: MediaType.parse(contentType),
+      ));
+
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final userJson = data['user'] as Map<String, dynamic>;
+        final role = userJson['role'] as String;
+
+        User user;
+        if (role == AppConstants.roleArtist) {
+          user = Artist.fromJson(userJson);
+        } else {
+          user = User.fromJson(userJson);
+        }
+
+        // Update stored user data
+        await _storage.write(
+          key: AppConstants.userDataKey,
+          value: jsonEncode(user.toJson()),
+        );
+
+        return ApiResponse(
+          success: true,
+          data: user,
+          statusCode: response.statusCode,
+        );
+      } else {
+        final errorData = jsonDecode(response.body);
+        return ApiResponse(
+          success: false,
+          error: errorData['error'] ?? 'Error al subir banner',
+          statusCode: response.statusCode,
+        );
+      }
+    } catch (e) {
+      return ApiResponse(
+        success: false,
+        error: 'Error al subir banner: $e',
       );
     }
   }

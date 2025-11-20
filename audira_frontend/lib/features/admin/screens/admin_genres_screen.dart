@@ -1,5 +1,3 @@
-// ignore_for_file: use_build_context_synchronously
-
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../../config/theme.dart';
@@ -91,22 +89,27 @@ class _AdminGenresScreenState extends State<AdminGenresScreen> {
     );
 
     if (confirmed == true) {
+      final currentContext = context;
       try {
         final response = await _musicService.deleteGenre(genreId);
+        if(!currentContext.mounted) return;
         if (response.success) {
-          ScaffoldMessenger.of(context).showSnackBar(
+          if(!currentContext.mounted) return;
+          ScaffoldMessenger.of(currentContext).showSnackBar(
             const SnackBar(content: Text('Genre deleted successfully')),
           );
           _loadGenres();
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
+          if(!currentContext.mounted) return;
+          ScaffoldMessenger.of(currentContext).showSnackBar(
             SnackBar(
               content: Text(response.error ?? 'Failed to delete genre'),
             ),
           );
         }
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        if(!currentContext.mounted) return;
+        ScaffoldMessenger.of(currentContext).showSnackBar(
           SnackBar(content: Text('Error: $e')),
         );
       }

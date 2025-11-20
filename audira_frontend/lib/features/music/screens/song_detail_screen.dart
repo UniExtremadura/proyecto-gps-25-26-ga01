@@ -1,5 +1,3 @@
-// ignore_for_file: use_build_context_synchronously
-
 import 'package:audira_frontend/config/theme.dart';
 import 'package:audira_frontend/core/api/services/music_service.dart';
 import 'package:audira_frontend/core/models/album.dart';
@@ -23,6 +21,7 @@ import '../../../core/api/services/rating_service.dart';
 import '../../../core/api/services/library_service.dart';
 import '../../../features/rating/widgets/rating_dialog.dart';
 import '../../../features/rating/widgets/rating_list.dart';
+import '../../../features/downloads/widgets/download_button.dart';
 
 class SongDetailScreen extends StatefulWidget {
   final int songId;
@@ -56,7 +55,8 @@ class _SongDetailScreenState extends State<SongDetailScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this); // Solo Info y Ratings
+    _tabController =
+        TabController(length: 2, vsync: this); // Solo Info y Ratings
     _loadSongDetails();
     _loadRatingsAndComments();
   }
@@ -108,6 +108,7 @@ class _SongDetailScreenState extends State<SongDetailScreen>
   }
 
   Future<void> _loadRatingsAndComments() async {
+    final currentContext = context;
     if (!mounted) return;
     setState(() {
       _isLoadingRatings = true;
@@ -131,9 +132,9 @@ class _SongDetailScreenState extends State<SongDetailScreen>
       if (ratingsResponse.success && ratingsResponse.data != null) {
         _ratingsWithComments = ratingsResponse.data!;
       }
-
+      if(!currentContext.mounted) return;
       // Obtener mi valoración SOLO si estoy autenticado
-      final authProvider = context.read<AuthProvider>();
+      final authProvider = currentContext.read<AuthProvider>();
       if (authProvider.isAuthenticated) {
         final myRatingResponse = await _ratingService.getMyEntityRating(
           entityType: 'SONG',
@@ -158,6 +159,7 @@ class _SongDetailScreenState extends State<SongDetailScreen>
   /// Mostrar diálogo para crear o editar valoración (con comentario incluido)
   /// Verifica que el usuario haya comprado la canción antes de permitir valorar
   Future<void> _showRatingDialog() async {
+    final currentContext = context;
     final authProvider = context.read<AuthProvider>();
     if (!authProvider.isAuthenticated) {
       // Usuario invitado - mostrar alerta para iniciar sesión
@@ -228,9 +230,9 @@ class _SongDetailScreenState extends State<SongDetailScreen>
         return;
       }
     }
-
+    if(!currentContext.mounted) return;
     final result = await showRatingDialog(
-      context,
+      currentContext,
       entityType: 'SONG',
       entityId: widget.songId,
       existingRating: _myRating,
@@ -502,8 +504,7 @@ class _SongDetailScreenState extends State<SongDetailScreen>
                     ),
                   ],
                 ),
-                if (_ratingStats != null &&
-                    _ratingStats!.averageRating > 0)
+                if (_ratingStats != null && _ratingStats!.averageRating > 0)
                   Padding(
                     padding: const EdgeInsets.only(top: 8),
                     child: Row(
@@ -535,6 +536,7 @@ class _SongDetailScreenState extends State<SongDetailScreen>
   }
 
   Widget _buildActionButtons() {
+    final currentContext = context;
     final audioProvider = Provider.of<AudioProvider>(context, listen: false);
     final libraryProvider = Provider.of<LibraryProvider>(context);
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
@@ -574,7 +576,8 @@ class _SongDetailScreenState extends State<SongDetailScreen>
                     label: const Text('Comprado'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green,
-                      disabledBackgroundColor: Colors.green.withValues(alpha: 0.7),
+                      disabledBackgroundColor:
+                          Colors.green.withValues(alpha: 0.7),
                       disabledForegroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 12),
                     ),
@@ -605,7 +608,8 @@ class _SongDetailScreenState extends State<SongDetailScreen>
                   authProvider.currentUser!.id,
                   _song!,
                 );
-                ScaffoldMessenger.of(context).showSnackBar(
+                if(!currentContext.mounted) return;
+                ScaffoldMessenger.of(currentContext).showSnackBar(
                   SnackBar(
                     content: Text(isFavorite
                         ? 'Removed from favorites'
@@ -613,7 +617,8 @@ class _SongDetailScreenState extends State<SongDetailScreen>
                   ),
                 );
               } catch (e) {
-                ScaffoldMessenger.of(context).showSnackBar(
+                if(!currentContext.mounted) return;
+                ScaffoldMessenger.of(currentContext).showSnackBar(
                   SnackBar(content: Text('Error: $e')),
                 );
               }
@@ -621,6 +626,7 @@ class _SongDetailScreenState extends State<SongDetailScreen>
             icon: Icon(isFavorite ? Icons.favorite : Icons.favorite_border),
             color: isFavorite ? Colors.red : AppTheme.primaryBlue,
           ),
+          if (_song != null) DownloadButton(song: _song!),
         ],
       ),
     ).animate().fadeIn(delay: 200.ms);
@@ -728,9 +734,12 @@ class _SongDetailScreenState extends State<SongDetailScreen>
             child: ElevatedButton.icon(
               onPressed: _showRatingDialog,
               icon: Icon(_myRating != null ? Icons.edit : Icons.star),
-              label: Text(_myRating != null ? 'Editar mi valoración' : 'Valorar esta canción'),
+              label: Text(_myRating != null
+                  ? 'Editar mi valoración'
+                  : 'Valorar esta canción'),
               style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
+                padding:
+                    const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
               ),
             ),
           ),
@@ -755,5 +764,4 @@ class _SongDetailScreenState extends State<SongDetailScreen>
       ),
     );
   }
-
 }

@@ -1,5 +1,3 @@
-// ignore_for_file: use_build_context_synchronously
-
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -28,6 +26,7 @@ class _UploadAlbumScreenState extends State<UploadAlbumScreen> {
 
   bool _showPreview = false;
   bool _isUploading = false;
+  bool _publishNow = true; // Publicar inmediatamente por defecto
   double _uploadProgress = 0.0;
   String? _coverImagePath;
   List<Song> _selectedSongs = [];
@@ -43,6 +42,7 @@ class _UploadAlbumScreenState extends State<UploadAlbumScreen> {
   }
 
   Future<void> _pickCoverImage() async {
+    final currentContext = context;
     try {
       final picker = ImagePicker();
       final XFile? image = await picker.pickImage(
@@ -51,17 +51,19 @@ class _UploadAlbumScreenState extends State<UploadAlbumScreen> {
         maxHeight: 2000,
         imageQuality: 85,
       );
-
+      if(!currentContext.mounted) return;
       if (image != null) {
         setState(() {
           _coverImagePath = image.path;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
+        if(!currentContext.mounted) return;
+        ScaffoldMessenger.of(currentContext).showSnackBar(
           SnackBar(content: Text('Imagen seleccionada: ${image.name}')),
         );
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      if(!currentContext.mounted) return;
+      ScaffoldMessenger.of(currentContext).showSnackBar(
         SnackBar(content: Text('Error al seleccionar imagen: $e')),
       );
     }
@@ -168,6 +170,7 @@ class _UploadAlbumScreenState extends State<UploadAlbumScreen> {
             : null,
         'discountPercentage': 15.0,
         'songIds': _selectedSongs.map((s) => s.id).toList(),
+        'published': _publishNow, // Incluir estado de publicación
       };
 
       final createResponse = await musicService.createAlbum(albumData);
@@ -479,6 +482,35 @@ class _UploadAlbumScreenState extends State<UploadAlbumScreen> {
             ],
 
             const SizedBox(height: 24),
+
+            // Publicar inmediatamente
+            Card(
+              child: SwitchListTile(
+                title: const Text(
+                  '¿Publicar inmediatamente?',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                subtitle: Text(
+                  _publishNow
+                      ? 'El álbum será visible para todos los usuarios'
+                      : 'El álbum quedará oculto hasta que lo publiques manualmente',
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                ),
+                value: _publishNow,
+                onChanged: (value) {
+                  setState(() {
+                    _publishNow = value;
+                  });
+                },
+                activeThumbColor: AppTheme.primaryBlue,
+                secondary: Icon(
+                  _publishNow ? Icons.visibility : Icons.visibility_off,
+                  color: _publishNow ? AppTheme.primaryBlue : Colors.grey,
+                ),
+              ),
+            ).animate().fadeIn(delay: 275.ms),
+
+            const SizedBox(height: 16),
 
             // Botón de crear álbum
             SizedBox(

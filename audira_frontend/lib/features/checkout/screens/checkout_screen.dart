@@ -122,74 +122,75 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   }
 
   Widget _buildPaymentMethodSelector() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Método de pago',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      const Text(
+        'Método de pago',
+        style: TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
         ),
-        const SizedBox(height: 12),
-        RadioGroup<PaymentMethod>(
-          groupValue: _selectedPaymentMethod,
-          onChanged: (PaymentMethod? value) { 
-            if (value != null) {
-              setState(() {
-                _selectedPaymentMethod = value; 
-              });
-            }
-          },
-          child: Column(
-            children: [
-              _buildPaymentMethodOption(
-                PaymentMethod.creditCard,
-                Icons.credit_card,
-              ),
-              _buildPaymentMethodOption(
-                PaymentMethod.debitCard,
-                Icons.payment,
-              ),
-              _buildPaymentMethodOption(
-                PaymentMethod.stripe,
-                Icons.credit_score,
-              ),
-            ]
-          )
-        )
-      ],
-    );
-  }
+      ),
+      const SizedBox(height: 12),
+      
+      RadioGroup<PaymentMethod>(
+        groupValue: _selectedPaymentMethod,
+        onChanged: (PaymentMethod? value) { 
+          if (value != null) {
+            setState(() {
+              _selectedPaymentMethod = value; 
+            });
+          }
+        },
+        child: Column(
+          children: [
+            _buildPaymentMethodOption(
+              PaymentMethod.creditCard,
+              Icons.credit_card,
+            ),
+            _buildPaymentMethodOption(
+              PaymentMethod.debitCard,
+              Icons.payment,
+            ),
+            _buildPaymentMethodOption(
+              PaymentMethod.stripe,
+              Icons.credit_score,
+            ),
+          ],
+        ),
+      ),
+    ],
+  );
+}
 
   Widget _buildPaymentMethodOption(PaymentMethod method, IconData icon) {
-    final isSelected = _selectedPaymentMethod == method;
+  final isSelected = _selectedPaymentMethod == method;
 
-    return Card(
-      color: isSelected ? Colors.blue.shade900 : null,
-      child: ListTile(
-        leading: Icon(
-          icon,
-          color: isSelected ? Colors.blue : null,
-        ),
-        title: Text(
-          method.displayName,
-          style: TextStyle(
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-          ),
-        ),
-        trailing: Radio<PaymentMethod>(
-          value: method,
-        ),
-        onTap: () {
-          setState(() {
-            _selectedPaymentMethod = method;
-          });
-        },
+  return Card(
+    color: isSelected ? Colors.blue.shade900 : null,
+    child: ListTile(
+      leading: Icon(
+        icon,
+        color: isSelected ? Colors.blue : null,
       ),
-    );
-  }
+      title: Text(
+        method.displayName,
+        style: TextStyle(
+          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+        ),
+      ),
+      trailing: Radio<PaymentMethod>(
+        value: method,
+      ),
+      onTap: () {
+        setState(() {
+          _selectedPaymentMethod = method;
+        });
+      },
+    ),
+  );
+}
 
   Widget _buildCardForm() {
     return Column(
@@ -238,9 +239,16 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             border: OutlineInputBorder(),
           ),
           textCapitalization: TextCapitalization.characters,
+          inputFormatters: [
+            FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z\s]')),
+          ],
           validator: (value) {
             if (value == null || value.isEmpty) {
               return 'Ingresa el nombre del titular';
+            }
+
+            if (!RegExp(r'^[a-zA-Z\s]+$').hasMatch(value)) {
+              return 'El nombre no debe contener números';
             }
             return null;
           },
@@ -260,7 +268,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 keyboardType: TextInputType.number,
                 inputFormatters: [
                   FilteringTextInputFormatter.digitsOnly,
-                  LengthLimitingTextInputFormatter(4),
+                  LengthLimitingTextInputFormatter(5),
                   _ExpiryDateFormatter(),
                 ],
                 validator: (value) {
@@ -270,6 +278,29 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   if (!value.contains('/') || value.length != 5) {
                     return 'Formato MM/AA';
                   }
+                  final parts = value.split('/');
+                  final month = int.tryParse(parts[0]);
+
+                  final year = int.tryParse(parts[1]); // Úsalo si quieres validar año pasado
+                  
+                  if (month == null || month < 1 || month > 12) {
+                    return 'Mes inválido (01-12)';
+                  }
+
+                  if (year != null) {
+                      final now = DateTime.now();
+                      final currentYear = now.year % 100; 
+                      final currentMonth = now.month;
+
+                      if (year < currentYear) {
+                        return 'Tarjeta caducada';
+                      }
+                      
+                      if (year == currentYear && month < currentMonth) {
+                        return 'Tarjeta caducada';
+                      }
+                    }
+
                   return null;
                 },
               ),
@@ -288,14 +319,14 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 obscureText: true,
                 inputFormatters: [
                   FilteringTextInputFormatter.digitsOnly,
-                  LengthLimitingTextInputFormatter(4),
+                  LengthLimitingTextInputFormatter(3),
                 ],
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'CVV requerido';
                   }
-                  if (value.length < 3) {
-                    return 'CVV inválido';
+                  if (value.length != 3) {
+                    return 'CVV debe ser 3 dígitos';
                   }
                   return null;
                 },
