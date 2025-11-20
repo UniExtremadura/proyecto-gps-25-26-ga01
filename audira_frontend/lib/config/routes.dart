@@ -1,5 +1,6 @@
 import 'package:audira_frontend/features/profile/screens/followed_artists_screen.dart';
 import 'package:audira_frontend/features/studio/screens/file_upload_demo_screen.dart';
+import 'package:audira_frontend/features/studio/screens/studio_catalog_screen.dart';
 import 'package:flutter/material.dart';
 import '../core/models/payment.dart';
 import '../features/auth/screens/login_screen.dart';
@@ -198,6 +199,7 @@ class AppRoutes {
         return MaterialPageRoute(builder: (_) => const FileUploadDemoScreen());
 
       case studioCatalog:
+        return MaterialPageRoute(builder: (_) => const StudioCatalogScreen());
       case adminSongs:
         return MaterialPageRoute(builder: (_) => const AdminSongsScreen());
 
