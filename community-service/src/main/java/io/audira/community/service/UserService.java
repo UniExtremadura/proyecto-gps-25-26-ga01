@@ -647,6 +647,24 @@ public class UserService {
     }
 
     /**
+     * Change user active status (Admin operation)
+     * GA01-165: Suspender/reactivar cuentas
+     */
+    @Transactional
+    public UserDTO changeUserStatus(Long userId, Boolean isActive) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        user.setIsActive(isActive);
+        user = userRepository.save(user);
+
+        String action = isActive ? "activated" : "suspended";
+        logger.info("User account {}: {} ({})", action, user.getUsername(), user.getEmail());
+
+        return mapToDTO(user);
+    }
+
+    /**
      * Get user statistics for admin dashboard
      * GA01-164: Buscar/editar usuario
      */

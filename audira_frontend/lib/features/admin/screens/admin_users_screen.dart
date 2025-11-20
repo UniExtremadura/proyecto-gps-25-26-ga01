@@ -188,6 +188,42 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
           child: CircularProgressIndicator(),
         ),
       );
+      try {
+        // GA01-165: Change user status via admin endpoint
+        final response = await _adminService.changeUserStatus(
+          user.id,
+          !user.isActive,
+        );
+
+        if (!mounted) return;
+        Navigator.pop(context); // Close loading dialog
+
+        if (response.success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('User ${action}d successfully'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          await _loadUsers();
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error: ${response.error}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } catch (e) {
+        if (!mounted) return;
+        Navigator.pop(context); // Close loading dialog
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 

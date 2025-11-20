@@ -1,6 +1,7 @@
 package io.audira.community.controller;
 
 import io.audira.community.dto.ChangeRoleRequest;
+import io.audira.community.dto.ChangeStatusRequest;
 import io.audira.community.dto.UserDTO;
 import io.audira.community.service.UserService;
 import jakarta.validation.Valid;
@@ -100,4 +101,42 @@ public class AdminController {
         UserDTO updatedUser = userService.adminVerifyUser(userId);
         return ResponseEntity.ok(updatedUser);
     }
+
+    /**
+     * Change user active status (suspend/activate account)
+     * GA01-165: Suspender/reactivar cuentas
+     *
+     * @param userId User ID to change status
+     * @param request ChangeStatusRequest containing new active status
+     * @return Updated user DTO
+     */
+    @PutMapping("/{userId}/status")
+    public ResponseEntity<UserDTO> changeUserStatus(
+            @PathVariable Long userId,
+            @Valid @RequestBody ChangeStatusRequest request
+    ) {
+        UserDTO updatedUser = userService.changeUserStatus(userId, request.getIsActive());
+        return ResponseEntity.ok(updatedUser);
+    }
+
+    /**
+     * Suspend user account (shortcut for setting isActive = false)
+     * GA01-165: Suspender/reactivar cuentas
+     */
+    @PutMapping("/{userId}/suspend")
+    public ResponseEntity<UserDTO> suspendUser(@PathVariable Long userId) {
+        UserDTO updatedUser = userService.changeUserStatus(userId, false);
+        return ResponseEntity.ok(updatedUser);
+    }
+
+    /**
+     * Activate user account (shortcut for setting isActive = true)
+     * GA01-165: Suspender/reactivar cuentas
+     */
+    @PutMapping("/{userId}/activate")
+    public ResponseEntity<UserDTO> activateUser(@PathVariable Long userId) {
+        UserDTO updatedUser = userService.changeUserStatus(userId, true);
+        return ResponseEntity.ok(updatedUser);
+    }
+
 }

@@ -73,6 +73,73 @@ class AdminService {
     return ApiResponse(success: false, error: response.error);
   }
 
+  /// GA01-165: Suspender/reactivar cuentas
+  Future<ApiResponse<User>> changeUserStatus(int userId, bool isActive) async {
+    final response = await _apiClient.put(
+      '/api/admin/users/$userId/status',
+      body: {'isActive': isActive},
+      requiresAuth: true,
+    );
+
+    if (response.success && response.data != null) {
+      try {
+        return ApiResponse(
+          success: true,
+          data: User.fromJson(response.data as Map<String, dynamic>),
+        );
+      } catch (e) {
+        return ApiResponse(
+            success: false, error: 'Error al cambiar estado: $e');
+      }
+    }
+    return ApiResponse(success: false, error: response.error);
+  }
+
+  /// Suspend user account (shortcut)
+  /// GA01-165: Suspender/reactivar cuentas
+  Future<ApiResponse<User>> suspendUser(int userId) async {
+    final response = await _apiClient.put(
+      '/api/admin/users/$userId/suspend',
+      requiresAuth: true,
+    );
+
+    if (response.success && response.data != null) {
+      try {
+        return ApiResponse(
+          success: true,
+          data: User.fromJson(response.data as Map<String, dynamic>),
+        );
+      } catch (e) {
+        return ApiResponse(
+            success: false, error: 'Error al suspender usuario: $e');
+      }
+    }
+    return ApiResponse(success: false, error: response.error);
+  }
+
+  /// Activate user account (shortcut)
+  /// GA01-165: Suspender/reactivar cuentas
+  Future<ApiResponse<User>> activateUser(int userId) async {
+    final response = await _apiClient.put(
+      '/api/admin/users/$userId/activate',
+      requiresAuth: true,
+    );
+
+    if (response.success && response.data != null) {
+      try {
+        return ApiResponse(
+          success: true,
+          data: User.fromJson(response.data as Map<String, dynamic>),
+        );
+      } catch (e) {
+        return ApiResponse(
+            success: false, error: 'Error al activar usuario: $e');
+      }
+    }
+    return ApiResponse(success: false, error: response.error);
+  }
+
+
   /// Get user statistics
   /// GA01-164: Buscar/editar usuario
   Future<ApiResponse<Map<String, dynamic>>> getUserStatistics() async {
