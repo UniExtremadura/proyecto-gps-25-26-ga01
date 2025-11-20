@@ -1,5 +1,3 @@
-// ignore_for_file: use_build_context_synchronously
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -48,6 +46,7 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
   }
 
   Future<void> _clearAllDownloads() async {
+    final currentContext = context;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -69,9 +68,10 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
         ],
       ),
     );
-
+    if(!currentContext.mounted) return;
     if (confirmed == true) {
-      final downloadProvider = context.read<DownloadProvider>();
+      if(!currentContext.mounted) return;
+      final downloadProvider = currentContext.read<DownloadProvider>();
       final success = await downloadProvider.clearAllDownloads();
 
       if (mounted) {
@@ -426,6 +426,7 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
   }
 
   Future<void> _deleteDownload(DownloadedSong downloadedSong) async {
+    final currentContext = context;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -446,9 +447,9 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
         ],
       ),
     );
-
+    if(!currentContext.mounted) return;
     if (confirmed == true) {
-      final downloadProvider = context.read<DownloadProvider>();
+      final downloadProvider = currentContext.read<DownloadProvider>();
       final success =
           await downloadProvider.deleteDownload(downloadedSong.songId);
 
