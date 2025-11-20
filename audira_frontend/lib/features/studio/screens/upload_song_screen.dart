@@ -1,5 +1,3 @@
-// ignore_for_file: use_build_context_synchronously
-
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -98,6 +96,7 @@ class _UploadSongScreenState extends State<UploadSongScreen> {
   }
 
   Future<void> _pickAudioFile() async {
+    final currentContext = context;
     try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
@@ -112,7 +111,8 @@ class _UploadSongScreenState extends State<UploadSongScreen> {
         // Validar extensión
         if (extension == null ||
             !['mp3', 'wav', 'flac', 'aac', 'm4a', 'ogg'].contains(extension)) {
-          ScaffoldMessenger.of(context).showSnackBar(
+          if(!currentContext.mounted) return;
+          ScaffoldMessenger.of(currentContext).showSnackBar(
             const SnackBar(
                 content: Text(
                     'Formato de audio no válido. Use MP3, WAV, FLAC, AAC, M4A u OGG')),
@@ -122,7 +122,8 @@ class _UploadSongScreenState extends State<UploadSongScreen> {
 
         // Validar tamaño (máximo 100MB)
         if (file.size > 100 * 1024 * 1024) {
-          ScaffoldMessenger.of(context).showSnackBar(
+          if(!currentContext.mounted) return;
+          ScaffoldMessenger.of(currentContext).showSnackBar(
             const SnackBar(
                 content: Text('El archivo es demasiado grande. Máximo 100MB')),
           );
@@ -131,7 +132,8 @@ class _UploadSongScreenState extends State<UploadSongScreen> {
 
         // Validar que tengamos el path del archivo
         if (file.path == null) {
-          ScaffoldMessenger.of(context).showSnackBar(
+          if(!currentContext.mounted) return;
+          ScaffoldMessenger.of(currentContext).showSnackBar(
             const SnackBar(
                 content: Text('No se pudo obtener la ruta del archivo')),
           );
@@ -145,7 +147,8 @@ class _UploadSongScreenState extends State<UploadSongScreen> {
           _audioFileExtension = extension;
         });
 
-        ScaffoldMessenger.of(context).showSnackBar(
+        if(!currentContext.mounted) return;
+        ScaffoldMessenger.of(currentContext).showSnackBar(
           SnackBar(
             content: Text(
                 'Audio seleccionado: ${file.name} (${_formatFileSize(file.size)})'),
@@ -154,7 +157,8 @@ class _UploadSongScreenState extends State<UploadSongScreen> {
         );
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      if(!currentContext.mounted) return;
+      ScaffoldMessenger.of(currentContext).showSnackBar(
         SnackBar(content: Text('Error al seleccionar audio: $e')),
       );
     }
@@ -167,6 +171,7 @@ class _UploadSongScreenState extends State<UploadSongScreen> {
   }
 
   Future<void> _pickImageFile() async {
+    final currentContext = context;
     try {
       final picker = ImagePicker();
       final XFile? image = await picker.pickImage(
@@ -181,18 +186,21 @@ class _UploadSongScreenState extends State<UploadSongScreen> {
           _imageFileName = image.name;
           _imageFilePath = image.path;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
+        if(!currentContext.mounted) return;
+        ScaffoldMessenger.of(currentContext).showSnackBar(
           SnackBar(content: Text('Imagen seleccionada: ${image.name}')),
         );
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      if(!currentContext.mounted) return;
+      ScaffoldMessenger.of(currentContext).showSnackBar(
         SnackBar(content: Text('Error al seleccionar imagen: $e')),
       );
     }
   }
 
   Future<void> _uploadSong() async {
+    final currentContext = context;
     if (!_formKey.currentState!.validate()) return;
 
     // Validar archivo de audio
@@ -263,7 +271,8 @@ class _UploadSongScreenState extends State<UploadSongScreen> {
 
       // Paso 3: Obtener artistId del usuario autenticado
       setState(() => _uploadProgress = 0.6);
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      if(!currentContext.mounted) return;
+      final authProvider = Provider.of<AuthProvider>(currentContext, listen: false);
       final artistId = authProvider.currentUser?.id;
 
       if (artistId == null) {
@@ -316,7 +325,8 @@ class _UploadSongScreenState extends State<UploadSongScreen> {
 
         // Pequeña espera para que el usuario vea el mensaje
         await Future.delayed(const Duration(milliseconds: 500));
-        Navigator.pop(context);
+        if(!currentContext.mounted) return;
+        Navigator.pop(currentContext);
       }
     } catch (e) {
       // Error

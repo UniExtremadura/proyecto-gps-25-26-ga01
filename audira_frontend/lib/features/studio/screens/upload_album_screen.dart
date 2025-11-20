@@ -1,5 +1,3 @@
-// ignore_for_file: use_build_context_synchronously
-
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -44,6 +42,7 @@ class _UploadAlbumScreenState extends State<UploadAlbumScreen> {
   }
 
   Future<void> _pickCoverImage() async {
+    final currentContext = context;
     try {
       final picker = ImagePicker();
       final XFile? image = await picker.pickImage(
@@ -52,17 +51,19 @@ class _UploadAlbumScreenState extends State<UploadAlbumScreen> {
         maxHeight: 2000,
         imageQuality: 85,
       );
-
+      if(!currentContext.mounted) return;
       if (image != null) {
         setState(() {
           _coverImagePath = image.path;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
+        if(!currentContext.mounted) return;
+        ScaffoldMessenger.of(currentContext).showSnackBar(
           SnackBar(content: Text('Imagen seleccionada: ${image.name}')),
         );
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      if(!currentContext.mounted) return;
+      ScaffoldMessenger.of(currentContext).showSnackBar(
         SnackBar(content: Text('Error al seleccionar imagen: $e')),
       );
     }

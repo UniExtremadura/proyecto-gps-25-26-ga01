@@ -1,5 +1,3 @@
-// ignore_for_file: use_build_context_synchronously
-
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'dart:async';
@@ -106,6 +104,7 @@ class _SearchScreenState extends State<SearchScreen>
   }
 
   Future<void> _performSearch(String query) async {
+    final currentContext = context;
     if (query.trim().isEmpty) {
       setState(() {
         _hasSearched = false;
@@ -157,7 +156,8 @@ class _SearchScreenState extends State<SearchScreen>
       _artists = [];
     } catch (e) {
       debugPrint('Search error: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
+      if(!currentContext.mounted) return;
+      ScaffoldMessenger.of(currentContext).showSnackBar(
         SnackBar(content: Text('Error searching: $e')),
       );
     } finally {
