@@ -10,7 +10,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -41,6 +41,7 @@ public class RatingService {
         // Validaciones
         validateRatingValue(request.getRating());
         validateComment(request.getComment());
+        
 
         // Buscar si ya existe una valoración
         Rating rating = ratingRepository
@@ -76,6 +77,7 @@ public class RatingService {
             rating.setRating(request.getRating());
             rating.setComment(request.getComment());
             rating.setIsActive(true);
+            rating.setUpdatedAt(ZonedDateTime.now());
         } else {
             // Crear nueva valoración
             rating = new Rating();
@@ -85,6 +87,7 @@ public class RatingService {
             rating.setRating(request.getRating());
             rating.setComment(request.getComment());
             rating.setIsActive(true);
+            rating.setCreatedAt(ZonedDateTime.now());
         }
 
         Rating savedRating = ratingRepository.save(rating);

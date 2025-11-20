@@ -37,7 +37,8 @@ class _RatingDialogState extends State<RatingDialog> {
   void initState() {
     super.initState();
     if (widget.existingRating != null) {
-      _selectedRating = widget.existingRating!.rating;
+      // Asegúrate que en tu modelo Dart el campo se llame 'rating' o 'ratingValue' según corresponda
+      _selectedRating = widget.existingRating!.rating; // OJO: Validar nombre campo
       _commentController.text = widget.existingRating!.comment ?? '';
     }
   }
@@ -220,7 +221,40 @@ class _RatingDialogState extends State<RatingDialog> {
     final isEditing = widget.existingRating != null;
 
     return AlertDialog(
-      title: Text(isEditing ? 'Editar valoración' : 'Nueva valoración'),
+      title: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              isEditing
+                  ? 'Editar valoración'
+                  : 'Valorar ${widget.entityName ?? "item"}',
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            
+            // Mostrar fecha si estamos editando
+            if (isEditing && widget.existingRating!.updatedAt != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.access_time, size: 12, color: Colors.grey),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Actualizado: ${_formatDate(widget.existingRating!.updatedAt)}',
+                      style: const TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
       content: SingleChildScrollView(
         child: Form(
           key: _formKey,
@@ -244,11 +278,11 @@ class _RatingDialogState extends State<RatingDialog> {
               const SizedBox(height: 8),
               Center(
                 child: RatingStars(
-                  rating: _selectedRating,
+                  rating: _selectedRating.toDouble(), // Aseguramos double para el widget
                   isInteractive: true,
                   onRatingChanged: (rating) {
                     setState(() {
-                      _selectedRating = rating;
+                      _selectedRating = rating.toInt(); // Guardamos como int
                     });
                   },
                   size: 40.0,
@@ -263,10 +297,12 @@ class _RatingDialogState extends State<RatingDialog> {
                 controller: _commentController,
                 maxLength: 500,
                 maxLines: 4,
+                // Actualizar contador al escribir
+                onChanged: (_) => setState(() {}),
                 decoration: const InputDecoration(
                   hintText: 'Escribe tu opinión...',
                   border: OutlineInputBorder(),
-                  counterText: '',
+                  counterText: '', // Ocultamos el contador por defecto del input
                 ),
                 validator: (value) {
                   if (value != null && value.length > 500) {
@@ -276,13 +312,16 @@ class _RatingDialogState extends State<RatingDialog> {
                 },
               ),
               const SizedBox(height: 8),
-              Text(
-                '${_commentController.text.length}/500 caracteres',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: _commentController.text.length > 500
-                      ? Colors.red
-                      : Colors.grey,
+              Align(
+                alignment: Alignment.centerRight,
+                child: Text(
+                  '${_commentController.text.length}/500 caracteres',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: _commentController.text.length > 500
+                        ? Colors.red
+                        : Colors.grey,
+                  ),
                 ),
               ),
             ],
@@ -290,7 +329,6 @@ class _RatingDialogState extends State<RatingDialog> {
         ),
       ),
       actions: [
-        // GA01-130: Botón eliminar (solo si está editando)
         if (isEditing)
           TextButton(
             onPressed: _isLoading ? null : _deleteRating,
@@ -318,7 +356,17 @@ class _RatingDialogState extends State<RatingDialog> {
   }
 }
 
-/// Función helper para mostrar el diálogo de valoración
+// Función auxiliar fuera de la clase
+String _formatDate(DateTime? date) {
+  if (date == null) return '';
+  
+  // Convertimos a hora local del dispositivo
+  final localDate = date.toLocal();
+  
+  String twoDigits(int n) => n.toString().padLeft(2, '0');
+  return '${twoDigits(localDate.day)}/${twoDigits(localDate.month)}/${localDate.year} ${twoDigits(localDate.hour)}:${twoDigits(localDate.minute)}';
+}
+
 Future<bool?> showRatingDialog(
   BuildContext context, {
   required String entityType,
