@@ -142,6 +142,176 @@ class _StudioCatalogScreenState extends State<StudioCatalogScreen>
     }
   }
 
+  Future<void> _editSong(Song song) async {
+    final titleController = TextEditingController(text: song.name);
+    final descController = TextEditingController(text: song.description ?? '');
+    final priceController = TextEditingController(text: song.price.toString());
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Editar Canción'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: titleController,
+                decoration: const InputDecoration(
+                  labelText: 'Título',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: descController,
+                decoration: const InputDecoration(
+                  labelText: 'Descripción',
+                  border: OutlineInputBorder(),
+                ),
+                maxLines: 3,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: priceController,
+                decoration: const InputDecoration(
+                  labelText: 'Precio',
+                  border: OutlineInputBorder(),
+                  prefixText: '\$',
+                ),
+                keyboardType: TextInputType.number,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Guardar'),
+          ),
+        ],
+      ),
+    );
+
+    if (result == true) {
+      try {
+        final response = await _musicService.updateSong(song.id, {
+          'title': titleController.text,
+          'description': descController.text,
+          'price': double.parse(priceController.text),
+        });
+
+        if (response.success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Canción actualizada exitosamente')),
+          );
+          _loadCatalog();
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error: ${response.error}')),
+          );
+        }
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
+    }
+
+    titleController.dispose();
+    descController.dispose();
+    priceController.dispose();
+  }
+
+  Future<void> _editAlbum(Album album) async {
+    final titleController = TextEditingController(text: album.name);
+    final descController = TextEditingController(text: album.description ?? '');
+    final priceController = TextEditingController(text: album.price.toString());
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Editar Álbum'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: titleController,
+                decoration: const InputDecoration(
+                  labelText: 'Título',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: descController,
+                decoration: const InputDecoration(
+                  labelText: 'Descripción',
+                  border: OutlineInputBorder(),
+                ),
+                maxLines: 3,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: priceController,
+                decoration: const InputDecoration(
+                  labelText: 'Precio',
+                  border: OutlineInputBorder(),
+                  prefixText: '\$',
+                ),
+                keyboardType: TextInputType.number,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Guardar'),
+          ),
+        ],
+      ),
+    );
+
+    if (result == true) {
+      try {
+        final response = await _musicService.updateAlbum(album.id, {
+          'title': titleController.text,
+          'description': descController.text,
+          'price': double.parse(priceController.text),
+        });
+
+        if (response.success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Álbum actualizado exitosamente')),
+          );
+          _loadCatalog();
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error: ${response.error}')),
+          );
+        }
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
+    }
+
+    titleController.dispose();
+    descController.dispose();
+    priceController.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
