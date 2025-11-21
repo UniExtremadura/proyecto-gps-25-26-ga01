@@ -146,7 +146,6 @@ class RatingCard extends StatelessWidget {
                         ],
                       ),
                       const SizedBox(height: 4),
-                      // AQUI: Asegúrate que tu modelo Rating usa 'rating' o 'ratingValue'
                       RatingStars(
                         rating: rating.rating, 
                         size: 16,
@@ -177,18 +176,14 @@ class RatingCard extends StatelessWidget {
             // Indicador si fue editada
             Builder(
               builder: (context) {
-                // 1. Calcular si está editado
-                // Usamos una tolerancia de 1 segundo por si acaso, o igualdad estricta si confías en el backend
                 bool isEdited = false;
                 if (rating.updatedAt != null && rating.createdAt != null) {
                   final difference = rating.updatedAt!.difference(rating.createdAt!).inSeconds.abs();
                   isEdited = difference > 5; 
                 }
 
-                // 2. Elegir fecha
                 final displayDate = isEdited ? rating.updatedAt : rating.createdAt;
 
-                // 3. Retornar SIEMPRE un widget
                 return Row(
                   children: [
                     Text(

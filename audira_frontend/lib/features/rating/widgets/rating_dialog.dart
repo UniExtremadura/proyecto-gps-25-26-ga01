@@ -278,11 +278,11 @@ class _RatingDialogState extends State<RatingDialog> {
               const SizedBox(height: 8),
               Center(
                 child: RatingStars(
-                  rating: _selectedRating, // Aseguramos double para el widget
+                  rating: _selectedRating,
                   isInteractive: true,
                   onRatingChanged: (rating) {
                     setState(() {
-                      _selectedRating = rating; // Guardamos como int
+                      _selectedRating = rating;
                     });
                   },
                   size: 40.0,

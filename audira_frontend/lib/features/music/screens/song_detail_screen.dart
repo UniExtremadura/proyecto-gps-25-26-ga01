@@ -242,8 +242,8 @@ class _SongDetailScreenState extends State<SongDetailScreen>
       entityName: _song?.name,
     );
     if (result == true) {
-      _loadRatingsAndComments(); // Recarga la lista general
-      _loadMyRating(); // <--- ¡ESTO ES LO IMPORTANTE! Recarga tu botón
+      _loadRatingsAndComments();
+      _loadMyRating();
     }
 
 
