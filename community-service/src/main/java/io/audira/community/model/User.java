@@ -17,6 +17,7 @@ import java.util.Set;
 @Entity
 @Table(name = "users")
 @Inheritance(strategy = InheritanceType.JOINED)
+@DiscriminatorColumn(name = "user_type", discriminatorType = DiscriminatorType.STRING)
 @Data
 @SuperBuilder
 @NoArgsConstructor
@@ -26,6 +27,9 @@ public abstract class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Version
+    private Long version;  // ← NUEVO: Para optimistic locking
 
     @Column(nullable = false, unique = true)
     private String uid; // Firebase UID
