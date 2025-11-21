@@ -1,4 +1,5 @@
 import 'package:audira_frontend/core/api/api_client.dart';
+import '../../models/artist_metrics_summary.dart';
 
 class MetricsService {
   static final MetricsService _instance = MetricsService._internal();
@@ -214,6 +215,33 @@ class MetricsService {
       return ApiResponse(
         success: false,
         error: response.error ?? 'Failed to fetch artist top songs',
+        statusCode: response.statusCode,
+      );
+    } catch (e) {
+      return ApiResponse(success: false, error: e.toString());
+    }
+  }
+
+  /// Get artist metrics summary
+  /// GA01-108: Resumen rápido
+  Future<ApiResponse<ArtistMetricsSummary>> getArtistMetricsSummaryTyped(
+      int artistId) async {
+    try {
+      final response = await _apiClient.get('/api/metrics/artists/$artistId');
+
+      if (response.success && response.data != null) {
+        return ApiResponse(
+          success: true,
+          data: ArtistMetricsSummary.fromJson(
+            response.data as Map<String, dynamic>,
+          ),
+          statusCode: response.statusCode,
+        );
+      }
+
+      return ApiResponse(
+        success: false,
+        error: response.error ?? 'Failed to fetch artist metrics summary',
         statusCode: response.statusCode,
       );
     } catch (e) {
