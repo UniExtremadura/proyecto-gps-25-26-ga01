@@ -174,41 +174,41 @@ class RatingCard extends StatelessWidget {
               ),
             ],
 
-            // Fecha y estado de edición
-            const SizedBox(height: 8),
+            // Indicador si fue editada
             Builder(
               builder: (context) {
-                // Lógica para determinar si fue editado
-                final bool isEdited = rating.updatedAt != null &&
-                    rating.createdAt != null &&
-                    rating.updatedAt!.isAfter(rating.createdAt!);
-                
-                // Qué fecha mostrar (Prioridad a la de actualización)
+                // 1. Calcular si está editado
+                // Usamos una tolerancia de 1 segundo por si acaso, o igualdad estricta si confías en el backend
+                bool isEdited = false;
+                if (rating.updatedAt != null && rating.createdAt != null) {
+                  final difference = rating.updatedAt!.difference(rating.createdAt!).inSeconds.abs();
+                  isEdited = difference > 5; 
+                }
+
+                // 2. Elegir fecha
                 final displayDate = isEdited ? rating.updatedAt : rating.createdAt;
 
+                // 3. Retornar SIEMPRE un widget
                 return Row(
                   children: [
                     Text(
                       _formatDate(displayDate),
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey,
-                      ),
+                      style: const TextStyle(fontSize: 12, color: Colors.grey),
                     ),
                     if (isEdited) ...[
                       const SizedBox(width: 4),
                       const Text(
                         '(Editado)',
                         style: TextStyle(
-                          fontSize: 11,
-                          color: Colors.grey,
-                          fontStyle: FontStyle.italic,
+                          fontSize: 11, 
+                          color: Colors.grey, 
+                          fontStyle: FontStyle.italic
                         ),
                       ),
                     ],
                   ],
                 );
-              }
+              },
             ),
           ],
         ),

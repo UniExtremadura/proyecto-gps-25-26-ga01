@@ -136,6 +136,9 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen>
         if (myRatingResponse.success && myRatingResponse.data != null) {
           _myRating = myRatingResponse.data;
         }
+        else {
+          _myRating = null;
+        }
       } else {
         // Usuario no autenticado (invitado)
         _myRating = null;
@@ -234,6 +237,33 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen>
 
     if (result == true) {
       _loadRatingsAndComments();
+      _loadMyRating(); 
+    }
+
+    if (result == true) {
+      _loadRatingsAndComments();
+    }
+  }
+
+  Future<void> _loadMyRating() async {
+    try {
+      final authProvider = context.read<AuthProvider>();
+      if (!authProvider.isAuthenticated) return;
+
+      final ratingService = RatingService();
+      
+      final response = await ratingService.getMyEntityRating(
+        entityType: 'ALBUM',
+        entityId: widget.albumId,
+      );
+
+      if (mounted) {
+        setState(() {
+          _myRating = response.data;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error cargando mi valoración: $e');
     }
   }
 

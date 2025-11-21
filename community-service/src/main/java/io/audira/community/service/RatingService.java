@@ -11,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.ZonedDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -71,13 +72,21 @@ public class RatingService {
             }
         }
 
+        ZonedDateTime now = ZonedDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+
         if (rating != null) {
             // Actualizar valoración existente
             log.info("Updating existing rating {} for user {}", rating.getId(), userId);
+            
+            if (Boolean.FALSE.equals(rating.getIsActive())) {
+                rating.setCreatedAt(now);
+            }
+            
             rating.setRating(request.getRating());
             rating.setComment(request.getComment());
             rating.setIsActive(true);
-            rating.setUpdatedAt(ZonedDateTime.now());
+            rating.setUpdatedAt(now);
+            
         } else {
             // Crear nueva valoración
             rating = new Rating();
@@ -87,7 +96,8 @@ public class RatingService {
             rating.setRating(request.getRating());
             rating.setComment(request.getComment());
             rating.setIsActive(true);
-            rating.setCreatedAt(ZonedDateTime.now());
+            rating.setCreatedAt(now);
+            rating.setUpdatedAt(null);
         }
 
         Rating savedRating = ratingRepository.save(rating);
@@ -120,6 +130,9 @@ public class RatingService {
         if (request.getComment() != null) {
             validateComment(request.getComment());
             rating.setComment(request.getComment());
+
+            ZonedDateTime now = ZonedDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+            rating.setUpdatedAt(now);
         }
 
         Rating updatedRating = ratingRepository.save(rating);
