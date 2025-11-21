@@ -1,13 +1,5 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Permisos para acceder a la galería y cámara -->
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
-    <uses-permission android:name="android.permission.CAMERA"/>
-    <!-- Para Android 13+ (API 33+) -->
-    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
-
     <application
-        android:usesCleartextTraffic="true"
         android:label="audira_frontend"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">

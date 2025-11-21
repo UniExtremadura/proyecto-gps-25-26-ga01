@@ -147,7 +147,7 @@ class RatingCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       RatingStars(
-                        rating: rating.rating,
+                        rating: rating.rating, 
                         size: 16,
                       ),
                     ],
@@ -173,30 +173,38 @@ class RatingCard extends StatelessWidget {
               ),
             ],
 
-            // Fecha
-            const SizedBox(height: 8),
-            Text(
-              _formatDate(rating.createdAt),
-              style: const TextStyle(
-                fontSize: 12,
-                color: Colors.grey,
-              ),
-            ),
-
             // Indicador si fue editada
-            if (rating.updatedAt != null &&
-                rating.createdAt != null &&
-                rating.updatedAt!.isAfter(rating.createdAt!)) ...[
-              const SizedBox(height: 4),
-              const Text(
-                'Editada',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Colors.grey,
-                  fontStyle: FontStyle.italic,
-                ),
-              ),
-            ],
+            Builder(
+              builder: (context) {
+                bool isEdited = false;
+                if (rating.updatedAt != null && rating.createdAt != null) {
+                  final difference = rating.updatedAt!.difference(rating.createdAt!).inSeconds.abs();
+                  isEdited = difference > 5; 
+                }
+
+                final displayDate = isEdited ? rating.updatedAt : rating.createdAt;
+
+                return Row(
+                  children: [
+                    Text(
+                      _formatDate(displayDate),
+                      style: const TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                    if (isEdited) ...[
+                      const SizedBox(width: 4),
+                      const Text(
+                        '(Editado)',
+                        style: TextStyle(
+                          fontSize: 11, 
+                          color: Colors.grey, 
+                          fontStyle: FontStyle.italic
+                        ),
+                      ),
+                    ],
+                  ],
+                );
+              },
+            ),
           ],
         ),
       ),
@@ -206,17 +214,22 @@ class RatingCard extends StatelessWidget {
   String _formatDate(DateTime? date) {
     if (date == null) return 'Hace un momento';
 
+    // 1. Convertir a hora local del móvil
+    final localDate = date.toLocal();
     final now = DateTime.now();
-    final difference = now.difference(date);
+    final difference = now.difference(localDate);
 
+    // Si tiene más de 7 días, mostramos fecha exacta
     if (difference.inDays > 7) {
-      return '${date.day}/${date.month}/${date.year}';
+      return '${localDate.day}/${localDate.month}/${localDate.year}';
     }
 
+    // Si es reciente, usamos timeago
     try {
-      return timeago.format(date, locale: 'es');
+      return timeago.format(localDate, locale: 'es');
     } catch (e) {
-      return '${date.day}/${date.month}/${date.year}';
+      // Fallback si no hay locale español cargado
+      return timeago.format(localDate);
     }
   }
 }
