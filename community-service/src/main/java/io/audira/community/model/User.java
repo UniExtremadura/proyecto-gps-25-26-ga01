@@ -28,6 +28,9 @@ public abstract class User {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Version
+    private Long version;  // ← NUEVO: Para optimistic locking
+
     @Column(nullable = false, unique = true)
     private String uid; // Firebase UID
 

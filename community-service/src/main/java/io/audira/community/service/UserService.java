@@ -33,6 +33,8 @@ public class UserService {
     private final AuthenticationManager authenticationManager;
     private final JwtTokenProvider tokenProvider;
     private final FileServiceClient fileServiceClient;
+
+
     private static final Logger logger = LoggerFactory.getLogger(UserService.class);
 
     @Transactional
@@ -137,6 +139,7 @@ public class UserService {
 
     @Transactional
     public UserDTO updateProfile(Long userId, UpdateProfileRequest request) {
+
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
@@ -229,6 +232,7 @@ public class UserService {
     public UserDTO updateProfile(Long userId, Map<String, Object> updates) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
+
 
         if (updates.containsKey("firstName")) {
             user.setFirstName((String) updates.get("firstName"));
@@ -558,6 +562,10 @@ public class UserService {
             throw new RuntimeException("Error al subir la imagen de banner: " + e.getMessage());
         }
     }
+
+    // Admin-specific methods for user management
+    // GA01-164: Buscar/editar usuario (roles, estado)
+    // GA01-165: Suspender/reactivar cuentas
 
     /**
      * Change user role (Admin operation)
