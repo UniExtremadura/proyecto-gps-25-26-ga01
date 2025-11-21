@@ -10,7 +10,6 @@ import lombok.Builder;
 
 @Entity
 @Table(name = "admins")
-@DiscriminatorValue("ADMIN")
 @Data
 @EqualsAndHashCode(callSuper = true)
 @SuperBuilder
