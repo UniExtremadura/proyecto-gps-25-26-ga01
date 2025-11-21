@@ -1,15 +1,20 @@
 package io.audira.catalog.controller;
 
+import io.audira.catalog.dto.ArtistMetricsDetailed;
 import io.audira.catalog.dto.ArtistMetricsSummary;
 import io.audira.catalog.dto.SongMetrics;
 import io.audira.catalog.service.MetricsService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDate;
 
 /**
  * Controller for artist and song metrics
  * GA01-108: Resumen rápido (plays, valoraciones, ventas, comentarios, evolución)
+ * GA01-109: Vista detallada (por fecha/gráfico básico)
  */
 @RestController
 @RequestMapping("/api/metrics")
@@ -31,6 +36,35 @@ public class MetricsController {
             @PathVariable Long artistId
     ) {
         ArtistMetricsSummary metrics = metricsService.getArtistMetricsSummary(artistId);
+        return ResponseEntity.ok(metrics);
+    }
+
+    /**
+     * Get detailed metrics with timeline for an artist
+     * GA01-109: Vista detallada (por fecha/gráfico básico)
+     *
+     * @param artistId Artist ID
+     * @param startDate Start date (optional, defaults to 30 days ago)
+     * @param endDate End date (optional, defaults to today)
+     * @return Detailed metrics with daily breakdown for charts
+     */
+    @GetMapping("/artists/{artistId}/detailed")
+    public ResponseEntity<ArtistMetricsDetailed> getArtistMetricsDetailed(
+            @PathVariable Long artistId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate
+    ) {
+        // Default to last 30 days if not specified
+        if (startDate == null) {
+            startDate = LocalDate.now().minusDays(30);
+        }
+        if (endDate == null) {
+            endDate = LocalDate.now();
+        }
+
+        ArtistMetricsDetailed metrics = metricsService.getArtistMetricsDetailed(
+                artistId, startDate, endDate
+        );
         return ResponseEntity.ok(metrics);
     }
 
@@ -57,12 +91,11 @@ public class MetricsController {
      * @return List of top songs by plays
      */
     @GetMapping("/artists/{artistId}/top-songs")
-    public ResponseEntity<?> getArtistTopSongs(
+    public ResponseEntity<java.util.List<SongMetrics>> getArtistTopSongs(
             @PathVariable Long artistId,
             @RequestParam(defaultValue = "10") int limit
     ) {
-        // TODO: Implement properly
-        // For now, return empty to maintain compatibility
-        return ResponseEntity.ok(new java.util.ArrayList<>());
+        java.util.List<SongMetrics> topSongs = metricsService.getArtistTopSongs(artistId, limit);
+        return ResponseEntity.ok(topSongs);
     }
 }

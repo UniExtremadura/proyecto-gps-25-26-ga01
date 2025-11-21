@@ -1,5 +1,5 @@
 import 'package:audira_frontend/core/api/api_client.dart';
-import '../../models/artist_metrics_summary.dart';
+import 'package:audira_frontend/core/models/artist_metrics_detailed.dart';
 
 class MetricsService {
   static final MetricsService _instance = MetricsService._internal();
@@ -222,17 +222,31 @@ class MetricsService {
     }
   }
 
-  /// Get artist metrics summary
-  /// GA01-108: Resumen rápido
-  Future<ApiResponse<ArtistMetricsSummary>> getArtistMetricsSummaryTyped(
-      int artistId) async {
+  /// Get detailed artist metrics with timeline
+  /// GA01-109: Vista detallada
+  Future<ApiResponse<ArtistMetricsDetailed>> getArtistMetricsDetailed(
+    int artistId, {
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async {
     try {
-      final response = await _apiClient.get('/api/metrics/artists/$artistId');
+      final queryParams = <String, String>{};
+      if (startDate != null) {
+        queryParams['startDate'] = startDate.toIso8601String().split('T')[0];
+      }
+      if (endDate != null) {
+        queryParams['endDate'] = endDate.toIso8601String().split('T')[0];
+      }
+
+      final response = await _apiClient.get(
+        '/api/metrics/artists/$artistId/detailed',
+        queryParameters: queryParams.isNotEmpty ? queryParams : null,
+      );
 
       if (response.success && response.data != null) {
         return ApiResponse(
           success: true,
-          data: ArtistMetricsSummary.fromJson(
+          data: ArtistMetricsDetailed.fromJson(
             response.data as Map<String, dynamic>,
           ),
           statusCode: response.statusCode,
@@ -241,7 +255,7 @@ class MetricsService {
 
       return ApiResponse(
         success: false,
-        error: response.error ?? 'Failed to fetch artist metrics summary',
+        error: response.error ?? 'Failed to fetch detailed artist metrics',
         statusCode: response.statusCode,
       );
     } catch (e) {

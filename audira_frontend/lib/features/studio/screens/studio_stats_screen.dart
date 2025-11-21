@@ -1,233 +1,278 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import '../../../config/theme.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/api/services/metrics_service.dart';
+import '../../../core/models/artist_metrics_detailed.dart';
+import 'package:fl_chart/fl_chart.dart'; // Añadir fl_chart: ^0.65.0 a pubspec.yaml
 
 class StudioStatsScreen extends StatefulWidget {
   const StudioStatsScreen({super.key});
 
   @override
-  State<StudioStatsScreen> createState() => _StudioStatsScreenState();
+  State<StudioStatsScreen> createState() => _StudioDetailedStatsScreenState();
 }
 
-class _StudioStatsScreenState extends State<StudioStatsScreen> {
+class _StudioDetailedStatsScreenState extends State<StudioStatsScreen> {
   final MetricsService _metricsService = MetricsService();
-  Map<String, dynamic>? _artistMetrics;
-  List<dynamic>? _topSongs;
+  ArtistMetricsDetailed? _metrics;
   bool _isLoading = true;
+
+  DateTime? _startDate;
+  DateTime? _endDate;
 
   @override
   void initState() {
     super.initState();
+    // Default: last 30 days
+    _endDate = DateTime.now();
+    _startDate = _endDate!.subtract(const Duration(days: 30));
     _loadMetrics();
   }
 
   Future<void> _loadMetrics() async {
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
     final authProvider = context.read<AuthProvider>();
     if (authProvider.currentUser != null) {
-      final metricsResponse =
-          await _metricsService.getArtistMetrics(authProvider.currentUser!.id);
-      final topSongsResponse = await _metricsService.getArtistTopSongs(
+      final response = await _metricsService.getArtistMetricsDetailed(
         authProvider.currentUser!.id,
-        limit: 5,
+        startDate: _startDate,
+        endDate: _endDate,
       );
 
-      if (metricsResponse.success) {
-        _artistMetrics = metricsResponse.data;
+      if (response.success && response.data != null) {
+        setState(() {
+          _metrics = response.data;
+          _isLoading = false;
+        });
+      } else {
+        setState(() => _isLoading = false);
       }
-      if (topSongsResponse.success) {
-        _topSongs = topSongsResponse.data;
-      }
+    } else {
+      setState(() => _isLoading = false);
     }
-
-    setState(() {
-      _isLoading = false;
-    });
   }
 
   @override
   Widget build(BuildContext context) {
-    final authProvider = Provider.of<AuthProvider>(context);
-    final user = authProvider.currentUser;
-
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Studio Statistics'),
+        title: const Text('Detailed Statistics'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadMetrics,
+            icon: const Icon(Icons.calendar_today),
+            onPressed: _selectDateRange,
           ),
         ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Artist: ${user?.fullName}',
-                      style: const TextStyle(
-                          fontSize: 20, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 24),
-
-                  // Overview Cards
-                  GridView.count(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
-                    childAspectRatio: 1.5,
+          : _metrics == null
+              ? const Center(child: Text('No data available'))
+              : SingleChildScrollView(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildStatCard(
-                          'Total Plays',
-                          _formatNumber(_artistMetrics?['totalPlays'] ?? 0),
-                          Icons.play_circle,
-                          AppTheme.primaryBlue),
-                      _buildStatCard(
-                          'Total Revenue',
-                          '\$${(_artistMetrics?['totalRevenue'] ?? 0).toStringAsFixed(2)}',
-                          Icons.attach_money,
-                          Colors.green),
-                      _buildStatCard(
-                          'Total Songs',
-                          '${_artistMetrics?['totalSongs'] ?? 0}',
-                          Icons.music_note,
-                          Colors.purple),
-                      _buildStatCard(
-                          'Total Albums',
-                          '${_artistMetrics?['totalAlbums'] ?? 0}',
-                          Icons.album,
-                          Colors.orange),
+                      _buildDateRangeCard(),
+                      const SizedBox(height: 16),
+                      _buildSummaryCards(),
+                      const SizedBox(height: 24),
+                      _buildPlaysChart(),
+                      const SizedBox(height: 24),
+                      _buildRevenueChart(),
                     ],
-                  ).animate().fadeIn(),
-                  const SizedBox(height: 24),
-
-                  const Text('Monthly Performance',
-                      style:
-                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 16),
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        children: [
-                          _buildStatRow(
-                              'This Month Plays',
-                              _formatNumber(
-                                  _artistMetrics?['playsThisMonth'] ?? 0),
-                              AppTheme.primaryBlue),
-                          const Divider(),
-                          _buildStatRow(
-                              'This Month Revenue',
-                              '\$${(_artistMetrics?['revenueThisMonth'] ?? 0).toStringAsFixed(2)}',
-                              Colors.green),
-                          const Divider(),
-                          _buildStatRow(
-                              'New Followers',
-                              '+${_artistMetrics?['newFollowers'] ?? 0}',
-                              Colors.purple),
-                          const Divider(),
-                          _buildStatRow(
-                              'Downloads',
-                              '${_artistMetrics?['downloads'] ?? 0}',
-                              Colors.orange),
-                        ],
-                      ),
-                    ),
-                  ).animate().fadeIn(delay: 100.ms),
-                  const SizedBox(height: 24),
-
-                  if (_topSongs != null && _topSongs!.isNotEmpty) ...[
-                    const Text('Top Performing Songs',
-                        style: TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 16),
-                    ...List.generate(
-                      _topSongs!.length,
-                      (index) {
-                        final song = _topSongs![index];
-                        return Card(
-                          child: ListTile(
-                            leading: CircleAvatar(
-                              backgroundColor: AppTheme.primaryBlue,
-                              child: Text('${index + 1}'),
-                            ),
-                            title: Text(song['songName'] ?? 'Unknown Song'),
-                            subtitle: Text('${song['plays'] ?? 0} plays'),
-                            trailing: Text(
-                                '\$${(song['revenue'] ?? 0).toStringAsFixed(2)}',
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.bold)),
-                            onTap: () {
-                              if (song['songId'] != null) {
-                                Navigator.pushNamed(context, '/song',
-                                    arguments: song['songId']);
-                              }
-                            },
-                          ),
-                        ).animate().fadeIn(delay: ((index + 1) * 50).ms);
-                      },
-                    ),
-                  ],
-                ],
-              ),
-            ),
+                  ),
+                ),
     );
   }
 
-  Widget _buildStatCard(
-      String title, String value, IconData icon, Color color) {
+  Widget _buildDateRangeCard() {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Icon(icon, size: 28, color: color),
-            const SizedBox(height: 4),
-            Text(value,
-                style: TextStyle(
-                    fontSize: 16, fontWeight: FontWeight.bold, color: color)),
-            const SizedBox(height: 4),
-            Text(title,
-                style: const TextStyle(fontSize: 12, color: AppTheme.textGrey),
-                textAlign: TextAlign.center),
+            Text(
+              'Period: ${_formatDate(_metrics!.startDate)} - ${_formatDate(_metrics!.endDate)}',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            TextButton(
+              onPressed: _selectDateRange,
+              child: const Text('Change'),
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildStatRow(String label, String value, Color color) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label),
-          Text(value,
-              style: TextStyle(
-                  fontSize: 16, fontWeight: FontWeight.bold, color: color)),
-        ],
+  Widget _buildSummaryCards() {
+    return GridView.count(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisCount: 2,
+      crossAxisSpacing: 12,
+      mainAxisSpacing: 12,
+      childAspectRatio: 1.5,
+      children: [
+        _buildStatCard(
+          'Total Plays',
+          _metrics!.totalPlays.toString(),
+          Icons.play_circle,
+          AppTheme.primaryBlue,
+        ),
+        _buildStatCard(
+          'Total Revenue',
+          '\$${_metrics!.totalRevenue.toStringAsFixed(2)}',
+          Icons.attach_money,
+          Colors.green,
+        ),
+        _buildStatCard(
+          'Total Sales',
+          _metrics!.totalSales.toString(),
+          Icons.shopping_cart,
+          Colors.orange,
+        ),
+        _buildStatCard(
+          'Avg Rating',
+          _metrics!.averageRating.toStringAsFixed(1),
+          Icons.star,
+          Colors.amber,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStatCard(
+      String label, String value, IconData icon, Color color) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: color, size: 32),
+            const SizedBox(height: 8),
+            Text(
+              value,
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  String _formatNumber(int number) {
-    if (number >= 1000000) {
-      return '${(number / 1000000).toStringAsFixed(1)}M';
-    } else if (number >= 1000) {
-      return '${(number / 1000).toStringAsFixed(1)}K';
+  Widget _buildPlaysChart() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Plays Over Time',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              height: 200,
+              child: LineChart(
+                LineChartData(
+                  gridData: FlGridData(show: true),
+                  titlesData: FlTitlesData(show: true),
+                  borderData: FlBorderData(show: true),
+                  lineBarsData: [
+                    LineChartBarData(
+                      spots: _metrics!.dailyMetrics
+                          .asMap()
+                          .entries
+                          .map((e) => FlSpot(
+                              e.key.toDouble(), e.value.plays.toDouble()))
+                          .toList(),
+                      isCurved: true,
+                      color: AppTheme.primaryBlue,
+                      barWidth: 3,
+                      dotData: FlDotData(show: false),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRevenueChart() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Revenue Over Time',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              height: 200,
+              child: LineChart(
+                LineChartData(
+                  gridData: FlGridData(show: true),
+                  titlesData: FlTitlesData(show: true),
+                  borderData: FlBorderData(show: true),
+                  lineBarsData: [
+                    LineChartBarData(
+                      spots: _metrics!.dailyMetrics
+                          .asMap()
+                          .entries
+                          .map((e) => FlSpot(e.key.toDouble(), e.value.revenue))
+                          .toList(),
+                      isCurved: true,
+                      color: Colors.green,
+                      barWidth: 3,
+                      dotData: FlDotData(show: false),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _selectDateRange() async {
+    final DateTimeRange? picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
+      initialDateRange: DateTimeRange(start: _startDate!, end: _endDate!),
+    );
+
+    if (picked != null) {
+      setState(() {
+        _startDate = picked.start;
+        _endDate = picked.end;
+      });
+      _loadMetrics();
     }
-    return number.toString();
+  }
+
+  String _formatDate(DateTime date) {
+    return '${date.day}/${date.month}/${date.year}';
   }
 }
