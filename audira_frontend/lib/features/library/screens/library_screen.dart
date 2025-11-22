@@ -23,6 +23,10 @@ class _LibraryScreenState extends State<LibraryScreen>
   List<Playlist> _playlists = [];
   bool _isLoading = true;
 
+  // ===== NUEVAS VARIABLES PARA FILTRO =====
+  String _playlistFilter = '';
+  final TextEditingController _filterController = TextEditingController();
+
   @override
   void initState() {
     super.initState();
@@ -53,6 +57,7 @@ class _LibraryScreenState extends State<LibraryScreen>
   @override
   void dispose() {
     _tabController.dispose();
+    _filterController.dispose(); // ===== DISPONER EL CONTROLADOR =====
     super.dispose();
   }
 
@@ -69,6 +74,15 @@ class _LibraryScreenState extends State<LibraryScreen>
     }
 
     setState(() => _isLoading = false);
+  }
+
+  // ===== NUEVO GETTER PARA PLAYLISTS FILTRADAS =====
+  List<Playlist> get _filteredPlaylists {
+    if (_playlistFilter.isEmpty) return _playlists;
+    return _playlists
+        .where(
+            (p) => p.name.toLowerCase().contains(_playlistFilter.toLowerCase()))
+        .toList();
   }
 
   @override
@@ -110,88 +124,173 @@ class _LibraryScreenState extends State<LibraryScreen>
                     // Albums
                     _buildAlbumsTab(libraryProvider),
 
-                    // Playlists
+                    // ===== Playlists con filtro =====
                     _isLoading
                         ? const Center(child: CircularProgressIndicator())
                         : _playlists.isEmpty
                             ? _buildEmptyPlaylistsState(context)
-                            : ListView.builder(
-                                padding: const EdgeInsets.all(16),
-                                itemCount: _playlists.length,
-                                itemBuilder: (context, index) {
-                                  final playlist = _playlists[index];
-                                  return Card(
-                                    margin: const EdgeInsets.only(bottom: 12),
-                                    color: AppTheme.surfaceBlack,
-                                    child: ListTile(
-                                      leading: Container(
-                                        width: 50,
-                                        height: 50,
-                                        decoration: BoxDecoration(
-                                          gradient: const LinearGradient(
-                                            colors: [
-                                              AppTheme.primaryBlue,
-                                              AppTheme.darkBlue
-                                            ],
-                                          ),
-                                          borderRadius:
-                                              BorderRadius.circular(8),
+                            : Column(
+                                children: [
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 16, vertical: 8),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.end,
+                                      children: [
+                                        PopupMenuButton<int>(
+                                          icon: const Icon(Icons.filter_list,
+                                              color: AppTheme.textGrey),
+                                          onSelected: (value) async {
+                                            if (value == 0) {
+                                              // Abrir dialog para filtrar por nombre
+                                              final result =
+                                                  await showDialog<String>(
+                                                context: context,
+                                                builder: (context) =>
+                                                    AlertDialog(
+                                                  title: const Text(
+                                                      'Filtrar por nombre'),
+                                                  content: TextField(
+                                                    controller:
+                                                        _filterController,
+                                                    decoration:
+                                                        const InputDecoration(
+                                                      hintText:
+                                                          'Nombre de playlist',
+                                                    ),
+                                                  ),
+                                                  actions: [
+                                                    TextButton(
+                                                      onPressed: () {
+                                                        Navigator.pop(
+                                                            context, null);
+                                                      },
+                                                      child: const Text(
+                                                          'Cancelar'),
+                                                    ),
+                                                    ElevatedButton(
+                                                      onPressed: () {
+                                                        Navigator.pop(
+                                                            context,
+                                                            _filterController
+                                                                .text);
+                                                      },
+                                                      child:
+                                                          const Text('Filtrar'),
+                                                    ),
+                                                  ],
+                                                ),
+                                              );
+                                              if (result != null) {
+                                                setState(() {
+                                                  _playlistFilter = result;
+                                                });
+                                              }
+                                            } else if (value == 1) {
+                                              // Limpiar filtro
+                                              setState(() {
+                                                _playlistFilter = '';
+                                                _filterController.clear();
+                                              });
+                                            }
+                                          },
+                                          itemBuilder: (context) => const [
+                                            PopupMenuItem(
+                                                value: 0,
+                                                child:
+                                                    Text('Filtrar por nombre')),
+                                            PopupMenuItem(
+                                                value: 1,
+                                                child: Text('Limpiar filtro')),
+                                          ],
                                         ),
-                                        child: const Icon(Icons.playlist_play,
-                                            color: Colors.white),
-                                      ),
-                                      title: Text(
-                                        playlist.name,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                      subtitle: Row(
-                                        children: [
-                                          Icon(
-                                            playlist.isPublic
-                                                ? Icons.public
-                                                : Icons.lock,
-                                            size: 12,
-                                            color: AppTheme.textGrey,
-                                          ),
-                                          const SizedBox(width: 4),
-                                          Text(
-                                            '${playlist.songCount} ${playlist.songCount == 1 ? "canción" : "canciones"}',
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .bodySmall
-                                                ?.copyWith(
+                                      ],
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: ListView.builder(
+                                      padding: const EdgeInsets.all(16),
+                                      itemCount: _filteredPlaylists.length,
+                                      itemBuilder: (context, index) {
+                                        final playlist =
+                                            _filteredPlaylists[index];
+                                        return Card(
+                                          margin:
+                                              const EdgeInsets.only(bottom: 12),
+                                          color: AppTheme.surfaceBlack,
+                                          child: ListTile(
+                                            leading: Container(
+                                              width: 50,
+                                              height: 50,
+                                              decoration: BoxDecoration(
+                                                gradient: const LinearGradient(
+                                                  colors: [
+                                                    AppTheme.primaryBlue,
+                                                    AppTheme.darkBlue
+                                                  ],
+                                                ),
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                              ),
+                                              child: const Icon(
+                                                  Icons.playlist_play,
+                                                  color: Colors.white),
+                                            ),
+                                            title: Text(
+                                              playlist.name,
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                            subtitle: Row(
+                                              children: [
+                                                Icon(
+                                                  playlist.isPublic
+                                                      ? Icons.public
+                                                      : Icons.lock,
+                                                  size: 12,
                                                   color: AppTheme.textGrey,
                                                 ),
+                                                const SizedBox(width: 4),
+                                                Text(
+                                                  '${playlist.songCount} ${playlist.songCount == 1 ? "canción" : "canciones"}',
+                                                  style: Theme.of(context)
+                                                      .textTheme
+                                                      .bodySmall
+                                                      ?.copyWith(
+                                                        color:
+                                                            AppTheme.textGrey,
+                                                      ),
+                                                ),
+                                              ],
+                                            ),
+                                            trailing: const Icon(
+                                              Icons.chevron_right,
+                                              color: AppTheme.textGrey,
+                                            ),
+                                            onTap: () async {
+                                              final result =
+                                                  await Navigator.pushNamed(
+                                                context,
+                                                '/playlist',
+                                                arguments: playlist.id,
+                                              );
+                                              if (result == true) {
+                                                _loadPlaylists();
+                                              }
+                                            },
                                           ),
-                                        ],
-                                      ),
-                                      trailing: const Icon(
-                                        Icons.chevron_right,
-                                        color: AppTheme.textGrey,
-                                      ),
-                                      onTap: () async {
-                                        final result =
-                                            await Navigator.pushNamed(
-                                          context,
-                                          '/playlist',
-                                          arguments: playlist.id,
                                         );
-                                        if (result == true) {
-                                          _loadPlaylists();
-                                        }
                                       },
                                     ),
-                                  );
-                                },
+                                  ),
+                                ],
                               ),
 
                     // Favorites
                     _buildFavoritesTab(libraryProvider),
 
                     // Downloads
-                    // GA01-137: Registro de descargas
                     _buildDownloadsTab(context),
                   ],
                 ),
@@ -217,6 +316,8 @@ class _LibraryScreenState extends State<LibraryScreen>
               : null,
     );
   }
+
+  // ===== Resto de tu código original sin cambios =====
 
   Widget _buildEmptyPlaylistsState(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
