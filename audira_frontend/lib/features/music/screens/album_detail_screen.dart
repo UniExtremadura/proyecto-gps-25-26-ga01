@@ -1,5 +1,3 @@
-// ignore_for_file: use_build_context_synchronously
-
 import 'package:audira_frontend/config/theme.dart';
 import 'package:audira_frontend/core/api/services/music_service.dart';
 import 'package:audira_frontend/core/models/album.dart';
@@ -104,6 +102,7 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen>
   }
 
   Future<void> _loadRatingsAndComments() async {
+    final currentContext = context;
     setState(() {
       _isLoadingRatings = true;
     });
@@ -126,9 +125,9 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen>
       if (ratingsResponse.success && ratingsResponse.data != null) {
         _ratingsWithComments = ratingsResponse.data!;
       }
-
+      if(!currentContext.mounted) return;
       // Obtener mi valoración SOLO si estoy autenticado
-      final authProvider = context.read<AuthProvider>();
+      final authProvider = currentContext.read<AuthProvider>();
       if (authProvider.isAuthenticated) {
         final myRatingResponse = await _ratingService.getMyEntityRating(
           entityType: 'ALBUM',
@@ -136,6 +135,9 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen>
         );
         if (myRatingResponse.success && myRatingResponse.data != null) {
           _myRating = myRatingResponse.data;
+        }
+        else {
+          _myRating = null;
         }
       } else {
         // Usuario no autenticado (invitado)
@@ -153,6 +155,7 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen>
   /// Mostrar diálogo para crear o editar valoración (con comentario incluido)
   /// Verifica que el usuario haya comprado el álbum antes de permitir valorar
   Future<void> _showRatingDialog() async {
+    final currentContext = context;
     final authProvider = context.read<AuthProvider>();
     if (!authProvider.isAuthenticated) {
       // Usuario invitado - mostrar alerta para iniciar sesión
@@ -223,9 +226,9 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen>
         return;
       }
     }
-
+    if(!currentContext.mounted) return;
     final result = await showRatingDialog(
-      context,
+      currentContext,
       entityType: 'ALBUM',
       entityId: widget.albumId,
       existingRating: _myRating,
@@ -234,6 +237,33 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen>
 
     if (result == true) {
       _loadRatingsAndComments();
+      _loadMyRating(); 
+    }
+
+    if (result == true) {
+      _loadRatingsAndComments();
+    }
+  }
+
+  Future<void> _loadMyRating() async {
+    try {
+      final authProvider = context.read<AuthProvider>();
+      if (!authProvider.isAuthenticated) return;
+
+      final ratingService = RatingService();
+      
+      final response = await ratingService.getMyEntityRating(
+        entityType: 'ALBUM',
+        entityId: widget.albumId,
+      );
+
+      if (mounted) {
+        setState(() {
+          _myRating = response.data;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error cargando mi valoración: $e');
     }
   }
 
@@ -526,6 +556,7 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen>
   }
 
   Widget _buildActionButtons() {
+    final currentContext = context;
     final audioProvider = Provider.of<AudioProvider>(context, listen: false);
     final libraryProvider = Provider.of<LibraryProvider>(context);
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
@@ -597,7 +628,8 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen>
                   authProvider.currentUser!.id,
                   _album!,
                 );
-                ScaffoldMessenger.of(context).showSnackBar(
+                if(!currentContext.mounted) return;
+                ScaffoldMessenger.of(currentContext).showSnackBar(
                   SnackBar(
                     content: Text(isFavorite
                         ? 'Removed from favorites'
@@ -605,7 +637,8 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen>
                   ),
                 );
               } catch (e) {
-                ScaffoldMessenger.of(context).showSnackBar(
+                if(!currentContext.mounted) return;
+                ScaffoldMessenger.of(currentContext).showSnackBar(
                   SnackBar(content: Text('Error: $e')),
                 );
               }

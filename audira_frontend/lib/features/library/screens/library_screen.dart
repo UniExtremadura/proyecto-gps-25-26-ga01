@@ -3,9 +3,9 @@ import 'package:provider/provider.dart';
 import '../../../config/theme.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/providers/library_provider.dart';
+import '../../../core/providers/download_provider.dart';
 import '../../../core/api/services/playlist_service.dart';
 import '../../../core/models/playlist.dart';
-import '../../../core/providers/download_provider.dart';
 import '../../../config/routes.dart';
 
 class LibraryScreen extends StatefulWidget {
@@ -27,6 +27,12 @@ class _LibraryScreenState extends State<LibraryScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 5, vsync: this);
+    // Listen to tab changes to update FAB visibility
+    _tabController.addListener(() {
+      if (mounted) {
+        setState(() {});
+      }
+    });
     // Schedule loading after the first frame to avoid setState during build
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadPlaylists();
@@ -67,6 +73,7 @@ class _LibraryScreenState extends State<LibraryScreen>
 
   @override
   Widget build(BuildContext context) {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
     return Scaffold(
       appBar: AppBar(
         title: const Text('Mi Biblioteca'),
@@ -107,7 +114,7 @@ class _LibraryScreenState extends State<LibraryScreen>
                     _isLoading
                         ? const Center(child: CircularProgressIndicator())
                         : _playlists.isEmpty
-                            ? _buildEmptyState('Playlists', Icons.playlist_play)
+                            ? _buildEmptyPlaylistsState(context)
                             : ListView.builder(
                                 padding: const EdgeInsets.all(16),
                                 itemCount: _playlists.length,
@@ -115,40 +122,65 @@ class _LibraryScreenState extends State<LibraryScreen>
                                   final playlist = _playlists[index];
                                   return Card(
                                     margin: const EdgeInsets.only(bottom: 12),
+                                    color: AppTheme.surfaceBlack,
                                     child: ListTile(
                                       leading: Container(
                                         width: 50,
                                         height: 50,
                                         decoration: BoxDecoration(
-                                          color: AppTheme.primaryBlue
-                                              .withValues(alpha: 0.2),
+                                          gradient: const LinearGradient(
+                                            colors: [
+                                              AppTheme.primaryBlue,
+                                              AppTheme.darkBlue
+                                            ],
+                                          ),
                                           borderRadius:
                                               BorderRadius.circular(8),
                                         ),
-                                        child: const Icon(Icons.playlist_play),
+                                        child: const Icon(Icons.playlist_play,
+                                            color: Colors.white),
                                       ),
-                                      title: Text(playlist.name),
-                                      subtitle: Text(
-                                        '${playlist.songCount} canciones',
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .bodySmall
-                                            ?.copyWith(
-                                              color: AppTheme.textGrey,
-                                            ),
+                                      title: Text(
+                                        playlist.name,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                        ),
                                       ),
-                                      trailing: Icon(
-                                        playlist.isPublic
-                                            ? Icons.public
-                                            : Icons.lock,
+                                      subtitle: Row(
+                                        children: [
+                                          Icon(
+                                            playlist.isPublic
+                                                ? Icons.public
+                                                : Icons.lock,
+                                            size: 12,
+                                            color: AppTheme.textGrey,
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            '${playlist.songCount} ${playlist.songCount == 1 ? "canción" : "canciones"}',
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .bodySmall
+                                                ?.copyWith(
+                                                  color: AppTheme.textGrey,
+                                                ),
+                                          ),
+                                        ],
+                                      ),
+                                      trailing: const Icon(
+                                        Icons.chevron_right,
                                         color: AppTheme.textGrey,
                                       ),
-                                      onTap: () {
-                                        Navigator.pushNamed(
+                                      onTap: () async {
+                                        final result =
+                                            await Navigator.pushNamed(
                                           context,
                                           '/playlist',
                                           arguments: playlist.id,
                                         );
+                                        if (result == true) {
+                                          _loadPlaylists();
+                                        }
                                       },
                                     ),
                                   );
@@ -157,6 +189,9 @@ class _LibraryScreenState extends State<LibraryScreen>
 
                     // Favorites
                     _buildFavoritesTab(libraryProvider),
+
+                    // Downloads
+                    // GA01-137: Registro de descargas
                     _buildDownloadsTab(context),
                   ],
                 ),
@@ -164,6 +199,83 @@ class _LibraryScreenState extends State<LibraryScreen>
             ],
           );
         },
+      ),
+      floatingActionButton:
+          _tabController.index == 2 && authProvider.isAuthenticated
+              ? FloatingActionButton.extended(
+                  onPressed: () async {
+                    final result =
+                        await Navigator.pushNamed(context, '/playlist/create');
+                    if (result == true) {
+                      _loadPlaylists();
+                    }
+                  },
+                  backgroundColor: AppTheme.primaryBlue,
+                  icon: const Icon(Icons.add),
+                  label: const Text('Nueva Playlist'),
+                )
+              : null,
+    );
+  }
+
+  Widget _buildEmptyPlaylistsState(BuildContext context) {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: AppTheme.primaryBlue.withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.playlist_play,
+              size: 80,
+              color: AppTheme.primaryBlue,
+            ),
+          ),
+          const SizedBox(height: 24),
+          const Text(
+            'No hay playlists',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Crea tu primera playlist y organiza\ntu música favorita',
+            style: TextStyle(
+              color: AppTheme.textGrey,
+              fontSize: 16,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 32),
+          if (authProvider.isAuthenticated)
+            ElevatedButton.icon(
+              onPressed: () async {
+                final result =
+                    await Navigator.pushNamed(context, '/playlist/create');
+                if (result == true) {
+                  _loadPlaylists();
+                }
+              },
+              icon: const Icon(Icons.add),
+              label: const Text('Crear Playlist'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryBlue,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                textStyle: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -477,7 +589,7 @@ class _LibraryScreenState extends State<LibraryScreen>
                       ),
                       subtitle: Row(
                         children: [
-                          Expanded(
+                          Flexible(
                             child: Text(
                               download.artistName,
                               style: const TextStyle(color: AppTheme.textGrey),
@@ -504,7 +616,7 @@ class _LibraryScreenState extends State<LibraryScreen>
                             size: 20,
                           ),
                           const SizedBox(width: 8),
-                          const Icon(
+                          Icon(
                             Icons.chevron_right,
                             color: AppTheme.textGrey,
                           ),

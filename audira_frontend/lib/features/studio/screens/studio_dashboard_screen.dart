@@ -95,6 +95,14 @@ class StudioDashboardScreen extends StatelessWidget {
             color: Colors.teal,
             route: '/studio/file-demo',
           ).animate(delay: 500.ms).fadeIn().slideX(begin: -0.2),
+          _buildStudioCard(
+            context,
+            icon: Icons.people,
+            title: 'Collaborations',
+            subtitle: 'Manage collaborators and revenue sharing',
+            color: Colors.pink,
+            route: '/studio/collaborations',
+          ).animate(delay: 500.ms).fadeIn().slideX(begin: -0.2),
         ],
       ),
     );

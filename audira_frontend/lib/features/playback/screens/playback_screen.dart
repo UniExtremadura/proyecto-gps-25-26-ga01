@@ -1,5 +1,3 @@
-// ignore_for_file: use_build_context_synchronously
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -387,6 +385,7 @@ class PlaybackScreen extends StatelessWidget {
 
   Widget _buildSecondaryControls(
       BuildContext context, AudioProvider audioProvider, Song song) {
+    final currentContext = context; 
     final libraryProvider = Provider.of<LibraryProvider>(context);
     final authProvider = Provider.of<AuthProvider>(context);
     final isFavorite = libraryProvider.isSongFavorite(song.id);
@@ -410,7 +409,8 @@ class PlaybackScreen extends StatelessWidget {
                 authProvider.currentUser!.id,
                 song,
               );
-              ScaffoldMessenger.of(context).showSnackBar(
+              if(!currentContext.mounted) return;
+              ScaffoldMessenger.of(currentContext).showSnackBar(
                 SnackBar(
                   content: Text(isFavorite
                       ? 'Removed from favorites'
@@ -418,7 +418,8 @@ class PlaybackScreen extends StatelessWidget {
                 ),
               );
             } catch (e) {
-              ScaffoldMessenger.of(context).showSnackBar(
+              if(!currentContext.mounted) return;
+              ScaffoldMessenger.of(currentContext).showSnackBar(
                 SnackBar(content: Text('Error: $e')),
               );
             }
@@ -453,6 +454,7 @@ class PlaybackScreen extends StatelessWidget {
   }
 
   void _showAddToPlaylistDialog(BuildContext context, Song song) {
+    final currentContext = context;
     final authProvider = context.read<AuthProvider>();
     if (!authProvider.isAuthenticated) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -495,15 +497,17 @@ class PlaybackScreen extends StatelessWidget {
                             playlist.id,
                             song.id,
                           );
-                          Navigator.pop(context);
-                          ScaffoldMessenger.of(context).showSnackBar(
+                          if(!currentContext.mounted) return;
+                          Navigator.pop(currentContext);
+                          ScaffoldMessenger.of(currentContext).showSnackBar(
                             SnackBar(
                               content: Text('Added to ${playlist.name}'),
                             ),
                           );
                         } catch (e) {
-                          Navigator.pop(context);
-                          ScaffoldMessenger.of(context).showSnackBar(
+                          if(!currentContext.mounted) return;
+                          Navigator.pop(currentContext);
+                          ScaffoldMessenger.of(currentContext).showSnackBar(
                             SnackBar(content: Text('Error: $e')),
                           );
                         }
@@ -517,6 +521,7 @@ class PlaybackScreen extends StatelessWidget {
   }
 
   void _shareSong(BuildContext context, Song song) async {
+    final currentContext = context;
     try {
       final shareText = '🎵 Escucha "${song.name}" en Audira!\n\n'
           'Precio: \$${song.price.toStringAsFixed(2)}\n'
@@ -530,7 +535,8 @@ class PlaybackScreen extends StatelessWidget {
     } catch (e) {
       final textToCopy = 'Escucha "${song.name}" en Audira!';
       Clipboard.setData(ClipboardData(text: textToCopy));
-      ScaffoldMessenger.of(context).showSnackBar(
+      if(!currentContext.mounted) return;
+      ScaffoldMessenger.of(currentContext).showSnackBar(
         const SnackBar(content: Text('Enlace copiado al portapapeles')),
       );
     }
@@ -614,6 +620,7 @@ class PlaybackScreen extends StatelessWidget {
   }
 
   void _showOptionsBottomSheet(BuildContext context) {
+    final currentContext = context;
     final audioProvider = context.read<AudioProvider>();
     final currentSong = audioProvider.currentSong;
     if (currentSong == null) return;
@@ -705,7 +712,8 @@ class PlaybackScreen extends StatelessWidget {
                 );
                 final isFavorite =
                     libraryProvider.isSongFavorite(currentSong.id);
-                ScaffoldMessenger.of(context).showSnackBar(
+                if(!currentContext.mounted) return;
+                ScaffoldMessenger.of(currentContext).showSnackBar(
                   SnackBar(
                     content: Text(isFavorite
                         ? 'Added to favorites'
@@ -713,7 +721,8 @@ class PlaybackScreen extends StatelessWidget {
                   ),
                 );
               } catch (e) {
-                ScaffoldMessenger.of(context).showSnackBar(
+                if(!currentContext.mounted) return;
+                ScaffoldMessenger.of(currentContext).showSnackBar(
                   SnackBar(content: Text('Error: $e')),
                 );
               }

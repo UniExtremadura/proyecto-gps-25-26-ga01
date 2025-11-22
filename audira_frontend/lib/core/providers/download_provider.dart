@@ -1,4 +1,4 @@
-// ignore_for_file: avoid_print
+
 
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -86,13 +86,13 @@ class DownloadProvider with ChangeNotifier {
     try {
       // Verificar si ya está descargada
       if (isSongDownloaded(song.id)) {
-        print('La canción ya está descargada');
+        debugPrint('La canción ya está descargada');
         return false;
       }
 
       // Verificar si ya se está descargando
       if (_downloadProgress[song.id]?.status == DownloadStatus.downloading) {
-        print('La canción ya se está descargando');
+        debugPrint('La canción ya se está descargando');
         return false;
       }
 
@@ -147,7 +147,7 @@ class DownloadProvider with ChangeNotifier {
           _cancelTokens.remove(song.id);
 
           notifyListeners();
-          print('Canción descargada exitosamente: ${song.name}');
+          debugPrint('Canción descargada exitosamente: ${song.name}');
           return true;
         } else {
           throw Exception('El archivo descargado no existe');
@@ -156,7 +156,7 @@ class DownloadProvider with ChangeNotifier {
 
       return false;
     } catch (e) {
-      print('Error al descargar canción: $e');
+      debugPrint('Error al descargar canción: $e');
 
       // Actualizar progreso con error
       _downloadProgress[song.id] = DownloadProgress(
@@ -211,13 +211,13 @@ class DownloadProvider with ChangeNotifier {
         await _saveDownloadRegistry();
 
         notifyListeners();
-        print('Descarga eliminada: ${downloadedSong.songName}');
+        debugPrint('Descarga eliminada: ${downloadedSong.songName}');
         return true;
       }
 
       return false;
     } catch (e) {
-      print('Error al eliminar descarga: $e');
+      debugPrint('Error al eliminar descarga: $e');
       return false;
     }
   }
@@ -238,13 +238,13 @@ class DownloadProvider with ChangeNotifier {
         await _saveDownloadRegistry();
 
         notifyListeners();
-        print('Todas las descargas han sido eliminadas');
+        debugPrint('Todas las descargas han sido eliminadas');
         return true;
       }
 
       return false;
     } catch (e) {
-      print('Error al limpiar descargas: $e');
+      debugPrint('Error al limpiar descargas: $e');
       return false;
     }
   }
@@ -292,7 +292,7 @@ class DownloadProvider with ChangeNotifier {
     if (removedCount > 0) {
       await _saveDownloadRegistry();
       notifyListeners();
-      print('Se eliminaron $removedCount registros de archivos inexistentes');
+      debugPrint('Se eliminaron $removedCount registros de archivos inexistentes');
     }
 
     return removedCount;
@@ -307,10 +307,10 @@ class DownloadProvider with ChangeNotifier {
         _downloadedSongs.map((s) => s.toJson()).toList(),
       );
       await prefs.setString('downloaded_songs', downloadsJson);
-      print(
+      debugPrint(
           'Registro de descargas guardado: ${_downloadedSongs.length} canciones');
     } catch (e) {
-      print('Error al guardar registro de descargas: $e');
+      debugPrint('Error al guardar registro de descargas: $e');
     }
   }
 
@@ -326,14 +326,14 @@ class DownloadProvider with ChangeNotifier {
         _downloadedSongs =
             downloadsList.map((json) => DownloadedSong.fromJson(json)).toList();
 
-        print(
+        debugPrint(
             'Registro de descargas cargado: ${_downloadedSongs.length} canciones');
 
         // Verificar integridad de archivos
         await verifyDownloads();
       }
     } catch (e) {
-      print('Error al cargar registro de descargas: $e');
+      debugPrint('Error al cargar registro de descargas: $e');
     }
   }
 
