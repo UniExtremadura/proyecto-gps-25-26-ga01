@@ -29,6 +29,14 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   bool _isProcessing = false;
 
+  // Constante para el IVA (21% por ejemplo, ajusta según tu país)
+  static const double taxRate = 0.21;
+
+  // Calculamos subtotal, IVA y total
+  double get subtotal => widget.order.totalAmount;
+  double get taxAmount => subtotal * taxRate;
+  double get totalWithTax => subtotal + taxAmount;
+
   @override
   void dispose() {
     _cardNumberController.dispose();
@@ -96,12 +104,41 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               ],
             ),
             const SizedBox(height: 8),
+            Text(
+              '${widget.order.items.length} artículo(s)',
+              style: TextStyle(color: Colors.grey[600]),
+            ),
+            const Divider(height: 24),
+            
+            // Desglose de precios con IVA
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Total:'),
+                const Text('Subtotal:'),
+                Text('\$${subtotal.toStringAsFixed(2)}'),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('IVA (${(taxRate * 100).toStringAsFixed(0)}%):'),
+                Text('\$${taxAmount.toStringAsFixed(2)}'),
+              ],
+            ),
+            const Divider(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Total:',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
                 Text(
-                  '\$${widget.order.totalAmount.toStringAsFixed(2)}',
+                  '\$${totalWithTax.toStringAsFixed(2)}',
                   style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -110,11 +147,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 8),
-            Text(
-              '${widget.order.items.length} artículo(s)',
-              style: TextStyle(color: Colors.grey[600]),
-            ),
           ],
         ),
       ),
@@ -122,75 +154,57 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   }
 
   Widget _buildPaymentMethodSelector() {
-  return Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      const Text(
-        'Método de pago',
-        style: TextStyle(
-          fontSize: 18,
-          fontWeight: FontWeight.bold,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Método de pago',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
         ),
-      ),
-      const SizedBox(height: 12),
-      
-      RadioGroup<PaymentMethod>(
-        groupValue: _selectedPaymentMethod,
-        onChanged: (PaymentMethod? value) { 
-          if (value != null) {
-            setState(() {
-              _selectedPaymentMethod = value; 
-            });
-          }
-        },
-        child: Column(
-          children: [
-            _buildPaymentMethodOption(
-              PaymentMethod.creditCard,
-              Icons.credit_card,
-            ),
-            _buildPaymentMethodOption(
-              PaymentMethod.debitCard,
-              Icons.payment,
-            ),
-            _buildPaymentMethodOption(
-              PaymentMethod.stripe,
-              Icons.credit_score,
-            ),
-          ],
+        const SizedBox(height: 12),
+        RadioGroup<PaymentMethod>(
+          groupValue: _selectedPaymentMethod,
+          onChanged: (PaymentMethod? value) {
+            if (value != null) {
+              setState(() {
+                _selectedPaymentMethod = value;
+              });
+            }
+          },
+          child: Column(
+            children: [
+              _buildPaymentMethodOption(PaymentMethod.creditCard, Icons.credit_card),
+              _buildPaymentMethodOption(PaymentMethod.debitCard, Icons.payment),
+              _buildPaymentMethodOption(PaymentMethod.stripe, Icons.credit_score),
+            ],
+          ),
         ),
-      ),
-    ],
-  );
-}
+      ],
+    );
+  }
 
   Widget _buildPaymentMethodOption(PaymentMethod method, IconData icon) {
-  final isSelected = _selectedPaymentMethod == method;
-
-  return Card(
-    color: isSelected ? Colors.blue.shade900 : null,
-    child: ListTile(
-      leading: Icon(
-        icon,
-        color: isSelected ? Colors.blue : null,
-      ),
-      title: Text(
-        method.displayName,
-        style: TextStyle(
-          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+    final isSelected = _selectedPaymentMethod == method;
+    return Card(
+      color: isSelected ? Colors.blue.shade900 : null,
+      child: ListTile(
+        leading: Icon(icon, color: isSelected ? Colors.blue : null),
+        title: Text(
+          method.displayName,
+          style: TextStyle(fontWeight: isSelected ? FontWeight.bold : FontWeight.normal),
         ),
+        trailing: Radio<PaymentMethod>(value: method),
+        onTap: () {
+          setState(() {
+            _selectedPaymentMethod = method;
+          });
+        },
       ),
-      trailing: Radio<PaymentMethod>(
-        value: method,
-      ),
-      onTap: () {
-        setState(() {
-          _selectedPaymentMethod = method;
-        });
-      },
-    ),
-  );
-}
+    );
+  }
 
   Widget _buildCardForm() {
     return Column(
@@ -198,10 +212,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       children: [
         const Text(
           'Datos de la tarjeta',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 12),
         TextFormField(
@@ -219,13 +230,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             _CardNumberFormatter(),
           ],
           validator: (value) {
-            if (value == null || value.isEmpty) {
-              return 'Ingresa el número de tarjeta';
-            }
+            if (value == null || value.isEmpty) return 'Ingresa el número de tarjeta';
             final digits = value.replaceAll(' ', '');
-            if (digits.length < 13 || digits.length > 16) {
-              return 'Número de tarjeta inválido';
-            }
+            if (digits.length < 13 || digits.length > 16) return 'Número de tarjeta inválido';
             return null;
           },
         ),
@@ -239,17 +246,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             border: OutlineInputBorder(),
           ),
           textCapitalization: TextCapitalization.characters,
-          inputFormatters: [
-            FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z\s]')),
-          ],
+          inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z\s]'))],
           validator: (value) {
-            if (value == null || value.isEmpty) {
-              return 'Ingresa el nombre del titular';
-            }
-
-            if (!RegExp(r'^[a-zA-Z\s]+$').hasMatch(value)) {
-              return 'El nombre no debe contener números';
-            }
+            if (value == null || value.isEmpty) return 'Ingresa el nombre del titular';
+            if (!RegExp(r'^[a-zA-Z\s]+$').hasMatch(value)) return 'El nombre no debe contener números';
             return null;
           },
         ),
@@ -272,35 +272,19 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   _ExpiryDateFormatter(),
                 ],
                 validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Ingresa la fecha';
-                  }
-                  if (!value.contains('/') || value.length != 5) {
-                    return 'Formato MM/AA';
-                  }
+                  if (value == null || value.isEmpty) return 'Ingresa la fecha';
+                  if (!value.contains('/') || value.length != 5) return 'Formato MM/AA';
                   final parts = value.split('/');
                   final month = int.tryParse(parts[0]);
-
-                  final year = int.tryParse(parts[1]); // Úsalo si quieres validar año pasado
-                  
-                  if (month == null || month < 1 || month > 12) {
-                    return 'Mes inválido (01-12)';
-                  }
-
+                  final year = int.tryParse(parts[1]);
+                  if (month == null || month < 1 || month > 12) return 'Mes inválido (01-12)';
                   if (year != null) {
-                      final now = DateTime.now();
-                      final currentYear = now.year % 100; 
-                      final currentMonth = now.month;
-
-                      if (year < currentYear) {
-                        return 'Tarjeta caducada';
-                      }
-                      
-                      if (year == currentYear && month < currentMonth) {
-                        return 'Tarjeta caducada';
-                      }
-                    }
-
+                    final now = DateTime.now();
+                    final currentYear = now.year % 100;
+                    final currentMonth = now.month;
+                    if (year < currentYear) return 'Tarjeta caducada';
+                    if (year == currentYear && month < currentMonth) return 'Tarjeta caducada';
+                  }
                   return null;
                 },
               ),
@@ -322,12 +306,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   LengthLimitingTextInputFormatter(3),
                 ],
                 validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'CVV requerido';
-                  }
-                  if (value.length != 3) {
-                    return 'CVV debe ser 3 dígitos';
-                  }
+                  if (value == null || value.isEmpty) return 'CVV requerido';
+                  if (value.length != 3) return 'CVV debe ser 3 dígitos';
                   return null;
                 },
               ),
@@ -349,10 +329,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               Expanded(
                 child: Text(
                   'Para pruebas: tarjetas que empiezan con 4000 fallarán',
-                  style: TextStyle(
-                    color: Colors.blue.shade700,
-                    fontSize: 12,
-                  ),
+                  style: TextStyle(color: Colors.blue.shade700, fontSize: 12),
                 ),
               ),
             ],
@@ -405,44 +382,29 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         onPressed: _isProcessing ? null : _processPayment,
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.green,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
         child: _isProcessing
             ? const SizedBox(
                 height: 20,
                 width: 20,
-                child: CircularProgressIndicator(
-                  color: Colors.white,
-                  strokeWidth: 2,
-                ),
+                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
               )
             : Text(
-                'Pagar \$${widget.order.totalAmount.toStringAsFixed(2)}',
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
+                'Pagar \$${totalWithTax.toStringAsFixed(2)}',
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
               ),
       ),
     );
   }
 
   Future<void> _processPayment() async {
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
+    if (!_formKey.currentState!.validate()) return;
 
-    setState(() {
-      _isProcessing = true;
-    });
+    setState(() => _isProcessing = true);
 
     try {
-      // Prepare payment details
       Map<String, String>? paymentDetails;
-
       if (_selectedPaymentMethod == PaymentMethod.creditCard ||
           _selectedPaymentMethod == PaymentMethod.debitCard) {
         paymentDetails = {
@@ -454,42 +416,30 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       }
 
       debugPrint('Processing payment for order ${widget.order.id}');
+      debugPrint('Amount with tax: $totalWithTax');
 
-      // Process payment
+      // Enviar el total CON IVA al backend
       final response = await _paymentService.processPayment(
         orderId: widget.order.id,
         userId: widget.order.userId,
         paymentMethod: _selectedPaymentMethod,
-        amount: widget.order.totalAmount,
+        amount: totalWithTax,  // <-- CAMBIO: enviamos el total con IVA
         paymentDetails: paymentDetails,
       );
 
-      debugPrint('CheckoutScreen - Payment response - success: ${response.success}, data null: ${response.data == null}');
+      debugPrint('CheckoutScreen - Payment response - success: ${response.success}');
 
       if (response.success && response.data != null) {
         final paymentResponse = response.data!;
-        debugPrint('PaymentResponse - success: ${paymentResponse.success}, payment null: ${paymentResponse.payment == null}');
-
         if (paymentResponse.success) {
-          // Payment successful
           if (paymentResponse.payment != null) {
-            debugPrint('Payment received with status: ${paymentResponse.payment!.status}');
-
-            // Wait for payment to be COMPLETED before navigating
             await _waitForPaymentCompletion(paymentResponse.payment!);
           } else {
-            setState(() {
-              _isProcessing = false;
-            });
-            debugPrint('ERROR: Payment is null even though success is true');
+            setState(() => _isProcessing = false);
             _showError('Error: Pago procesado pero respuesta incompleta');
           }
         } else {
-          // Payment failed
-          setState(() {
-            _isProcessing = false;
-          });
-          debugPrint('Payment failed: ${paymentResponse.message}');
+          setState(() => _isProcessing = false);
           _showPaymentResult(
             success: false,
             errorMessage: paymentResponse.message,
@@ -497,18 +447,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           );
         }
       } else {
-        setState(() {
-          _isProcessing = false;
-        });
-        debugPrint('API error: ${response.error}');
+        setState(() => _isProcessing = false);
         _showError(response.error ?? 'Error al procesar el pago');
       }
     } catch (e, stackTrace) {
       debugPrint('Exception in _processPayment: $e');
       debugPrint('Stack trace: $stackTrace');
-      setState(() {
-        _isProcessing = false;
-      });
+      setState(() => _isProcessing = false);
       _showError('Error inesperado: $e');
     }
   }
@@ -516,48 +461,28 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   Future<void> _waitForPaymentCompletion(Payment initialPayment) async {
     Payment currentPayment = initialPayment;
     int attempts = 0;
-    const maxAttempts = 10; // 10 intentos = 10 segundos máximo
+    const maxAttempts = 10;
     const pollInterval = Duration(seconds: 1);
 
-    debugPrint('=== Waiting for payment to be COMPLETED ===');
-    debugPrint('Initial payment status: ${currentPayment.status}');
-
-    // Si ya está COMPLETED, navegar inmediatamente
     if (currentPayment.status == PaymentStatus.completed) {
-      debugPrint('Payment already COMPLETED, navigating to success screen');
-      setState(() {
-        _isProcessing = false;
-      });
+      setState(() => _isProcessing = false);
       _showPaymentResult(success: true, payment: currentPayment);
       return;
     }
 
-    // Polling loop: esperar hasta que el estado sea COMPLETED
     while (attempts < maxAttempts) {
       await Future.delayed(pollInterval);
       attempts++;
 
-      debugPrint('Polling attempt $attempts/$maxAttempts - Checking payment status...');
-
-      // Obtener el estado actualizado del payment
       final response = await _paymentService.getPaymentById(currentPayment.id);
-
       if (response.success && response.data != null) {
         currentPayment = response.data!;
-        debugPrint('Payment status: ${currentPayment.status}');
-
         if (currentPayment.status == PaymentStatus.completed) {
-          debugPrint('✓ Payment is now COMPLETED! Navigating to success screen');
-          setState(() {
-            _isProcessing = false;
-          });
+          setState(() => _isProcessing = false);
           _showPaymentResult(success: true, payment: currentPayment);
           return;
         } else if (currentPayment.status == PaymentStatus.failed) {
-          debugPrint('✗ Payment FAILED');
-          setState(() {
-            _isProcessing = false;
-          });
+          setState(() => _isProcessing = false);
           _showPaymentResult(
             success: false,
             payment: currentPayment,
@@ -565,44 +490,22 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           );
           return;
         }
-
-        // Si sigue en PROCESSING, continuar esperando
-        debugPrint('Payment still in ${currentPayment.status}, waiting...');
-      } else {
-        debugPrint('Error fetching payment status: ${response.error}');
       }
     }
 
-    // Timeout: el pago no se completó en el tiempo esperado
-    debugPrint('⚠ Timeout waiting for payment completion');
-    setState(() {
-      _isProcessing = false;
-    });
+    setState(() => _isProcessing = false);
     _showError('El pago está siendo procesado. Por favor verifica el estado más tarde.');
-
-    // Navegar al inicio
-    if (mounted) {
-      Navigator.of(context).popUntil((route) => route.isFirst);
-    }
+    if (mounted) Navigator.of(context).popUntil((route) => route.isFirst);
   }
 
-  void _showPaymentResult({
-    required bool success,
-    Payment? payment,
-    String? errorMessage,
-  }) {
+  void _showPaymentResult({required bool success, Payment? payment, String? errorMessage}) {
     if (success && payment != null) {
-      // Navigate to success screen with library integration
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
-          builder: (context) => PaymentSuccessScreen(
-            payment: payment,
-            order: widget.order,
-          ),
+          builder: (context) => PaymentSuccessScreen(payment: payment, order: widget.order),
         ),
       );
     } else {
-      // Navigate to error screen
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
           builder: (context) => PaymentResultScreen(
@@ -618,31 +521,20 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   void _showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-      ),
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
     );
   }
 }
 
-// Card number formatter
 class _CardNumberFormatter extends TextInputFormatter {
   @override
-  TextEditingValue formatEditUpdate(
-    TextEditingValue oldValue,
-    TextEditingValue newValue,
-  ) {
+  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
     final text = newValue.text.replaceAll(' ', '');
     final buffer = StringBuffer();
-
     for (int i = 0; i < text.length; i++) {
       buffer.write(text[i]);
-      if ((i + 1) % 4 == 0 && i + 1 != text.length) {
-        buffer.write(' ');
-      }
+      if ((i + 1) % 4 == 0 && i + 1 != text.length) buffer.write(' ');
     }
-
     return TextEditingValue(
       text: buffer.toString(),
       selection: TextSelection.collapsed(offset: buffer.length),
@@ -650,15 +542,10 @@ class _CardNumberFormatter extends TextInputFormatter {
   }
 }
 
-// Expiry date formatter
 class _ExpiryDateFormatter extends TextInputFormatter {
   @override
-  TextEditingValue formatEditUpdate(
-    TextEditingValue oldValue,
-    TextEditingValue newValue,
-  ) {
+  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
     final text = newValue.text;
-
     if (text.length >= 2) {
       final buffer = StringBuffer();
       buffer.write(text.substring(0, 2));
@@ -666,18 +553,15 @@ class _ExpiryDateFormatter extends TextInputFormatter {
         buffer.write('/');
         buffer.write(text.substring(2));
       }
-
       return TextEditingValue(
         text: buffer.toString(),
         selection: TextSelection.collapsed(offset: buffer.length),
       );
     }
-
     return newValue;
   }
 }
 
-// Payment result screen
 class PaymentResultScreen extends StatelessWidget {
   final bool success;
   final Payment? payment;
@@ -714,30 +598,18 @@ class PaymentResultScreen extends StatelessWidget {
               const SizedBox(height: 24),
               Text(
                 success ? '¡Pago exitoso!' : 'Pago fallido',
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 16),
               if (payment != null) ...[
-                Text(
-                  'ID de transacción:',
-                  style: TextStyle(color: Colors.grey[600]),
-                ),
+                Text('ID de transacción:', style: TextStyle(color: Colors.grey[600])),
                 const SizedBox(height: 4),
                 SelectableText(
                   payment!.transactionId,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                 ),
                 const SizedBox(height: 16),
-                Text(
-                  'Monto: \$${payment!.amount.toStringAsFixed(2)}',
-                  style: const TextStyle(fontSize: 18),
-                ),
+                Text('Monto: \$${payment!.amount.toStringAsFixed(2)}', style: const TextStyle(fontSize: 18)),
               ],
               if (errorMessage != null) ...[
                 const SizedBox(height: 16),
@@ -760,9 +632,7 @@ class PaymentResultScreen extends StatelessWidget {
                 ElevatedButton.icon(
                   onPressed: () {
                     Navigator.of(context).pushReplacement(
-                      MaterialPageRoute(
-                        builder: (context) => ReceiptScreen(payment: payment!),
-                      ),
+                      MaterialPageRoute(builder: (context) => ReceiptScreen(payment: payment!)),
                     );
                   },
                   icon: const Icon(Icons.receipt),
@@ -770,10 +640,7 @@ class PaymentResultScreen extends StatelessWidget {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.green,
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 32,
-                      vertical: 12,
-                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -781,9 +648,7 @@ class PaymentResultScreen extends StatelessWidget {
                 ElevatedButton.icon(
                   onPressed: () async {
                     final paymentService = PaymentService();
-                    final response =
-                        await paymentService.retryPayment(payment!.id);
-
+                    final response = await paymentService.retryPayment(payment!.id);
                     if (context.mounted) {
                       if (response.success && response.data != null) {
                         Navigator.of(context).pushReplacement(
@@ -791,9 +656,7 @@ class PaymentResultScreen extends StatelessWidget {
                             builder: (context) => PaymentResultScreen(
                               success: response.data!.success,
                               payment: response.data!.payment,
-                              errorMessage: response.data!.success
-                                  ? null
-                                  : response.data!.message,
+                              errorMessage: response.data!.success ? null : response.data!.message,
                               order: order,
                             ),
                           ),
@@ -801,9 +664,7 @@ class PaymentResultScreen extends StatelessWidget {
                       } else {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: Text(
-                              response.error ?? 'Error al reintentar el pago',
-                            ),
+                            content: Text(response.error ?? 'Error al reintentar el pago'),
                             backgroundColor: Colors.red,
                           ),
                         );
@@ -815,18 +676,13 @@ class PaymentResultScreen extends StatelessWidget {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.orange,
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 32,
-                      vertical: 12,
-                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
                   ),
                 ),
                 const SizedBox(height: 16),
               ],
               TextButton(
-                onPressed: () {
-                  Navigator.of(context).popUntil((route) => route.isFirst);
-                },
+                onPressed: () => Navigator.of(context).popUntil((route) => route.isFirst),
                 child: const Text('Volver al inicio'),
               ),
             ],
