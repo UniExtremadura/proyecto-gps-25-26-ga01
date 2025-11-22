@@ -26,14 +26,18 @@ public class DiscoveryController {
         return ResponseEntity.ok(songs.stream().limit(limit).toList());
     }
 
-    // Search endpoints for GA01-96 and GA01-98
     @GetMapping("/search/songs")
     public ResponseEntity<Map<String, Object>> searchSongs(
             @RequestParam("query") String query,
+            @RequestParam(required = false) Long genreId,
+            @RequestParam(required = false) Double minPrice,
+            @RequestParam(required = false) Double maxPrice,
+            @RequestParam(defaultValue = "recent") String sortBy,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
+        
         Pageable pageable = PageRequest.of(page, size);
-        Page<Song> songPage = discoveryService.searchSongs(query, pageable);
+        Page<Song> songPage = discoveryService.searchSongs(query, genreId, minPrice, maxPrice, sortBy, pageable);
 
         Map<String, Object> response = new HashMap<>();
         response.put("content", songPage.getContent());
@@ -48,10 +52,15 @@ public class DiscoveryController {
     @GetMapping("/search/albums")
     public ResponseEntity<Map<String, Object>> searchAlbums(
             @RequestParam("query") String query,
+            @RequestParam(required = false) Long genreId,
+            @RequestParam(required = false) Double minPrice,
+            @RequestParam(required = false) Double maxPrice,
+            @RequestParam(defaultValue = "recent") String sortBy,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
+        
         Pageable pageable = PageRequest.of(page, size);
-        Page<Album> albumPage = discoveryService.searchAlbums(query, pageable);
+        Page<Album> albumPage = discoveryService.searchAlbums(query, genreId, minPrice, maxPrice, sortBy, pageable);
 
         Map<String, Object> response = new HashMap<>();
         response.put("content", albumPage.getContent());
