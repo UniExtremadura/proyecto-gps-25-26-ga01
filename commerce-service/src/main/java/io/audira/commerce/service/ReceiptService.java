@@ -13,6 +13,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -29,62 +30,62 @@ public class ReceiptService {
     private final OrderService orderService;
     private final UserClient userClient;
 
+    // Tasa de IVA (debe coincidir con el frontend)
+    private static final BigDecimal TAX_RATE = new BigDecimal("0.21");
+
     public ReceiptDTO generateReceipt(Long paymentId) {
         log.info("=== Generating receipt for payment ID: {} ===", paymentId);
 
-        // Find payment with detailed logging
         Payment payment = paymentRepository.findById(paymentId)
                 .orElseThrow(() -> {
                     log.error("Payment not found with ID: {}", paymentId);
                     return new RuntimeException("Payment not found with ID: " + paymentId);
                 });
 
-        log.info("Payment found: transactionId={}, orderId={}, userId={}, status={}",
-                payment.getTransactionId(), payment.getOrderId(), payment.getUserId(), payment.getStatus());
+        log.info("Payment found: transactionId={}, orderId={}, userId={}, status={}, amount={}",
+                payment.getTransactionId(), payment.getOrderId(), payment.getUserId(), 
+                payment.getStatus(), payment.getAmount());
 
-        // Verify payment is completed - receipts can only be generated for completed payments
         if (payment.getStatus() != PaymentStatus.COMPLETED) {
-            log.warn("Cannot generate receipt for payment {} with status: {}. Only COMPLETED payments can have receipts.",
-                    paymentId, payment.getStatus());
-            throw new RuntimeException("Receipt can only be generated for completed payments. Current payment status: " +
+            log.warn("Cannot generate receipt for payment {} with status: {}", paymentId, payment.getStatus());
+            throw new RuntimeException("Receipt can only be generated for completed payments. Current status: " +
                     payment.getStatus());
         }
 
-        // Find order with detailed logging
         Order order = orderRepository.findById(payment.getOrderId())
                 .orElseThrow(() -> {
-                    log.error("Order not found with ID: {} for payment: {}", payment.getOrderId(), paymentId);
+                    log.error("Order not found with ID: {}", payment.getOrderId());
                     return new RuntimeException("Order not found with ID: " + payment.getOrderId());
                 });
 
-        log.info("Order found: orderNumber={}, userId={}, itemsCount={}, totalAmount={}",
-                order.getOrderNumber(), order.getUserId(), order.getItems().size(), order.getTotalAmount());
+        log.info("Order found: orderNumber={}, itemsCount={}, orderTotal={}",
+                order.getOrderNumber(), order.getItems().size(), order.getTotalAmount());
 
-        // Generate receipt number
         String receiptNumber = "RCP-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
 
-        // Calculate tax (10% for example)
-        BigDecimal subtotal = order.getTotalAmount();
-        BigDecimal taxRate = new BigDecimal("0.10");
-        BigDecimal tax = subtotal.multiply(taxRate);
-        BigDecimal total = subtotal.add(tax);
+        // El monto del pago YA incluye el IVA (viene del frontend)
+        BigDecimal total = payment.getAmount();
+        
+        // Calcular subtotal e IVA a partir del total con IVA
+        // total = subtotal * (1 + TAX_RATE)
+        // subtotal = total / (1 + TAX_RATE)
+        BigDecimal divisor = BigDecimal.ONE.add(TAX_RATE);
+        BigDecimal subtotal = total.divide(divisor, 2, RoundingMode.HALF_UP);
+        BigDecimal tax = total.subtract(subtotal);
 
-        // Map order items to receipt items
+        log.info("Price breakdown - Subtotal: {}, Tax ({}%): {}, Total: {}", 
+                subtotal, TAX_RATE.multiply(new BigDecimal("100")), tax, total);
+
         List<ReceiptItemDTO> items = order.getItems().stream()
                 .map(this::mapToReceiptItem)
                 .collect(Collectors.toList());
 
-        log.info("Mapped {} order items to receipt items", items.size());
-
         PaymentDTO paymentDTO = paymentService.getPaymentById(paymentId);
         OrderDTO orderDTO = orderService.getOrderById(order.getId());
 
-        // Fetch real user information
         UserDTO user = userClient.getUserById(order.getUserId());
         String customerName = user.getFirstName() + " " + user.getLastName();
         String customerEmail = user.getEmail();
-
-        log.info("Customer information: name={}, email={}", customerName, customerEmail);
 
         ReceiptDTO receipt = ReceiptDTO.builder()
                 .receiptNumber(receiptNumber)
@@ -126,8 +127,6 @@ public class ReceiptService {
     }
 
     private String getItemName(OrderItem item) {
-        // In a real application, you would fetch the actual item name from the respective service
         return item.getItemType() + " #" + item.getItemId();
     }
 }
-
