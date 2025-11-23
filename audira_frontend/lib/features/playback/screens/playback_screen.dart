@@ -115,6 +115,10 @@ class PlaybackScreen extends StatelessWidget {
                   _buildSecondaryControls(context, audioProvider, song)
                       .animate()
                       .fadeIn(delay: 800.ms),
+                  const SizedBox(height: 24),
+                  _buildVolumeControl(audioProvider)
+                      .animate()
+                      .fadeIn(delay: 1000.ms),
                 ],
               ),
             ),
@@ -170,7 +174,7 @@ class PlaybackScreen extends StatelessWidget {
           shape: BoxShape.circle,
           boxShadow: [
             BoxShadow(
-              color: AppTheme.primaryBlue.withValues(alpha: 0.3),
+              color: AppTheme.primaryBlue.withValues(alpha:0.3),
               blurRadius: 30,
               spreadRadius: 5,
             ),
@@ -189,7 +193,7 @@ class PlaybackScreen extends StatelessWidget {
                   shape: BoxShape.circle,
                   color: AppTheme.backgroundBlack,
                   border: Border.all(
-                    color: AppTheme.textGrey.withValues(alpha: 0.3),
+                    color: AppTheme.textGrey.withValues(alpha:0.3),
                     width: 2,
                   ),
                 ),
@@ -268,116 +272,78 @@ class PlaybackScreen extends StatelessWidget {
   }
 
   Widget _buildProgressBar(AudioProvider audioProvider) {
-    return Column(
-      children: [
-        SliderTheme(
-          data: SliderThemeData(
-            trackHeight: 4,
-            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
-            overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
-            activeTrackColor: AppTheme.primaryBlue,
-            inactiveTrackColor: AppTheme.textGrey.withValues(alpha: 0.3),
-            thumbColor: AppTheme.primaryBlue,
-            overlayColor: AppTheme.primaryBlue.withValues(alpha: 0.3),
-          ),
-          child: Slider(
-            value: audioProvider.progress.clamp(0.0, 1.0),
-            onChanged: (value) {
-              final position = audioProvider.totalDuration * value;
-              audioProvider.seek(position);
-            },
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                _formatDuration(audioProvider.currentPosition),
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: AppTheme.textGrey,
-                ),
-              ),
-              Text(
-                _formatDuration(audioProvider.totalDuration),
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: AppTheme.textGrey,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
+    return _ProgressSlider(audioProvider: audioProvider);
   }
 
   Widget _buildPlaybackControls(AudioProvider audioProvider) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+    return Column(
       children: [
-        IconButton(
-          icon: Icon(
-            audioProvider.isShuffleEnabled
-                ? Icons.shuffle_on_rounded
-                : Icons.shuffle,
-            color: audioProvider.isShuffleEnabled
-                ? AppTheme.primaryBlue
-                : AppTheme.textGrey,
-          ),
-          iconSize: 28,
-          onPressed: audioProvider.toggleShuffle,
-        ),
-        IconButton(
-          icon: const Icon(Icons.skip_previous_rounded),
-          iconSize: 40,
-          onPressed: audioProvider.previous,
-        ),
-        Container(
-          width: 70,
-          height: 70,
-          decoration: const BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: LinearGradient(
-              colors: [AppTheme.primaryBlue, AppTheme.darkBlue],
+        // Main playback controls (CORRECCIÓN: Usar spaceAround para prevenir Overflow)
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            IconButton(
+              icon: Icon(
+                audioProvider.isShuffleEnabled
+                    ? Icons.shuffle_on_rounded
+                    : Icons.shuffle,
+                color: audioProvider.isShuffleEnabled
+                    ? AppTheme.primaryBlue
+                    : AppTheme.textGrey,
+              ),
+              iconSize: 28,
+              onPressed: audioProvider.toggleShuffle,
             ),
-          ),
-          child: audioProvider.isLoading
-              ? const Center(
-                  child: CircularProgressIndicator(
-                    color: Colors.white,
-                    strokeWidth: 3,
-                  ),
-                )
-              : IconButton(
-                  icon: Icon(
-                    audioProvider.isPlaying
-                        ? Icons.pause_rounded
-                        : Icons.play_arrow_rounded,
-                  ),
-                  iconSize: 40,
-                  color: Colors.white,
-                  onPressed: audioProvider.togglePlayPause,
+            IconButton(
+              icon: const Icon(Icons.skip_previous_rounded),
+              iconSize: 40,
+              onPressed: audioProvider.previous,
+            ),
+            Container(
+              width: 70,
+              height: 70,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  colors: [AppTheme.primaryBlue, AppTheme.darkBlue],
                 ),
-        ),
-        IconButton(
-          icon: const Icon(Icons.skip_next_rounded),
-          iconSize: 40,
-          onPressed: audioProvider.next,
-        ),
-        IconButton(
-          icon: Icon(
-            audioProvider.repeatMode == RepeatMode.one
-                ? Icons.repeat_one_rounded
-                : Icons.repeat_rounded,
-            color: audioProvider.repeatMode != RepeatMode.off
-                ? AppTheme.primaryBlue
-                : AppTheme.textGrey,
-          ),
-          iconSize: 28,
-          onPressed: audioProvider.toggleRepeat,
+              ),
+              child: audioProvider.isLoading
+                  ? const Center(
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 3,
+                      ),
+                    )
+                  : IconButton(
+                      icon: Icon(
+                        audioProvider.isPlaying
+                            ? Icons.pause_rounded
+                            : Icons.play_arrow_rounded,
+                      ),
+                      iconSize: 40,
+                      color: Colors.white,
+                      onPressed: audioProvider.togglePlayPause,
+                    ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.skip_next_rounded),
+              iconSize: 40,
+              onPressed: audioProvider.next,
+            ),
+            IconButton(
+              icon: Icon(
+                audioProvider.repeatMode == RepeatMode.one
+                    ? Icons.repeat_one_rounded
+                    : Icons.repeat_rounded,
+                color: audioProvider.repeatMode != RepeatMode.off
+                    ? AppTheme.primaryBlue
+                    : AppTheme.textGrey,
+              ),
+              iconSize: 28,
+              onPressed: audioProvider.toggleRepeat,
+            ),
+          ],
         ),
       ],
     );
@@ -741,13 +707,6 @@ class PlaybackScreen extends StatelessWidget {
     );
   }
 
-  String _formatDuration(Duration duration) {
-    String twoDigits(int n) => n.toString().padLeft(2, '0');
-    final minutes = twoDigits(duration.inMinutes.remainder(60));
-    final seconds = twoDigits(duration.inSeconds.remainder(60));
-    return '$minutes:$seconds';
-  }
-
   Widget _buildDemoBanner(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -760,7 +719,7 @@ class PlaybackScreen extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFFFFA726).withValues(alpha: 0.4),
+            color: const Color(0xFFFFA726).withValues(alpha:0.4),
             blurRadius: 12,
             spreadRadius: 2,
           ),
@@ -823,6 +782,55 @@ class PlaybackScreen extends StatelessWidget {
                   borderRadius: BorderRadius.circular(8),
                 ),
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildVolumeControl(AudioProvider audioProvider) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Row(
+        children: [
+          Icon(
+            audioProvider.volume == 0
+                ? Icons.volume_off
+                : audioProvider.volume < 0.5
+                    ? Icons.volume_down
+                    : Icons.volume_up,
+            color: AppTheme.textGrey,
+            size: 24,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: SliderTheme(
+              data: SliderThemeData(
+                trackHeight: 4,
+                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+                overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
+                activeTrackColor: AppTheme.primaryBlue,
+                inactiveTrackColor: AppTheme.textGrey.withValues(alpha:0.3),
+                thumbColor: AppTheme.primaryBlue,
+                overlayColor: AppTheme.primaryBlue.withValues(alpha:0.3),
+              ),
+              child: Slider(
+                value: audioProvider.volume,
+                min: 0.0,
+                max: 1.0,
+                onChanged: (value) {
+                  audioProvider.setVolume(value);
+                },
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            '${(audioProvider.volume * 100).round()}%',
+            style: const TextStyle(
+              fontSize: 12,
+              color: AppTheme.textGrey,
             ),
           ),
         ],
@@ -928,6 +936,131 @@ class PlaybackScreen extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+}
+
+
+class _ProgressSlider extends StatefulWidget {
+  final AudioProvider audioProvider;
+
+  const _ProgressSlider({required this.audioProvider});
+
+  @override
+  State<_ProgressSlider> createState() => _ProgressSliderState();
+}
+
+class _ProgressSliderState extends State<_ProgressSlider> {
+  // Solo se usa para el arrastre del usuario
+  double? _dragValue; 
+
+  @override
+  void dispose() {
+    super.dispose();
+  }
+
+  // Se añade el formato de duración, se mantiene como estaba.
+  String _formatDuration(Duration duration) {
+    String twoDigits(int n) => n.toString().padLeft(2, '0');
+    final seconds = twoDigits(duration.inSeconds.remainder(60));
+    final minutes = duration.inMinutes.remainder(60);
+    final hours = duration.inHours;
+
+    if (hours > 0) {
+      final twoDigitHours = twoDigits(hours);
+      return '$twoDigitHours:${twoDigits(minutes)}:$seconds';
+    }
+    return '${twoDigits(minutes)}:$seconds';
+  }
+  
+  @override
+  Widget build(BuildContext context) {
+    // Si el usuario está arrastrando (_dragValue no es null), 
+    // usamos el valor del arrastre. De lo contrario, usamos el valor del Provider.
+    final currentProgress = _dragValue ?? widget.audioProvider.progress;
+    
+    final totalDuration = widget.audioProvider.totalDuration;
+    
+    // Calcular la posición a mostrar para el texto.
+    final displayPosition = _dragValue != null
+        ? totalDuration * currentProgress.clamp(0.0, 1.0)
+        : widget.audioProvider.currentPosition;
+    
+    // Determinar si es interactivo.
+    final isSeekable = totalDuration.inMilliseconds > 0;
+
+    return Column(
+      children: [
+        SliderTheme(
+          data: SliderThemeData(
+            trackHeight: 4,
+            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+            overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
+            activeTrackColor: AppTheme.primaryBlue,
+            inactiveTrackColor: AppTheme.textGrey.withValues(alpha:0.3),
+            thumbColor: AppTheme.primaryBlue,
+            overlayColor: AppTheme.primaryBlue.withValues(alpha:0.3),
+          ),
+          child: Slider(
+            // El valor siempre se recorta a 0.0 - 1.0
+            value: currentProgress.clamp(0.0, 1.0), 
+            onChanged: isSeekable
+                ? (value) {
+                    // Acción de ARRASTRE: solo actualiza el estado local
+                    setState(() {
+                      _dragValue = value; 
+                    });
+                  }
+                : null,
+            onChangeEnd: isSeekable
+                ? (value) async {
+                    // Acción de SOLTAR: Envía el seek al Provider
+                    final position = totalDuration * value;
+                    debugPrint('🎯 Seeking to position: ${position.inSeconds}s');
+
+                    try {
+                      await widget.audioProvider.seek(position);
+                      debugPrint('✅ Seek command sent successfully');
+                    } catch (e) {
+                      debugPrint('❌ Error during seek: $e');
+                    }
+
+                    // Limpiamos el valor de arrastre.
+                    // El Slider inmediatamente usa widget.audioProvider.progress,
+                    // que fue actualizado por el seek.
+                    if (mounted) {
+                      setState(() {
+                        _dragValue = null;
+                      });
+                    }
+                }
+                : null,
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                _formatDuration(displayPosition),
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AppTheme.textGrey,
+                ),
+              ),
+              Text(
+                _formatDuration(totalDuration),
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AppTheme.textGrey,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
