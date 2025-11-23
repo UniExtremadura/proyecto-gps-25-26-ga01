@@ -1,14 +1,20 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:provider/provider.dart';
 import 'dart:async';
 import '../../../core/models/song.dart';
 import '../../../core/models/album.dart';
 import '../../../core/models/artist.dart';
+import '../../../core/models/recommended_song.dart';
 import '../../../core/api/services/discovery_service.dart';
 import '../../../core/api/services/music_service.dart';
+import '../../../core/providers/auth_provider.dart';
 import '../../../config/theme.dart';
 import '../../common/widgets/song_list_item.dart';
 import '../../common/widgets/album_list_item.dart';
+import '../../common/widgets/recommended_song_card.dart';
 
 enum SearchFilter { all, songs, albums, artists }
 
@@ -30,11 +36,13 @@ class _SearchScreenState extends State<SearchScreen>
   List<Song> _songs = [];
   List<Album> _albums = [];
   List<Artist> _artists = [];
+  List<RecommendedSong> _recommendedSongs = [];
 
   bool _isLoading = false;
   bool _isLoadingMoreSongs = false;
   bool _isLoadingMoreAlbums = false;
   bool _hasSearched = false;
+  bool _hasRecommendations = false;
   late TabController _tabController;
 
   int _currentSongPage = 0;
@@ -86,6 +94,7 @@ class _SearchScreenState extends State<SearchScreen>
     setState(() => _isLoading = true);
 
     try {
+      // Solo mostrar contenido publicado en el buscador
       final songsResponse = await _musicService.getTopPublishedSongs();
       final albumsResponse = await _musicService.getRecentPublishedAlbums();
 
@@ -96,6 +105,14 @@ class _SearchScreenState extends State<SearchScreen>
       if (albumsResponse.success && albumsResponse.data != null) {
         _albums = albumsResponse.data!.take(10).toList();
       }
+
+      // GA01-117: Load personalized recommendations if user is authenticated
+      if (mounted) {
+        final authProvider = Provider.of<AuthProvider>(context, listen: false);
+        if (authProvider.isAuthenticated && authProvider.currentUser != null) {
+          await _loadRecommendations(authProvider.currentUser!.id);
+        }
+      }
     } catch (e) {
       debugPrint('Error loading trending content: $e');
     } finally {
@@ -103,8 +120,28 @@ class _SearchScreenState extends State<SearchScreen>
     }
   }
 
+  /// GA01-117: Load personalized recommendations for the user
+  Future<void> _loadRecommendations(int userId) async {
+    try {
+      final response = await _discoveryService.getRecommendations(userId);
+
+      if (response.success && response.data != null) {
+        final recommendations = response.data!;
+
+        // Get all recommendations from all categories
+        _recommendedSongs =
+            recommendations.getAllRecommendations().take(10).toList();
+        _hasRecommendations = _recommendedSongs.isNotEmpty;
+      } else {
+        _hasRecommendations = false;
+      }
+    } catch (e) {
+      debugPrint('Error loading recommendations: $e');
+      _hasRecommendations = false;
+    }
+  }
+
   Future<void> _performSearch(String query) async {
-    final currentContext = context;
     if (query.trim().isEmpty) {
       setState(() {
         _hasSearched = false;
@@ -130,6 +167,7 @@ class _SearchScreenState extends State<SearchScreen>
     });
 
     try {
+      // Solo buscar contenido publicado
       final songsResponse = await _musicService.searchPublishedSongs(query);
       if (songsResponse.success && songsResponse.data != null) {
         _songs = songsResponse.data!;
@@ -140,10 +178,13 @@ class _SearchScreenState extends State<SearchScreen>
         _hasMoreSongs = false;
       }
 
+      // No hay endpoint de búsqueda de álbumes todavía, usar los recientes filtrados
       final albumsResponse = await _musicService.getRecentPublishedAlbums();
       if (albumsResponse.success && albumsResponse.data != null) {
+        // Filtrar álbumes por query
         _albums = albumsResponse.data!
-            .where((album) => album.name.toLowerCase().contains(query.toLowerCase()))
+            .where((album) =>
+                album.name.toLowerCase().contains(query.toLowerCase()))
             .toList();
         _hasMoreAlbums = false;
         _currentAlbumPage = 0;
@@ -156,8 +197,7 @@ class _SearchScreenState extends State<SearchScreen>
       _artists = [];
     } catch (e) {
       debugPrint('Search error: $e');
-      if(!currentContext.mounted) return;
-      ScaffoldMessenger.of(currentContext).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error searching: $e')),
       );
     } finally {
@@ -314,13 +354,50 @@ class _SearchScreenState extends State<SearchScreen>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Trending Now',
+            'Descubre',
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
             ),
           ).animate().fadeIn(),
           const SizedBox(height: 16),
+
+          // GA01-117: Personalized Recommendations
+          if (_hasRecommendations) ...[
+            Row(
+              children: [
+                Icon(
+                  Icons.stars,
+                  color: AppTheme.primaryBlue,
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+                const Text(
+                  'Recomendado para ti',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 240,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: _recommendedSongs.length,
+                itemBuilder: (context, index) {
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 12),
+                    child: RecommendedSongCard(song: _recommendedSongs[index]),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 24),
+          ],
+
           if (_songs.isNotEmpty) ...[
             const Text(
               'Trending Songs',

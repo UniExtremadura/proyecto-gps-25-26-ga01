@@ -1,5 +1,6 @@
 package io.audira.catalog.controller;
 
+import io.audira.catalog.dto.RecommendationsResponse;
 import io.audira.catalog.model.Album;
 import io.audira.catalog.model.Song;
 import io.audira.catalog.service.DiscoveryService;
@@ -61,5 +62,38 @@ public class DiscoveryController {
         response.put("hasMore", albumPage.hasNext());
 
         return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Get personalized recommendations for a user
+     * GA01-117: Módulo básico de recomendaciones (placeholder)
+     *
+     * @param userId User ID (can be path variable or query param)
+     * @return Personalized recommendations categorized by type
+     */
+    @GetMapping("/recommendations")
+    public ResponseEntity<RecommendationsResponse> getRecommendations(
+            @RequestParam(required = false) Long userId,
+            @PathVariable(required = false) Long id) {
+
+        // Support both query param and path variable for flexibility
+        Long targetUserId = userId != null ? userId : id;
+
+        if (targetUserId == null) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        RecommendationsResponse recommendations = discoveryService.getRecommendationsForUser(targetUserId);
+        return ResponseEntity.ok(recommendations);
+    }
+
+    /**
+     * Alternative endpoint with userId as path variable
+     * GA01-117: Módulo básico de recomendaciones (placeholder)
+     */
+    @GetMapping("/recommendations/{userId}")
+    public ResponseEntity<RecommendationsResponse> getRecommendationsByPath(@PathVariable Long userId) {
+        RecommendationsResponse recommendations = discoveryService.getRecommendationsForUser(userId);
+        return ResponseEntity.ok(recommendations);
     }
 }
