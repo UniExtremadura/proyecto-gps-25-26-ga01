@@ -360,7 +360,7 @@ class _LibraryScreenState extends State<LibraryScreen>
             TextField(
               decoration: InputDecoration(
                 hintText: 'Buscar...',
-                hintStyle: TextStyle(color: AppTheme.textGrey.withOpacity(0.7)),
+                hintStyle: TextStyle(color: AppTheme.textGrey.withValues(alpha:0.7)),
                 prefixIcon: const Icon(Icons.search, color: AppTheme.textGrey),
                 contentPadding:
                     const EdgeInsets.symmetric(vertical: 0, horizontal: 10),
@@ -550,7 +550,7 @@ class _LibraryScreenState extends State<LibraryScreen>
           color: isSelected ? AppTheme.primaryBlue : AppTheme.textGrey,
         ),
         backgroundColor: isSelected
-            ? AppTheme.primaryBlue.withOpacity(0.2)
+            ? AppTheme.primaryBlue.withValues(alpha:0.2)
             : Colors.transparent,
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -591,7 +591,7 @@ class _LibraryScreenState extends State<LibraryScreen>
                     width: 50,
                     height: 50,
                     decoration: BoxDecoration(
-                      color: AppTheme.primaryBlue.withOpacity(0.2),
+                      color: AppTheme.primaryBlue.withValues(alpha:0.2),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: const Icon(Icons.music_note),
@@ -654,7 +654,7 @@ class _LibraryScreenState extends State<LibraryScreen>
                     width: 50,
                     height: 50,
                     decoration: BoxDecoration(
-                      color: AppTheme.primaryBlue.withOpacity(0.2),
+                      color: AppTheme.primaryBlue.withValues(alpha:0.2),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: const Icon(Icons.album),
@@ -824,7 +824,7 @@ class _LibraryScreenState extends State<LibraryScreen>
                           width: 50,
                           height: 50,
                           decoration: BoxDecoration(
-                            color: AppTheme.primaryBlue.withOpacity(0.2),
+                            color: AppTheme.primaryBlue.withValues(alpha:0.2),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: const Icon(Icons.music_note),
@@ -863,7 +863,7 @@ class _LibraryScreenState extends State<LibraryScreen>
                           width: 50,
                           height: 50,
                           decoration: BoxDecoration(
-                            color: AppTheme.primaryBlue.withOpacity(0.2),
+                            color: AppTheme.primaryBlue.withValues(alpha:0.2),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: const Icon(Icons.album),
@@ -948,7 +948,7 @@ class _LibraryScreenState extends State<LibraryScreen>
                         width: 50,
                         height: 50,
                         decoration: BoxDecoration(
-                          color: AppTheme.primaryBlue.withOpacity(0.2),
+                          color: AppTheme.primaryBlue.withValues(alpha:0.2),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: const Icon(Icons.download_done,
@@ -993,7 +993,7 @@ class _LibraryScreenState extends State<LibraryScreen>
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: AppTheme.primaryBlue.withOpacity(0.1),
+              color: AppTheme.primaryBlue.withValues(alpha:0.1),
               shape: BoxShape.circle,
             ),
             child: const Icon(
@@ -1058,7 +1058,7 @@ class _LibraryScreenState extends State<LibraryScreen>
           Icon(
             icon,
             size: 80,
-            color: AppTheme.textGrey.withOpacity(0.5),
+            color: AppTheme.textGrey.withValues(alpha:0.5),
           ),
           const SizedBox(height: 16),
           Text(
@@ -1097,7 +1097,7 @@ class _LibraryScreenState extends State<LibraryScreen>
           Icon(
             Icons.download_outlined,
             size: 80,
-            color: AppTheme.textGrey.withOpacity(0.5),
+            color: AppTheme.textGrey.withValues(alpha:0.5),
           ),
           const SizedBox(height: 16),
           Text(
