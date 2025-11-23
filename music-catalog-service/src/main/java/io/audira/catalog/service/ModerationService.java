@@ -1,7 +1,10 @@
 package io.audira.catalog.service;
 
+import io.audira.catalog.client.UserServiceClient;
+import io.audira.catalog.dto.UserDTO;
 import io.audira.catalog.model.*;
 import io.audira.catalog.repository.AlbumRepository;
+import io.audira.catalog.repository.ModerationHistoryRepository;
 import io.audira.catalog.repository.SongRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,8 +25,8 @@ public class ModerationService {
 
     private final SongRepository songRepository;
     private final AlbumRepository albumRepository;
-    //private final ModerationHistoryRepository moderationHistoryRepository;
-    //private final UserServiceClient userServiceClient;
+    private final ModerationHistoryRepository moderationHistoryRepository;
+    private final UserServiceClient userServiceClient;
 
     /**
      * GA01-162: Aprobar una canción
@@ -33,7 +36,7 @@ public class ModerationService {
         Song song = songRepository.findById(songId)
                 .orElseThrow(() -> new IllegalArgumentException("Canción no encontrada: " + songId));
 
-        //ModerationStatus previousStatus = song.getModerationStatus();
+        ModerationStatus previousStatus = song.getModerationStatus();
 
         // Actualizar estado de moderación
         song.setModerationStatus(ModerationStatus.APPROVED);
@@ -44,7 +47,7 @@ public class ModerationService {
         Song savedSong = songRepository.save(song);
 
         // Registrar en historial
-        //recordModerationHistory(savedSong, previousStatus, ModerationStatus.APPROVED, adminId, null, notes);
+        recordModerationHistory(savedSong, previousStatus, ModerationStatus.APPROVED, adminId, null, notes);
 
         log.info("Canción aprobada: {} por admin: {}", songId, adminId);
         return savedSong;
@@ -62,7 +65,7 @@ public class ModerationService {
         Song song = songRepository.findById(songId)
                 .orElseThrow(() -> new IllegalArgumentException("Canción no encontrada: " + songId));
 
-        //ModerationStatus previousStatus = song.getModerationStatus();
+        ModerationStatus previousStatus = song.getModerationStatus();
 
         // Actualizar estado de moderación
         song.setModerationStatus(ModerationStatus.REJECTED);
@@ -74,7 +77,7 @@ public class ModerationService {
         Song savedSong = songRepository.save(song);
 
         // Registrar en historial
-        //recordModerationHistory(savedSong, previousStatus, ModerationStatus.REJECTED, adminId, rejectionReason, notes);
+        recordModerationHistory(savedSong, previousStatus, ModerationStatus.REJECTED, adminId, rejectionReason, notes);
 
         log.info("Canción rechazada: {} por admin: {} - Motivo: {}", songId, adminId, rejectionReason);
         return savedSong;
@@ -88,7 +91,7 @@ public class ModerationService {
         Album album = albumRepository.findById(albumId)
                 .orElseThrow(() -> new IllegalArgumentException("Álbum no encontrado: " + albumId));
 
-        //ModerationStatus previousStatus = album.getModerationStatus();
+        ModerationStatus previousStatus = album.getModerationStatus();
 
         // Actualizar estado de moderación
         album.setModerationStatus(ModerationStatus.APPROVED);
@@ -99,7 +102,7 @@ public class ModerationService {
         Album savedAlbum = albumRepository.save(album);
 
         // Registrar en historial
-        //recordModerationHistory(savedAlbum, previousStatus, ModerationStatus.APPROVED, adminId, null, notes);
+        recordModerationHistory(savedAlbum, previousStatus, ModerationStatus.APPROVED, adminId, null, notes);
 
         log.info("Álbum aprobado: {} por admin: {}", albumId, adminId);
         return savedAlbum;
@@ -117,7 +120,7 @@ public class ModerationService {
         Album album = albumRepository.findById(albumId)
                 .orElseThrow(() -> new IllegalArgumentException("Álbum no encontrado: " + albumId));
 
-        //ModerationStatus previousStatus = album.getModerationStatus();
+        ModerationStatus previousStatus = album.getModerationStatus();
 
         // Actualizar estado de moderación
         album.setModerationStatus(ModerationStatus.REJECTED);
@@ -129,7 +132,7 @@ public class ModerationService {
         Album savedAlbum = albumRepository.save(album);
 
         // Registrar en historial
-        //recordModerationHistory(savedAlbum, previousStatus, ModerationStatus.REJECTED,adminId, rejectionReason, notes);
+        recordModerationHistory(savedAlbum, previousStatus, ModerationStatus.REJECTED,adminId, rejectionReason, notes);
 
         log.info("Álbum rechazado: {} por admin: {} - Motivo: {}", albumId, adminId, rejectionReason);
         return savedAlbum;
@@ -155,6 +158,59 @@ public class ModerationService {
 
     public List<Album> getAlbumsByStatus(ModerationStatus status) {
         return albumRepository.findByModerationStatusOrderByCreatedAtDesc(status);
+    }
+
+    /**
+     * GA01-163: Obtener historial completo de moderaciones
+     */
+    public List<ModerationHistory> getModerationHistory() {
+        return moderationHistoryRepository.findAllByOrderByModeratedAtDesc();
+    }
+
+    /**
+     * GA01-163: Obtener historial de un producto específico
+     */
+    public List<ModerationHistory> getProductModerationHistory(Long productId, String productType) {
+        return moderationHistoryRepository.findByProductIdAndProductTypeOrderByModeratedAtDesc(
+                productId, productType);
+    }
+
+    /**
+     * GA01-163: Obtener historial de moderaciones de un artista
+     */
+    public List<ModerationHistory> getArtistModerationHistory(Long artistId) {
+        return moderationHistoryRepository.findByArtistIdOrderByModeratedAtDesc(artistId);
+    }
+
+    /**
+     * GA01-163: Registrar evento de moderación en el historial
+     */
+    private void recordModerationHistory(Product product, ModerationStatus previousStatus,
+                                        ModerationStatus newStatus, Long moderatedBy,
+                                        String rejectionReason, String notes) {
+        // Obtener información del moderador
+        UserDTO moderator = userServiceClient.getUserById(moderatedBy);
+
+        // Obtener información del artista
+        UserDTO artist = userServiceClient.getUserById(product.getArtistId());
+
+        ModerationHistory history = ModerationHistory.builder()
+                .productId(product.getId())
+                .productType(product.getProductType())
+                .productTitle(product.getTitle())
+                .artistId(product.getArtistId())
+                .artistName(artist != null ? artist.getArtistName() : "Desconocido")
+                .previousStatus(previousStatus)
+                .newStatus(newStatus)
+                .moderatedBy(moderatedBy)
+                .moderatorName(moderator != null ? moderator.getUsername() : "Admin #" + moderatedBy)
+                .rejectionReason(rejectionReason)
+                .notes(notes)
+                .moderatedAt(LocalDateTime.now())
+                .build();
+
+        moderationHistoryRepository.save(history);
+        log.debug("Historial de moderación registrado para producto {} ({})", product.getId(), product.getProductType());
     }
 
     /**

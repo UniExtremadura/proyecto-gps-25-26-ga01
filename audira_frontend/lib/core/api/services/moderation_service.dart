@@ -1,3 +1,5 @@
+import 'package:audira_frontend/core/models/moderation_history.dart';
+
 import '../api_client.dart';
 import '../../models/song.dart';
 
@@ -143,6 +145,93 @@ class ModerationService {
         return ApiResponse(
             success: false, error: 'Error al parsear álbumes: $e');
       }
+    }
+    return ApiResponse(success: false, error: response.error);
+  }
+
+  // ============= GA01-163: Historial =============
+
+  /// Obtener historial completo de moderaciones
+  Future<ApiResponse<List<ModerationHistory>>> getModerationHistory() async {
+    final response = await _apiClient.get(
+      '/api/moderation/history',
+      requiresAuth: true,
+    );
+
+    if (response.success && response.data != null) {
+      try {
+        final List<dynamic> historyJson = response.data as List<dynamic>;
+        final history = historyJson
+            .map((json) =>
+                ModerationHistory.fromJson(json as Map<String, dynamic>))
+            .toList();
+        return ApiResponse(success: true, data: history);
+      } catch (e) {
+        return ApiResponse(
+            success: false, error: 'Error al parsear historial: $e');
+      }
+    }
+    return ApiResponse(success: false, error: response.error);
+  }
+
+  /// Obtener historial de un producto específico
+  Future<ApiResponse<List<ModerationHistory>>> getProductHistory(
+      String productType, int productId) async {
+    final response = await _apiClient.get(
+      '/api/moderation/history/$productType/$productId',
+      requiresAuth: true,
+    );
+
+    if (response.success && response.data != null) {
+      try {
+        final List<dynamic> historyJson = response.data as List<dynamic>;
+        final history = historyJson
+            .map((json) =>
+                ModerationHistory.fromJson(json as Map<String, dynamic>))
+            .toList();
+        return ApiResponse(success: true, data: history);
+      } catch (e) {
+        return ApiResponse(
+            success: false, error: 'Error al parsear historial: $e');
+      }
+    }
+    return ApiResponse(success: false, error: response.error);
+  }
+
+  /// Obtener historial de moderaciones de un artista
+  Future<ApiResponse<List<ModerationHistory>>> getArtistHistory(
+      int artistId) async {
+    final response = await _apiClient.get(
+      '/api/moderation/history/artist/$artistId',
+      requiresAuth: true,
+    );
+
+    if (response.success && response.data != null) {
+      try {
+        final List<dynamic> historyJson = response.data as List<dynamic>;
+        final history = historyJson
+            .map((json) =>
+                ModerationHistory.fromJson(json as Map<String, dynamic>))
+            .toList();
+        return ApiResponse(success: true, data: history);
+      } catch (e) {
+        return ApiResponse(
+            success: false, error: 'Error al parsear historial: $e');
+      }
+    }
+    return ApiResponse(success: false, error: response.error);
+  }
+
+  /// Obtener estadísticas de moderación
+  Future<ApiResponse<Map<String, dynamic>>> getModerationStatistics() async {
+    final response = await _apiClient.get(
+      '/api/moderation/statistics',
+      requiresAuth: true,
+    );
+
+    if (response.success && response.data != null) {
+      return ApiResponse(
+          success: true, data: response.data as Map<String, dynamic>);
     }
     return ApiResponse(success: false, error: response.error);
   }

@@ -1,9 +1,15 @@
+
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:provider/provider.dart';
 import '../../../config/theme.dart';
 import '../../../core/models/song.dart';
 import '../../../core/api/services/music_service.dart';
+import '../../../core/api/services/moderation_service.dart';
+import '../../../core/providers/auth_provider.dart';
+import '../widgets/moderation_widgets.dart';
 
+/// GA01-162: Pantalla de administración de canciones con moderación
 class AdminSongsScreen extends StatefulWidget {
   const AdminSongsScreen({super.key});
 
@@ -13,12 +19,16 @@ class AdminSongsScreen extends StatefulWidget {
 
 class _AdminSongsScreenState extends State<AdminSongsScreen> {
   final MusicService _musicService = MusicService();
+  final ModerationService _moderationService = ModerationService();
   final TextEditingController _searchController = TextEditingController();
 
   List<Song> _songs = [];
   List<Song> _filteredSongs = [];
   bool _isLoading = false;
   String? _error;
+
+  // GA01-162: Filtro de moderación
+  String _moderationFilter = 'all'; // all, pending, approved, rejected
 
   @override
   void initState() {
@@ -57,10 +67,27 @@ class _AdminSongsScreenState extends State<AdminSongsScreen> {
 
   void _filterSongs(String query) {
     setState(() {
-      if (query.isEmpty) {
-        _filteredSongs = _songs;
-      } else {
-        _filteredSongs = _songs
+      var filtered = _songs;
+
+      // GA01-162: Filtrar por estado de moderación
+      if (_moderationFilter != 'all') {
+        filtered = filtered.where((song) {
+          switch (_moderationFilter) {
+            case 'pending':
+              return song.moderationStatus == 'PENDING';
+            case 'approved':
+              return song.moderationStatus == 'APPROVED';
+            case 'rejected':
+              return song.moderationStatus == 'REJECTED';
+            default:
+              return true;
+          }
+        }).toList();
+      }
+
+      // Filtrar por búsqueda
+      if (query.isNotEmpty) {
+        filtered = filtered
             .where((song) =>
                 song.name.toLowerCase().contains(query.toLowerCase()) ||
                 (song.description
@@ -69,7 +96,120 @@ class _AdminSongsScreenState extends State<AdminSongsScreen> {
                     false))
             .toList();
       }
+
+      _filteredSongs = filtered;
     });
+  }
+
+  void _applyModerationFilter(String filter) {
+    setState(() {
+      _moderationFilter = filter;
+    });
+    _filterSongs(_searchController.text);
+  }
+
+  // GA01-162: Aprobar canción
+  Future<void> _approveSong(Song song) async {
+    final authProvider = context.read<AuthProvider>();
+    final adminId = authProvider.currentUser?.id;
+
+    if (adminId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error: Admin ID no disponible')),
+      );
+      return;
+    }
+
+    final result = await showApproveDialog(
+      context: context,
+      itemName: song.name,
+      itemType: 'canción',
+    );
+
+    if (result == true) {
+      try {
+        final response =
+            await _moderationService.approveSong(song.id, adminId);
+
+        if (response.success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Canción "${song.name}" aprobada exitosamente'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          _loadSongs();
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(response.error ?? 'Error al aprobar la canción'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  // GA01-162: Rechazar canción
+  Future<void> _rejectSong(Song song) async {
+    final authProvider = context.read<AuthProvider>();
+    final adminId = authProvider.currentUser?.id;
+
+    if (adminId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error: Admin ID no disponible')),
+      );
+      return;
+    }
+
+    final result = await showRejectDialog(
+      context: context,
+      itemName: song.name,
+      itemType: 'canción',
+    );
+
+    if (result != null && result['reason'] != null) {
+      try {
+        final response = await _moderationService.rejectSong(
+          song.id,
+          adminId,
+          result['reason']!,
+          notes: result['notes'],
+        );
+
+        if (response.success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Canción "${song.name}" rechazada'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+          _loadSongs();
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(response.error ?? 'Error al rechazar la canción'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _deleteSong(int songId) async {
@@ -93,27 +233,22 @@ class _AdminSongsScreenState extends State<AdminSongsScreen> {
     );
 
     if (confirmed == true) {
-      final currentContext = context;
       try {
         final response = await _musicService.deleteSong(songId);
-        if(!currentContext.mounted) return;
         if (response.success) {
-          if(!currentContext.mounted) return;
-          ScaffoldMessenger.of(currentContext).showSnackBar(
+          ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Song deleted successfully')),
           );
           _loadSongs();
         } else {
-          if(!currentContext.mounted) return;
-          ScaffoldMessenger.of(currentContext).showSnackBar(
+          ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(response.error ?? 'Failed to delete song'),
             ),
           );
         }
       } catch (e) {
-        if(!currentContext.mounted) return;
-        ScaffoldMessenger.of(currentContext).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error: $e')),
         );
       }
@@ -126,6 +261,81 @@ class _AdminSongsScreenState extends State<AdminSongsScreen> {
       appBar: AppBar(
         title: const Text('Manage Songs'),
         actions: [
+          // GA01-162: Filtro de moderación
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.filter_list),
+            tooltip: 'Filtrar por estado de moderación',
+            onSelected: _applyModerationFilter,
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'header',
+                enabled: false,
+                child: Text(
+                  'ESTADO DE MODERACIÓN',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                ),
+              ),
+              PopupMenuItem(
+                value: 'all',
+                child: Row(
+                  children: [
+                    if (_moderationFilter == 'all')
+                      const Icon(Icons.check, size: 20),
+                    if (_moderationFilter != 'all') const SizedBox(width: 20),
+                    const SizedBox(width: 8),
+                    const Text('Todas'),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'pending',
+                child: Row(
+                  children: [
+                    if (_moderationFilter == 'pending')
+                      const Icon(Icons.check, size: 20),
+                    if (_moderationFilter != 'pending')
+                      const SizedBox(width: 20),
+                    const SizedBox(width: 8),
+                    const Text('Pendientes'),
+                    const SizedBox(width: 8),
+                    const Icon(Icons.hourglass_empty,
+                        size: 16, color: Colors.orange),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'approved',
+                child: Row(
+                  children: [
+                    if (_moderationFilter == 'approved')
+                      const Icon(Icons.check, size: 20),
+                    if (_moderationFilter != 'approved')
+                      const SizedBox(width: 20),
+                    const SizedBox(width: 8),
+                    const Text('Aprobadas'),
+                    const SizedBox(width: 8),
+                    const Icon(Icons.check_circle,
+                        size: 16, color: Colors.green),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'rejected',
+                child: Row(
+                  children: [
+                    if (_moderationFilter == 'rejected')
+                      const Icon(Icons.check, size: 20),
+                    if (_moderationFilter != 'rejected')
+                      const SizedBox(width: 20),
+                    const SizedBox(width: 8),
+                    const Text('Rechazadas'),
+                    const SizedBox(width: 8),
+                    const Icon(Icons.cancel, size: 16, color: Colors.red),
+                  ],
+                ),
+              ),
+            ],
+          ),
           IconButton(
             icon: const Icon(Icons.add),
             onPressed: () {
@@ -184,33 +394,108 @@ class _AdminSongsScreenState extends State<AdminSongsScreen> {
                             itemBuilder: (context, index) {
                               final song = _filteredSongs[index];
                               return Card(
-                                margin: const EdgeInsets.only(bottom: 8),
-                                child: ListTile(
-                                  leading: CircleAvatar(
-                                    backgroundColor: AppTheme.primaryBlue,
-                                    child: const Icon(Icons.music_note,
-                                        color: Colors.white),
-                                  ),
-                                  title: Text(song.name),
-                                  subtitle: Text(
-                                    'Artist ID: ${song.artistId} • \$${song.price.toStringAsFixed(2)}',
-                                  ),
-                                  trailing: Row(
-                                    mainAxisSize: MainAxisSize.min,
+                                margin: const EdgeInsets.only(bottom: 12),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(12),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      IconButton(
-                                        icon: const Icon(Icons.edit,
-                                            color: AppTheme.primaryBlue),
-                                        onPressed: () {
-                                          _showSongForm(song);
-                                        },
+                                      // Título y badge de estado
+                                      Row(
+                                        children: [
+                                          CircleAvatar(
+                                            backgroundColor: AppTheme.primaryBlue,
+                                            child: const Icon(Icons.music_note,
+                                                color: Colors.white),
+                                          ),
+                                          const SizedBox(width: 12),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  song.name,
+                                                  style: const TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 16,
+                                                  ),
+                                                ),
+                                                Text(
+                                                  'Artist ID: ${song.artistId} • \$${song.price.toStringAsFixed(2)}',
+                                                  style: TextStyle(
+                                                    color: Colors.grey[600],
+                                                    fontSize: 13,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          // GA01-162: Badge de estado
+                                          ModerationBadge(
+                                            status: song.moderationStatus,
+                                            compact: true,
+                                          ),
+                                        ],
                                       ),
-                                      IconButton(
-                                        icon: const Icon(Icons.delete,
-                                            color: Colors.red),
-                                        onPressed: () {
-                                          _deleteSong(song.id);
-                                        },
+
+                                      // GA01-162: Mostrar razón de rechazo si existe
+                                      if (song.rejectionReason != null &&
+                                          song.rejectionReason!.isNotEmpty) ...[
+                                        const SizedBox(height: 12),
+                                        RejectionReasonWidget(
+                                          reason: song.rejectionReason!,
+                                        ),
+                                      ],
+
+                                      const SizedBox(height: 12),
+
+                                      // Botones de acción
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.end,
+                                        children: [
+                                          // GA01-162: Botones de moderación para canciones pendientes
+                                          if (song.moderationStatus ==
+                                              'PENDING') ...[
+                                            TextButton.icon(
+                                              onPressed: () =>
+                                                  _approveSong(song),
+                                              icon: const Icon(Icons.check,
+                                                  size: 18),
+                                              label: const Text('Aprobar'),
+                                              style: TextButton.styleFrom(
+                                                foregroundColor: Colors.green,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            TextButton.icon(
+                                              onPressed: () =>
+                                                  _rejectSong(song),
+                                              icon:
+                                                  const Icon(Icons.close, size: 18),
+                                              label: const Text('Rechazar'),
+                                              style: TextButton.styleFrom(
+                                                foregroundColor: Colors.red,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                          ],
+                                          IconButton(
+                                            icon: const Icon(Icons.edit,
+                                                color: AppTheme.primaryBlue),
+                                            onPressed: () {
+                                              _showSongForm(song);
+                                            },
+                                          ),
+                                          IconButton(
+                                            icon: const Icon(Icons.delete,
+                                                color: Colors.red),
+                                            onPressed: () {
+                                              _deleteSong(song.id);
+                                            },
+                                          ),
+                                        ],
                                       ),
                                     ],
                                   ),

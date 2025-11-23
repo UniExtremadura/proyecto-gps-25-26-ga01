@@ -1,4 +1,5 @@
 import 'package:audira_frontend/features/admin/screens/admin_featured_content_screen.dart';
+import 'package:audira_frontend/features/admin/screens/admin_moderation_history_screen.dart';
 import 'package:audira_frontend/features/profile/screens/followed_artists_screen.dart';
 import 'package:audira_frontend/features/studio/screens/file_upload_demo_screen.dart';
 import 'package:audira_frontend/features/studio/screens/studio_catalog_screen.dart';
@@ -80,6 +81,7 @@ class AppRoutes {
   static const String adminOrders = '/admin/orders';
   static const String adminStats = '/admin/stats';
   static const String downloads = '/downloads';
+  static const String adminModerationHistory = '/admin/moderation-history';
   static const String adminFeaturedContent = '/admin/featured-content';
 
   static Route<dynamic> generateRoute(RouteSettings settings) {
@@ -238,6 +240,10 @@ class AppRoutes {
 
       case downloads:
         return MaterialPageRoute(builder: (_) => const DownloadsScreen());
+
+      case adminModerationHistory:
+        return MaterialPageRoute(builder: (_) => const AdminModerationHistoryScreen());
+
 
       case adminFeaturedContent:
         return MaterialPageRoute(builder: (_) => const AdminFeaturedContentScreen());

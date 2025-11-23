@@ -1,7 +1,9 @@
 package io.audira.catalog.controller;
 
+import io.audira.catalog.dto.ModerationHistoryResponse;
 import io.audira.catalog.dto.ModerationRequest;
 import io.audira.catalog.model.Album;
+import io.audira.catalog.model.ModerationHistory;
 import io.audira.catalog.model.ModerationStatus;
 import io.audira.catalog.model.Song;
 import io.audira.catalog.service.ModerationService;
@@ -12,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * GA01-162 y GA01-163: Controlador para moderación de contenido
@@ -132,5 +135,66 @@ public class ModerationController {
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().build();
         }
+    }
+
+    // ============= GA01-163: Endpoints de Historial =============
+
+    /**
+     * Obtener historial completo de moderaciones
+     */
+    @GetMapping("/history")
+    public ResponseEntity<List<ModerationHistoryResponse>> getModerationHistory() {
+        List<ModerationHistory> history = moderationService.getModerationHistory();
+        List<ModerationHistoryResponse> response = history.stream()
+                .map(this::toResponse)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Obtener historial de un producto específico
+     */
+    @GetMapping("/history/{productType}/{productId}")
+    public ResponseEntity<List<ModerationHistoryResponse>> getProductHistory(
+            @PathVariable String productType,
+            @PathVariable Long productId) {
+        List<ModerationHistory> history = moderationService.getProductModerationHistory(
+                productId, productType.toUpperCase());
+        List<ModerationHistoryResponse> response = history.stream()
+                .map(this::toResponse)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Obtener historial de moderaciones de un artista
+     */
+    @GetMapping("/history/artist/{artistId}")
+    public ResponseEntity<List<ModerationHistoryResponse>> getArtistHistory(
+            @PathVariable Long artistId) {
+        List<ModerationHistory> history = moderationService.getArtistModerationHistory(artistId);
+        List<ModerationHistoryResponse> response = history.stream()
+                .map(this::toResponse)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(response);
+    }
+
+    // Helper method to convert ModerationHistory to Response DTO
+    private ModerationHistoryResponse toResponse(ModerationHistory history) {
+        return ModerationHistoryResponse.builder()
+                .id(history.getId())
+                .productId(history.getProductId())
+                .productType(history.getProductType())
+                .productTitle(history.getProductTitle())
+                .artistId(history.getArtistId())
+                .artistName(history.getArtistName())
+                .previousStatus(history.getPreviousStatus())
+                .newStatus(history.getNewStatus())
+                .moderatedBy(history.getModeratedBy())
+                .moderatorName(history.getModeratorName())
+                .rejectionReason(history.getRejectionReason())
+                .moderatedAt(history.getModeratedAt())
+                .notes(history.getNotes())
+                .build();
     }
 }
