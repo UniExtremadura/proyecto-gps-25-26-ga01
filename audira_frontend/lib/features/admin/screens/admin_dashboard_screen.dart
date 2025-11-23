@@ -113,6 +113,17 @@ class AdminDashboardScreen extends StatelessWidget {
               .animate(delay: 800.ms)
               .fadeIn()
               .scale(begin: const Offset(0.8, 0.8)),
+           _buildAdminCard(
+            context,
+            icon: Icons.admin_panel_settings,
+            title: 'Moderation History',
+            subtitle: 'Review content moderation history',
+            color: Colors.indigo,
+            route: '/admin/moderation-history',
+          )
+              .animate(delay: 900.ms)
+              .fadeIn()
+              .scale(begin: const Offset(0.8, 0.8)),
         ],
       ),
     );

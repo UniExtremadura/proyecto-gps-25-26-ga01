@@ -1,3 +1,5 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
@@ -6,9 +8,14 @@ import '../../../core/models/song.dart';
 import '../../../core/models/album.dart';
 import '../../../core/api/services/music_service.dart';
 import '../../../core/providers/auth_provider.dart';
+import '../../admin/widgets/moderation_widgets.dart';
 import 'edit_song_screen.dart';
 import 'edit_album_screen.dart';
 
+/// GA01-151: Editar contenido publicado (título/descripción)
+/// GA01-152: Quitar/ocultar publicación
+/// GA01-153: Ver lista de publicaciones/filtros
+/// GA01-162: Ver estado de moderación del contenido
 class StudioCatalogScreen extends StatefulWidget {
   const StudioCatalogScreen({super.key});
 
@@ -27,7 +34,7 @@ class _StudioCatalogScreenState extends State<StudioCatalogScreen>
   String? _error;
 
   // GA01-153: Filtros
-  String _filterStatus = 'all'; // all, published, hidden
+  String _filterStatus = 'all'; // all, published, hidden, pending, approved, rejected
   String _sortBy = 'recent'; // recent, name, plays
 
   @override
@@ -101,15 +108,41 @@ class _StudioCatalogScreenState extends State<StudioCatalogScreen>
     }
   }
 
-  // GA01-152: Toggle publicar/ocultar canción
+  // GA01-152 y GA01-162: Toggle publicar/ocultar canción
   Future<void> _toggleSongPublished(Song song) async {
-    final currentContext = context;
+    // GA01-162: Verificar estado de moderación antes de publicar
+    if (!song.published && song.moderationStatus != 'APPROVED') {
+      String message;
+      if (song.moderationStatus == 'PENDING') {
+        message =
+            'Esta canción está en revisión. Espera a que un administrador la apruebe antes de publicarla.';
+      } else if (song.moderationStatus == 'REJECTED') {
+        message =
+            'Esta canción fue rechazada. Debes realizar cambios y volver a subirla para que sea revisada nuevamente.';
+      } else {
+        message = 'No puedes publicar esta canción en su estado actual.';
+      }
+
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('No se puede publicar'),
+          content: Text(message),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Entendido'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
     try {
-      final response =
-          await _musicService.publishSong(song.id, !song.published);
-      if (!currentContext.mounted) return;
+      final response = await _musicService.publishSong(song.id, !song.published);
       if (response.success) {
-        ScaffoldMessenger.of(currentContext).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(song.published
                 ? 'Canción ocultada exitosamente'
@@ -118,28 +151,53 @@ class _StudioCatalogScreenState extends State<StudioCatalogScreen>
         );
         _loadCatalog();
       } else {
-        if (!currentContext.mounted) return;
-        ScaffoldMessenger.of(currentContext).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error: ${response.error}')),
         );
       }
     } catch (e) {
-      if (!currentContext.mounted) return;
-      ScaffoldMessenger.of(currentContext).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error: $e')),
       );
     }
   }
 
-  // GA01-152: Toggle publicar/ocultar álbum
+  // GA01-152 y GA01-162: Toggle publicar/ocultar álbum
   Future<void> _toggleAlbumPublished(Album album) async {
-    final currentContext = context;
+    // GA01-162: Verificar estado de moderación antes de publicar
+    if (!album.published && album.moderationStatus != 'APPROVED') {
+      String message;
+      if (album.moderationStatus == 'PENDING') {
+        message =
+            'Este álbum está en revisión. Espera a que un administrador lo apruebe antes de publicarlo.';
+      } else if (album.moderationStatus == 'REJECTED') {
+        message =
+            'Este álbum fue rechazado. Debes realizar cambios y volver a subirlo para que sea revisado nuevamente.';
+      } else {
+        message = 'No puedes publicar este álbum en su estado actual.';
+      }
+
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('No se puede publicar'),
+          content: Text(message),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Entendido'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
     try {
       final response =
           await _musicService.publishAlbum(album.id, !album.published);
-      if (!currentContext.mounted) return;
       if (response.success) {
-        ScaffoldMessenger.of(currentContext).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(album.published
                 ? 'Álbum ocultado exitosamente'
@@ -148,26 +206,24 @@ class _StudioCatalogScreenState extends State<StudioCatalogScreen>
         );
         _loadCatalog();
       } else {
-        if (!currentContext.mounted) return;
-        ScaffoldMessenger.of(currentContext).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error: ${response.error}')),
         );
       }
     } catch (e) {
-      if (!currentContext.mounted) return;
-      ScaffoldMessenger.of(currentContext).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error: $e')),
       );
     }
   }
 
   Future<void> _deleteSong(int songId) async {
-    final currentContext = context;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Eliminar Canción'),
-        content: const Text('¿Estás seguro? Esta acción no se puede deshacer.'),
+        content:
+            const Text('¿Estás seguro? Esta acción no se puede deshacer.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -181,20 +237,18 @@ class _StudioCatalogScreenState extends State<StudioCatalogScreen>
         ],
       ),
     );
-    if (!currentContext.mounted) return;
+
     if (confirmed == true) {
       try {
         final response = await _musicService.deleteSong(songId);
-        if (!currentContext.mounted) return;
         if (response.success) {
-          ScaffoldMessenger.of(currentContext).showSnackBar(
+          ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Canción eliminada exitosamente')),
           );
           _loadCatalog();
         }
       } catch (e) {
-        if (!currentContext.mounted) return;
-        ScaffoldMessenger.of(currentContext).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error: $e')),
         );
       }
@@ -202,9 +256,8 @@ class _StudioCatalogScreenState extends State<StudioCatalogScreen>
   }
 
   Future<void> _deleteAlbum(int albumId) async {
-    final currentContext = context;
     final confirmed = await showDialog<bool>(
-      context: currentContext,
+      context: context,
       builder: (context) => AlertDialog(
         title: const Text('Eliminar Álbum'),
         content: const Text(
@@ -222,32 +275,36 @@ class _StudioCatalogScreenState extends State<StudioCatalogScreen>
         ],
       ),
     );
-    if (!currentContext.mounted) return;
+
     if (confirmed == true) {
       try {
         final response = await _musicService.deleteAlbum(albumId);
-        if (!currentContext.mounted) return;
-
         if (response.success) {
-          ScaffoldMessenger.of(currentContext).showSnackBar(
+          ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Álbum eliminado exitosamente')),
           );
           _loadCatalog();
         }
       } catch (e) {
-        if (!currentContext.mounted) return;
-        // Usar el contexto guardado
-        ScaffoldMessenger.of(currentContext).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error: $e')),
         );
       }
     }
   }
 
+  // GA01-153 y GA01-162: Filtrar y ordenar canciones
   List<Song> get _filteredSongs {
     var filtered = _songs.where((song) {
+      // Filtros de visibilidad
       if (_filterStatus == 'published') return song.published;
       if (_filterStatus == 'hidden') return !song.published;
+
+      // GA01-162: Filtros de moderación
+      if (_filterStatus == 'pending') return song.moderationStatus == 'PENDING';
+      if (_filterStatus == 'approved') return song.moderationStatus == 'APPROVED';
+      if (_filterStatus == 'rejected') return song.moderationStatus == 'REJECTED';
+
       return true;
     }).toList();
 
@@ -271,11 +328,18 @@ class _StudioCatalogScreenState extends State<StudioCatalogScreen>
     return filtered;
   }
 
-  // GA01-153: Filtrar y ordenar álbumes
+  // GA01-153 y GA01-162: Filtrar y ordenar álbumes
   List<Album> get _filteredAlbums {
     var filtered = _albums.where((album) {
+      // Filtros de visibilidad
       if (_filterStatus == 'published') return album.published;
       if (_filterStatus == 'hidden') return !album.published;
+
+      // GA01-162: Filtros de moderación
+      if (_filterStatus == 'pending') return album.moderationStatus == 'PENDING';
+      if (_filterStatus == 'approved') return album.moderationStatus == 'APPROVED';
+      if (_filterStatus == 'rejected') return album.moderationStatus == 'REJECTED';
+
       return true;
     }).toList();
 
@@ -299,7 +363,7 @@ class _StudioCatalogScreenState extends State<StudioCatalogScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.surfaceBlack,
+      backgroundColor: Colors.grey[100],
       appBar: AppBar(
         elevation: 0,
         title: const Text('Mi Catálogo'),
@@ -365,6 +429,57 @@ class _StudioCatalogScreenState extends State<StudioCatalogScreen>
                     if (_filterStatus != 'hidden') const SizedBox(width: 20),
                     const SizedBox(width: 8),
                     const Text('Ocultas'),
+                  ],
+                ),
+              ),
+              const PopupMenuDivider(),
+              const PopupMenuItem<String>(
+                value: 'moderation_header',
+                enabled: false,
+                child: Text('ESTADO DE MODERACIÓN',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+              PopupMenuItem<String>(
+                value: 'pending',
+                child: Row(
+                  children: [
+                    if (_filterStatus == 'pending')
+                      const Icon(Icons.check, size: 20),
+                    if (_filterStatus != 'pending') const SizedBox(width: 20),
+                    const SizedBox(width: 8),
+                    const Text('En revisión'),
+                    const SizedBox(width: 8),
+                    const Icon(Icons.hourglass_empty,
+                        size: 16, color: Colors.orange),
+                  ],
+                ),
+              ),
+              PopupMenuItem<String>(
+                value: 'approved',
+                child: Row(
+                  children: [
+                    if (_filterStatus == 'approved')
+                      const Icon(Icons.check, size: 20),
+                    if (_filterStatus != 'approved') const SizedBox(width: 20),
+                    const SizedBox(width: 8),
+                    const Text('Aprobadas'),
+                    const SizedBox(width: 8),
+                    const Icon(Icons.check_circle,
+                        size: 16, color: Colors.green),
+                  ],
+                ),
+              ),
+              PopupMenuItem<String>(
+                value: 'rejected',
+                child: Row(
+                  children: [
+                    if (_filterStatus == 'rejected')
+                      const Icon(Icons.check, size: 20),
+                    if (_filterStatus != 'rejected') const SizedBox(width: 20),
+                    const SizedBox(width: 8),
+                    const Text('Rechazadas'),
+                    const SizedBox(width: 8),
+                    const Icon(Icons.cancel, size: 16, color: Colors.red),
                   ],
                 ),
               ),
@@ -504,21 +619,27 @@ class _StudioCatalogScreenState extends State<StudioCatalogScreen>
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
+                            // GA01-162: Badge de estado de moderación
+                            ModerationBadge(
+                              status: song.moderationStatus,
+                              compact: true,
+                            ),
+                            const SizedBox(width: 4),
                             if (!song.published)
                               Container(
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 8, vertical: 2),
                                 decoration: BoxDecoration(
-                                  color: Colors.orange[100],
+                                  color: Colors.grey[300],
                                   borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: Colors.orange),
+                                  border: Border.all(color: Colors.grey),
                                 ),
                                 child: const Text(
                                   'OCULTO',
                                   style: TextStyle(
                                     fontSize: 10,
                                     fontWeight: FontWeight.bold,
-                                    color: Colors.orange,
+                                    color: Colors.grey,
                                   ),
                                 ),
                               ),
@@ -540,6 +661,14 @@ class _StudioCatalogScreenState extends State<StudioCatalogScreen>
                             fontSize: 12,
                           ),
                         ),
+                        // GA01-162: Mostrar razón de rechazo si existe
+                        if (song.rejectionReason != null &&
+                            song.rejectionReason!.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          RejectionReasonWidget(
+                            reason: song.rejectionReason!,
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -578,8 +707,7 @@ class _StudioCatalogScreenState extends State<StudioCatalogScreen>
                           children: [
                             Icon(Icons.delete, color: Colors.red),
                             SizedBox(width: 8),
-                            Text('Eliminar',
-                                style: TextStyle(color: Colors.red)),
+                            Text('Eliminar', style: TextStyle(color: Colors.red)),
                           ],
                         ),
                       ),
@@ -667,21 +795,27 @@ class _StudioCatalogScreenState extends State<StudioCatalogScreen>
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
+                            // GA01-162: Badge de estado de moderación
+                            ModerationBadge(
+                              status: album.moderationStatus,
+                              compact: true,
+                            ),
+                            const SizedBox(width: 4),
                             if (!album.published)
                               Container(
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 8, vertical: 2),
                                 decoration: BoxDecoration(
-                                  color: Colors.orange[100],
+                                  color: Colors.grey[300],
                                   borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: Colors.orange),
+                                  border: Border.all(color: Colors.grey),
                                 ),
                                 child: const Text(
                                   'OCULTO',
                                   style: TextStyle(
                                     fontSize: 10,
                                     fontWeight: FontWeight.bold,
-                                    color: Colors.orange,
+                                    color: Colors.grey,
                                   ),
                                 ),
                               ),
@@ -703,6 +837,14 @@ class _StudioCatalogScreenState extends State<StudioCatalogScreen>
                               color: Colors.grey[500],
                               fontSize: 12,
                             ),
+                          ),
+                        ],
+                        // GA01-162: Mostrar razón de rechazo si existe
+                        if (album.rejectionReason != null &&
+                            album.rejectionReason!.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          RejectionReasonWidget(
+                            reason: album.rejectionReason!,
                           ),
                         ],
                       ],
@@ -743,8 +885,7 @@ class _StudioCatalogScreenState extends State<StudioCatalogScreen>
                           children: [
                             Icon(Icons.delete, color: Colors.red),
                             SizedBox(width: 8),
-                            Text('Eliminar',
-                                style: TextStyle(color: Colors.red)),
+                            Text('Eliminar', style: TextStyle(color: Colors.red)),
                           ],
                         ),
                       ),
@@ -801,7 +942,7 @@ class _StudioCatalogScreenState extends State<StudioCatalogScreen>
               width: 60,
               height: 60,
               decoration: BoxDecoration(
-                color: AppTheme.primaryBlue.withValues(alpha: 0.1),
+                color: AppTheme.primaryBlue.withValues(alpha:0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: const Icon(
@@ -820,7 +961,7 @@ class _StudioCatalogScreenState extends State<StudioCatalogScreen>
       width: 60,
       height: 60,
       decoration: BoxDecoration(
-        color: AppTheme.primaryBlue.withValues(alpha: 0.1),
+        color: AppTheme.primaryBlue.withValues(alpha:0.1),
         borderRadius: BorderRadius.circular(8),
       ),
       child: const Icon(
@@ -864,7 +1005,7 @@ class _StudioCatalogScreenState extends State<StudioCatalogScreen>
               width: 60,
               height: 60,
               decoration: BoxDecoration(
-                color: AppTheme.primaryBlue.withValues(alpha: 0.1),
+                color: AppTheme.primaryBlue.withValues(alpha:0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: const Icon(
@@ -883,7 +1024,7 @@ class _StudioCatalogScreenState extends State<StudioCatalogScreen>
       width: 60,
       height: 60,
       decoration: BoxDecoration(
-        color: AppTheme.primaryBlue.withValues(alpha: 0.1),
+        color: AppTheme.primaryBlue.withValues(alpha:0.1),
         borderRadius: BorderRadius.circular(8),
       ),
       child: const Icon(
