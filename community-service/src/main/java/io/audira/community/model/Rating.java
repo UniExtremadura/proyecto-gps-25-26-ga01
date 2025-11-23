@@ -6,23 +6,19 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
-
 import java.time.ZonedDateTime;
 
 /**
  * Entidad Rating para el sistema de valoraciones
- * GA01-128: Puntuación de 1-5 estrellas
- * GA01-129: Comentario opcional (500 chars)
- * GA01-130: Editar/eliminar valoración
  */
 @Entity
 @Table(name = "ratings",
        uniqueConstraints = @UniqueConstraint(columnNames = {"user_id", "entity_type", "entity_id"}))
 @Data
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class Rating {
@@ -69,22 +65,21 @@ public class Rating {
     private String comment;
 
     /**
+     * Indica si la valoración está activa
+     */
+    @Column(name = "is_active")
+    @Builder.Default
+    private Boolean isActive = true;
+
+    /**
      * Fecha de creación
      */
-    @CreationTimestamp
-    @Column(name = "created_at", nullable = false, updatable = false)
+    @Column(name = "created_at")
     private ZonedDateTime createdAt;
 
     /**
      * Fecha de última actualización (para edición - GA01-130)
      */
-    @UpdateTimestamp
     @Column(name = "updated_at")
     private ZonedDateTime updatedAt;
-
-    /**
-     * Indica si la valoración está activa
-     */
-    @Column(name = "is_active", nullable = false)
-    private Boolean isActive = true;
 }

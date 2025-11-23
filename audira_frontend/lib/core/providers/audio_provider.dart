@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:audio_session/audio_session.dart';
 import '../models/song.dart';
 import '../models/album.dart';
 import '../api/services/music_service.dart';
@@ -21,6 +22,9 @@ class AudioProvider with ChangeNotifier {
   Duration _totalDuration = Duration.zero;
   bool _isDemoMode = false;
   bool _demoFinished = false;
+  double _volume = 0.5; // Volume from 0.0 to 1.0
+  // -> NUEVA VARIABLE DE ESTADO para controlar la concurrencia en seek
+  bool _isSeekingInternally = false; 
 
   Song? get currentSong => _currentSong;
   List<Song> get queue => _queue;
@@ -33,6 +37,7 @@ class AudioProvider with ChangeNotifier {
   Duration get totalDuration => _totalDuration;
   bool get isDemoMode => _isDemoMode;
   bool get demoFinished => _demoFinished;
+  double get volume => _volume;
   double get progress => _totalDuration.inMilliseconds > 0
       ? _currentPosition.inMilliseconds / _totalDuration.inMilliseconds
       : 0.0;
@@ -41,19 +46,43 @@ class AudioProvider with ChangeNotifier {
     _init();
   }
 
-  void _init() {
+  void _init() async {
+    // Configure audio session
+    try {
+      final session = await AudioSession.instance;
+      await session.configure(const AudioSessionConfiguration.music());
+      debugPrint('✅ Sesión de audio configurada correctamente');
+    } catch (e) {
+      debugPrint('⚠️ Error configurando la sesión de audio: $e');
+    }
+
+    // Initialize volume to 50%
+    await _audioPlayer.setVolume(_volume);
+    
     _audioPlayer.positionStream.listen((position) {
+      // 1. Ignorar si estamos en un seek manual
+      if (_isSeekingInternally) {
+        return; 
+      }
+      
+      // 2. MITIGACIÓN CRÍTICA: Ignorar micro-actualizaciones cerca del final (500ms)
+      if (!_isDemoMode && 
+          _totalDuration > Duration.zero &&
+          position.inMilliseconds >= _totalDuration.inMilliseconds - 500) {
+        return;
+      }
+      
       _currentPosition = position;
 
-      // Log para verificar la posición y el estado del demo
+      // Lógica de modo Demo
       if (_isDemoMode) {
         debugPrint(
-            '🎵 DEMO MODE - Position: ${position.inSeconds}s / isDemoMode: $_isDemoMode');
+            '🎵 DEMO MODE - Posición: ${position.inSeconds} seg / isDemoMode: $_isDemoMode');
       }
 
       if (_isDemoMode && position.inSeconds >= 10) {
         debugPrint(
-            '⏹️ DEMO FINISHED - Stopping playback at ${position.inSeconds}s');
+            '⏹️ DEMO Finalizada - Parando reproducción en ${position.inSeconds} seg');
         pause();
         seek(Duration.zero);
         _isDemoMode = false;
@@ -77,6 +106,10 @@ class AudioProvider with ChangeNotifier {
           state.processingState == ProcessingState.buffering;
 
       if (state.processingState == ProcessingState.completed) {
+        // CORRECCIÓN CRÍTICA: Forzar el reset síncrono del slider a 0
+        _currentPosition = Duration.zero; 
+        notifyListeners(); 
+        
         _handleSongCompletion();
       }
 
@@ -87,7 +120,7 @@ class AudioProvider with ChangeNotifier {
   Future<void> playSong(Song song,
       {bool? demo, bool? isUserAuthenticated}) async {
     _demoFinished = false;
-    debugPrint('▶️ PLAY SONG - Song: ${song.name}');
+    debugPrint('▶️ Reproduciendo canción - Canción: ${song.name}');
     debugPrint('   demo parameter: $demo');
     debugPrint('   isUserAuthenticated parameter: $isUserAuthenticated');
 
@@ -112,16 +145,29 @@ class AudioProvider with ChangeNotifier {
       _currentIndex = 0;
 
       if (song.audioUrl != null && song.audioUrl!.isNotEmpty) {
-        debugPrint('   🔊 Setting audio URL and starting playback...');
-        await _audioPlayer.setUrl(song.audioUrl!);
-        await _audioPlayer.play();
+        debugPrint('   🔊 Configurando audio URL: ${song.audioUrl}');
+        try {
+          // Stop current playback if any
+          await _audioPlayer.stop();
+
+          // Set new audio source
+          final duration = await _audioPlayer.setUrl(song.audioUrl!);
+          debugPrint('   ✅ Audio cargado correctamente. Duración: $duration');
+
+          // Start playback
+          await _audioPlayer.play();
+          debugPrint('   ▶️ Reproducción iniciada');
+        } catch (e) {
+          debugPrint('   ❌ Error cargando/reproduciendo audio: $e');
+          rethrow;
+        }
       } else {
-        debugPrint('   ⚠️ No audio URL for song: ${song.name}');
+        debugPrint('   ⚠️ No hay URL de audio para esta canción: ${song.name}');
       }
 
       notifyListeners();
     } catch (e) {
-      debugPrint('   ❌ Error playing song: $e');
+      debugPrint('   ❌ Error reproduciendo canción: $e');
     }
   }
 
@@ -146,7 +192,7 @@ class AudioProvider with ChangeNotifier {
       notifyListeners();
     } catch (e) {
       _isLoading = false;
-      debugPrint('Error playing album: $e');
+      debugPrint('Error reproduciendo album: $e');
       notifyListeners();
     }
   }
@@ -159,7 +205,7 @@ class AudioProvider with ChangeNotifier {
       _currentIndex = startIndex;
       await playSong(_queue[_currentIndex]);
     } catch (e) {
-      debugPrint('Error playing queue: $e');
+      debugPrint('Error reproduciendo la cola: $e');
     }
   }
 
@@ -209,8 +255,32 @@ class AudioProvider with ChangeNotifier {
   }
 
   Future<void> seek(Duration position) async {
-    await _audioPlayer.seek(position);
+    try {
+      _isSeekingInternally = true;
+      notifyListeners();
+
+      await _audioPlayer.seek(position);
+
+      _currentPosition = position; 
+
+      await Future.delayed(const Duration(milliseconds: 100));
+
+      _isSeekingInternally = false;
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error during internal seek operation: $e');
+      _isSeekingInternally = false;
+      notifyListeners();
+    }
   }
+
+  // Set volume (0.0 to 1.0)
+  Future<void> setVolume(double volume) async {
+    _volume = volume.clamp(0.0, 1.0);
+    await _audioPlayer.setVolume(_volume);
+    notifyListeners();
+  }
+
 
   void toggleShuffle() {
     _isShuffleEnabled = !_isShuffleEnabled;
