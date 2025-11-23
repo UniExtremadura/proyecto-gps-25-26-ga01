@@ -243,6 +243,7 @@ class _LibraryScreenState extends State<LibraryScreen>
                     child: TabBar(
                       controller: _tabController,
                       isScrollable: true,
+                      tabAlignment: TabAlignment.start,
                       indicatorColor: AppTheme.primaryBlue,
                       labelColor: AppTheme.primaryBlue,
                       unselectedLabelColor: AppTheme.textGrey,
