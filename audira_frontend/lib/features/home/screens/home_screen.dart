@@ -1,15 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:provider/provider.dart';
 import '../../../config/theme.dart';
 import '../../../core/api/services/music_service.dart';
 import '../../../core/api/services/featured_content_service.dart';
+import '../../../core/api/services/discovery_service.dart';
 import '../../../core/models/song.dart';
 import '../../../core/models/album.dart';
 import '../../../core/models/genre.dart';
 import '../../../core/models/featured_content.dart';
+import '../../../core/models/recommended_song.dart';
+import '../../../core/providers/auth_provider.dart';
 import '../../common/widgets/song_card.dart';
 import '../../common/widgets/album_card.dart';
 import '../../common/widgets/genre_chip.dart';
+import '../../common/widgets/recommended_song_card.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -21,12 +26,15 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final MusicService _musicService = MusicService();
   final FeaturedContentService _featuredService = FeaturedContentService();
+  final DiscoveryService _discoveryService = DiscoveryService();
 
   List<Song> _featuredSongs = [];
   List<Album> _featuredAlbums = [];
   List<Genre> _genres = [];
+  List<RecommendedSong> _recommendedSongs = [];
   bool _isLoading = true;
   bool _hasFeaturedContent = false;
+  bool _hasRecommendations = false;
 
   @override
   void initState() {
@@ -57,7 +65,36 @@ class _HomeScreenState extends State<HomeScreen> {
       _genres = genresResponse.data!;
     }
 
+    // GA01-117: Cargar recomendaciones personalizadas si el usuario está autenticado
+    if (mounted) {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      if (authProvider.isAuthenticated && authProvider.currentUser != null) {
+        await _loadRecommendations(authProvider.currentUser!.id);
+      }
+    }
+
     setState(() => _isLoading = false);
+  }
+
+  /// GA01-117: Load personalized recommendations for the user
+  Future<void> _loadRecommendations(int userId) async {
+    try {
+      final response = await _discoveryService.getRecommendations(userId);
+
+      if (response.success && response.data != null) {
+        final recommendations = response.data!;
+
+        // Get all recommendations from all categories
+        _recommendedSongs =
+            recommendations.getAllRecommendations().take(10).toList();
+        _hasRecommendations = _recommendedSongs.isNotEmpty;
+      } else {
+        _hasRecommendations = false;
+      }
+    } catch (e) {
+      debugPrint('Error loading recommendations: $e');
+      _hasRecommendations = false;
+    }
   }
 
   Future<void> _loadFeaturedContent(
@@ -151,6 +188,39 @@ class _HomeScreenState extends State<HomeScreen> {
                   return Padding(
                     padding: const EdgeInsets.only(right: 8),
                     child: GenreChip(genre: _genres[index]),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 32),
+          ],
+
+          // GA01-117: Personalized Recommendations
+          if (_hasRecommendations) ...[
+            Row(
+              children: [
+                Icon(
+                  Icons.stars,
+                  color: AppTheme.primaryBlue,
+                  size: 24,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Recomendado para ti',
+                  style: Theme.of(context).textTheme.headlineMedium,
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 240,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: _recommendedSongs.length,
+                itemBuilder: (context, index) {
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 12),
+                    child: RecommendedSongCard(song: _recommendedSongs[index]),
                   );
                 },
               ),
