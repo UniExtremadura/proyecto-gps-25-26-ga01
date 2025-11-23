@@ -46,8 +46,7 @@ class FeaturedContentService {
       try {
         return ApiResponse(
           success: true,
-          data: FeaturedContent.fromJson(
-              response.data as Map<String, dynamic>),
+          data: FeaturedContent.fromJson(response.data as Map<String, dynamic>),
         );
       } catch (e) {
         return ApiResponse(
@@ -74,8 +73,7 @@ class FeaturedContentService {
       try {
         return ApiResponse(
           success: true,
-          data: FeaturedContent.fromJson(
-              response.data as Map<String, dynamic>),
+          data: FeaturedContent.fromJson(response.data as Map<String, dynamic>),
         );
       } catch (e) {
         return ApiResponse(
@@ -140,13 +138,38 @@ class FeaturedContentService {
       try {
         return ApiResponse(
           success: true,
-          data: FeaturedContent.fromJson(
-              response.data as Map<String, dynamic>),
+          data: FeaturedContent.fromJson(response.data as Map<String, dynamic>),
         );
       } catch (e) {
         return ApiResponse(
           success: false,
           error: 'Error al cambiar estado: $e',
+        );
+      }
+    }
+    return ApiResponse(success: false, error: response.error);
+  }
+
+  /// Get active featured content (public)
+  /// GA01-157: Programación de destacados
+  Future<ApiResponse<List<FeaturedContent>>> getActiveFeaturedContent() async {
+    final response = await _apiClient.get(
+      '/api/featured-content/active',
+      requiresAuth: false,
+    );
+
+    if (response.success && response.data != null) {
+      try {
+        final List<dynamic> contentJson = response.data as List<dynamic>;
+        final content = contentJson
+            .map((json) =>
+                FeaturedContent.fromJson(json as Map<String, dynamic>))
+            .toList();
+        return ApiResponse(success: true, data: content);
+      } catch (e) {
+        return ApiResponse(
+          success: false,
+          error: 'Error al parsear contenido destacado: $e',
         );
       }
     }
