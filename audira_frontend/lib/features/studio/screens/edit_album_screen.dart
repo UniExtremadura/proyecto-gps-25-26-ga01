@@ -153,6 +153,7 @@ class _EditAlbumScreenState extends State<EditAlbumScreen> {
         'price': double.parse(_priceController.text),
         'discountPercentage': double.parse(_discountController.text),
         'genreIds': _selectedGenreIds,
+        'productType': 'ALBUM',
         if (_releaseDate != null) 'releaseDate': _releaseDate!.toIso8601String().split('T')[0],
         if (coverUrl != null) 'coverImageUrl': coverUrl,
       };
