@@ -3,6 +3,8 @@ import 'package:audira_frontend/core/api/api_client.dart';
 import 'package:audira_frontend/core/models/album.dart';
 import 'package:audira_frontend/core/models/song.dart';
 import 'package:audira_frontend/core/models/genre.dart';
+import 'package:audira_frontend/core/models/recommendations_response.dart';
+
 
 class DiscoveryService {
   static final DiscoveryService _instance = DiscoveryService._internal();
@@ -234,8 +236,9 @@ class DiscoveryService {
     }
   }
 
-  /// Get recommendations for user
-  Future<ApiResponse<Map<String, dynamic>>> getRecommendations(int userId) async {
+  /// GA01-117: Módulo básico de recomendaciones (placeholder)
+  Future<ApiResponse<RecommendationsResponse>> getRecommendations(
+      int userId) async {
     try {
       final response = await _apiClient.get(
         '/api/discovery/recommendations',
@@ -245,7 +248,9 @@ class DiscoveryService {
       if (response.success && response.data != null) {
         return ApiResponse(
           success: true,
-          data: response.data as Map<String, dynamic>,
+          data: RecommendationsResponse.fromJson(
+            response.data as Map<String, dynamic>,
+          ),
           statusCode: response.statusCode,
         );
       }

@@ -1,5 +1,6 @@
 package io.audira.catalog.service;
 
+import io.audira.catalog.model.ModerationStatus;
 import io.audira.catalog.model.Song;
 import io.audira.catalog.repository.SongRepository;
 import lombok.RequiredArgsConstructor;
@@ -104,6 +105,13 @@ public class SongService {
             song.setTrackNumber(songDetails.getTrackNumber());
         }
 
+        // GA01-162: Cualquier modificación requiere nueva moderación
+        song.setModerationStatus(ModerationStatus.PENDING);
+        song.setModeratedBy(null);
+        song.setModeratedAt(null);
+        song.setRejectionReason(null);
+        song.setPublished(false); // Ocultar hasta nueva aprobación
+
         return songRepository.save(song);
     }
 
@@ -126,6 +134,13 @@ public class SongService {
     public Song publishSong(Long id, boolean published) {
         Song song = songRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Song not found with id: " + id));
+        
+        // GA01-162: Solo se puede publicar si está aprobada
+        if (published && song.getModerationStatus() != ModerationStatus.APPROVED) {
+            throw new IllegalArgumentException(
+                "No se puede publicar una canción que no está aprobada. Estado actual: " +
+                song.getModerationStatus().getDisplayName());
+        }
         song.setPublished(published);
         return songRepository.save(song);
     }
