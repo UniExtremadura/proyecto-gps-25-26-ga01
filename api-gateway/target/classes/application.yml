@@ -26,7 +26,7 @@ spring:
         - id: music-catalog-service
           uri: lb://music-catalog-service
           predicates:
-            - Path=/api/albums/**,/api/playlists/**,/api/songs/**, /api/collaborations/**,/api/discovery/**,/api/genres/**
+            - Path=/api/albums/**,/api/playlists/**,/api/songs/**, /api/collaborations/**,/api/discovery/**,/api/genres/**, /api/admin/featured-content/**
         
         # ÉPICA 3: Reproducción y Experiencia del Usuario
 
