@@ -139,6 +139,7 @@ class _EditSongScreenState extends State<EditSongScreen> {
         'lyrics': _lyricsController.text,
         'category': _categoryController.text,
         'genreIds': _selectedGenreIds,
+        'productType': 'SONG',
         if (coverUrl != null) 'coverImageUrl': coverUrl,
       };
 

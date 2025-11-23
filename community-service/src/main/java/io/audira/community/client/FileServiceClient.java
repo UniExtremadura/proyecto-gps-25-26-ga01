@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.*;
 import org.springframework.stereotype.Component;
@@ -45,11 +46,11 @@ public class FileServiceClient {
 
             HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
 
-            ResponseEntity<Map> response = restTemplate.exchange(
+            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
                 uploadUrl,
                 HttpMethod.POST,
                 requestEntity,
-                Map.class
+                new ParameterizedTypeReference<Map<String, Object>>() {} 
             );
 
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
