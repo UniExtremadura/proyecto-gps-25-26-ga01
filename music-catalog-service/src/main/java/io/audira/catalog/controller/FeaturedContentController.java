@@ -27,9 +27,9 @@ public class FeaturedContentController {
     /**
      * Get all featured content (admin)
      * GA01-156
-     * GET /api/admin/featured-content
+     * GET /api/featured-content
      */
-    @GetMapping("/api/admin/featured-content")
+    @GetMapping("/api/featured-content")
     public ResponseEntity<List<FeaturedContentResponse>> getAllFeaturedContent() {
         return ResponseEntity.ok(featuredContentService.getAllFeaturedContent());
     }
@@ -47,9 +47,9 @@ public class FeaturedContentController {
     /**
      * Get featured content by ID (admin)
      * GA01-156
-     * GET /api/admin/featured-content/{id}
+     * GET /api/featured-content/{id}
      */
-    @GetMapping("/api/admin/featured-content/{id}")
+    @GetMapping("/api/featured-content/{id}")
     public ResponseEntity<?> getFeaturedContentById(@PathVariable Long id) {
         try {
             return ResponseEntity.ok(featuredContentService.getFeaturedContentById(id));
@@ -63,9 +63,9 @@ public class FeaturedContentController {
     /**
      * Create new featured content (admin)
      * GA01-156, GA01-157
-     * POST /api/admin/featured-content
+     * POST /api/featured-content
      */
-    @PostMapping("/api/admin/featured-content")
+    @PostMapping("/api/featured-content")
     public ResponseEntity<?> createFeaturedContent(@RequestBody FeaturedContentRequest request) {
         try {
             FeaturedContentResponse response = featuredContentService.createFeaturedContent(request);
@@ -80,9 +80,9 @@ public class FeaturedContentController {
     /**
      * Update featured content (admin)
      * GA01-156, GA01-157
-     * PUT /api/admin/featured-content/{id}
+     * PUT /api/featured-content/{id}
      */
-    @PutMapping("/api/admin/featured-content/{id}")
+    @PutMapping("/api/featured-content/{id}")
     public ResponseEntity<?> updateFeaturedContent(
             @PathVariable Long id,
             @RequestBody FeaturedContentRequest request) {
@@ -98,9 +98,9 @@ public class FeaturedContentController {
     /**
      * Delete featured content (admin)
      * GA01-156
-     * DELETE /api/admin/featured-content/{id}
+     * DELETE /api/featured-content/{id}
      */
-    @DeleteMapping("/api/admin/featured-content/{id}")
+    @DeleteMapping("/api/featured-content/{id}")
     public ResponseEntity<?> deleteFeaturedContent(@PathVariable Long id) {
         try {
             featuredContentService.deleteFeaturedContent(id);
@@ -115,9 +115,9 @@ public class FeaturedContentController {
     /**
      * Reorder featured content (admin)
      * GA01-156
-     * PUT /api/admin/featured-content/reorder
+     * PUT /api/featured-content/reorder
      */
-    @PutMapping("/api/admin/featured-content/reorder")
+    @PutMapping("/api/featured-content/reorder")
     public ResponseEntity<?> reorderFeaturedContent(@RequestBody ReorderRequest request) {
         try {
             return ResponseEntity.ok(featuredContentService.reorderFeaturedContent(request));
@@ -131,9 +131,9 @@ public class FeaturedContentController {
     /**
      * Toggle active status (admin)
      * GA01-156
-     * PATCH /api/admin/featured-content/{id}/toggle-active
+     * PATCH /api/featured-content/{id}/toggle-active
      */
-    @PatchMapping("/api/admin/featured-content/{id}/toggle-active")
+    @PatchMapping("/api/featured-content/{id}/toggle-active")
     public ResponseEntity<?> toggleActive(
             @PathVariable Long id,
             @RequestBody Map<String, Boolean> body) {
