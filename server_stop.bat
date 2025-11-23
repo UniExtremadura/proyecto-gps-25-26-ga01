@@ -1,1 +1,0 @@
-ssh -i ".\Audira_key.pem" Audira@68.221.240.178 "bash -lc 'cd proyecto-gps-25-26-ga01 && docker compose down'"
