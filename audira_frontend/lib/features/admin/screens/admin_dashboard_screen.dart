@@ -102,6 +102,17 @@ class AdminDashboardScreen extends StatelessWidget {
               .animate(delay: 700.ms)
               .fadeIn()
               .scale(begin: const Offset(0.8, 0.8)),
+          _buildAdminCard(
+            context,
+            icon: Icons.star,
+            title: 'Featured Content',
+            subtitle: 'Manage homepage featured content',
+            color: Colors.deepPurple,
+            route: '/admin/featured-content',
+          )
+              .animate(delay: 800.ms)
+              .fadeIn()
+              .scale(begin: const Offset(0.8, 0.8)),
         ],
       ),
     );
