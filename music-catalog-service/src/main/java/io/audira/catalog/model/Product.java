@@ -53,10 +53,28 @@ public abstract class Product {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
+    // GA01-162: Campos de moderación
+    @Enumerated(EnumType.STRING)
+    @Column(name = "moderation_status", nullable = false)
+    private ModerationStatus moderationStatus;
+
+    @Column(name = "rejection_reason", columnDefinition = "TEXT")
+    private String rejectionReason;
+
+    @Column(name = "moderated_by")
+    private Long moderatedBy; // ID del admin que moderó
+
+    @Column(name = "moderated_at")
+    private LocalDateTime moderatedAt;
+
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
+        // Por defecto, todo contenido nuevo está en revisión
+        if (this.moderationStatus == null) {
+            this.moderationStatus = ModerationStatus.PENDING;
+        }
     }
 
     @PreUpdate

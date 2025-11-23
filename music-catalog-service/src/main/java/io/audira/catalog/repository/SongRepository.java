@@ -1,5 +1,6 @@
 package io.audira.catalog.repository;
 
+import io.audira.catalog.model.ModerationStatus;
 import io.audira.catalog.model.Song;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -62,4 +63,20 @@ public interface SongRepository extends JpaRepository<Song, Long> {
 
     @Query("SELECT s FROM Song s WHERE s.published = true AND (LOWER(s.title) LIKE LOWER(CONCAT('%', :query, '%')) OR s.artistId IN :artistIds)")
     Page<Song> searchPublishedByTitleOrArtistIds(@Param("query") String query, @Param("artistIds") List<Long> artistIds, Pageable pageable);
+    
+    // Búsqueda por estado
+    List<Song> findByModerationStatus(ModerationStatus status);
+    List<Song> findByModerationStatusOrderByCreatedAtDesc(ModerationStatus status);
+    List<Song> findByArtistIdAndModerationStatus(Long artistId, ModerationStatus status);
+
+    // Paginación
+    @Query("SELECT s FROM Song s WHERE s.moderationStatus = :status ORDER BY s.createdAt DESC")
+    Page<Song> findByModerationStatusPaged(@Param("status") ModerationStatus status, Pageable pageable);
+
+    // Pendientes de moderación (ordenados por antigüedad)
+    @Query("SELECT s FROM Song s WHERE s.moderationStatus = 'PENDING' ORDER BY s.createdAt ASC")
+    List<Song> findPendingModerationSongs();
+
+    // Contadores
+    Long countByModerationStatus(ModerationStatus status);
 }
