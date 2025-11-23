@@ -15,12 +15,16 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
+import org.springframework.data.domain.Sort;
+import java.util.ArrayList;
+import java.util.List;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -45,44 +49,84 @@ public class DiscoveryService {
     }
 
     public List<Album> getTrendingAlbums() {
-        // Por ahora devuelve los álbumes más recientes
         return albumRepository.findTop20ByOrderByCreatedAtDesc();
     }
 
-    // Search methods for GA01-96 and GA01-98
-    public Page<Song> searchSongs(String query, Pageable pageable) {
-        if (query == null || query.trim().isEmpty()) {
+    public Page<Song> searchSongs(String query, Long genreId, Double minPrice, Double maxPrice, String sortBy, Pageable pageable) {
+        // Permitir búsqueda si hay query, genreId o rango de precio
+        boolean hasQuery = query != null && !query.trim().isEmpty();
+        boolean hasFilters = genreId != null || minPrice != null || maxPrice != null;
+        
+        if (!hasQuery && !hasFilters) {
             return Page.empty(pageable);
         }
+        
+        String searchQuery = hasQuery ? query : "";
 
-        // Get artist IDs matching the query from community-service
-        List<Long> artistIds = getArtistIdsByName(query);
+        Sort sort = Sort.by(Sort.Direction.DESC, "createdAt");
+        if ("price_asc".equals(sortBy)) {
+            sort = Sort.by(Sort.Direction.ASC, "price");
+        } else if ("price_desc".equals(sortBy)) {
+            sort = Sort.by(Sort.Direction.DESC, "price");
+        } else if ("oldest".equals(sortBy)) {
+            sort = Sort.by(Sort.Direction.ASC, "createdAt");
+        }
 
-        // Search by title and/or artist IDs
+        Pageable sortedPageable = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), sort);
+        log.info("DEBUG SEARCH SONGS -> Query: {}, GenreID: {}, MinPrice: {}, MaxPrice: {}, SortBy: {}", 
+                 searchQuery, genreId, minPrice, maxPrice, sortBy);
+        
+        // Si no hay query de texto, solo filtrar por género y/o precio
+        if (searchQuery.isEmpty()) {
+            return songRepository.searchPublishedByFiltersOnly(genreId, minPrice, maxPrice, sortedPageable);
+        }
+        
+        List<Long> artistIds = getArtistIdsByName(searchQuery);
+        log.info("DEBUG SEARCH SONGS -> ArtistIds encontrados: {}", artistIds);
+
         if (artistIds.isEmpty()) {
-            // Only search by title
-            return songRepository.searchByTitle(query, pageable);
+            return songRepository.searchPublishedByTitleAndFilters(searchQuery, genreId, minPrice, maxPrice, sortedPageable);
         } else {
-            // Search by both title and artist IDs
-            return songRepository.searchByTitleOrArtistIds(query, artistIds, pageable);
+            return songRepository.searchPublishedByTitleOrArtistIdsAndFilters(searchQuery, artistIds, genreId, minPrice, maxPrice, sortedPageable);
         }
     }
 
-    public Page<Album> searchAlbums(String query, Pageable pageable) {
-        if (query == null || query.trim().isEmpty()) {
+    public Page<Album> searchAlbums(String query, Long genreId, Double minPrice, Double maxPrice, String sortBy, Pageable pageable) {
+        // Permitir búsqueda si hay query, genreId o rango de precio
+        boolean hasQuery = query != null && !query.trim().isEmpty();
+        boolean hasFilters = genreId != null || minPrice != null || maxPrice != null;
+        
+        if (!hasQuery && !hasFilters) {
             return Page.empty(pageable);
         }
+        
+        String searchQuery = hasQuery ? query : "";
 
-        // Get artist IDs matching the query from community-service
-        List<Long> artistIds = getArtistIdsByName(query);
+        Sort sort = Sort.by(Sort.Direction.DESC, "releaseDate");
+        if ("price_asc".equals(sortBy)) {
+            sort = Sort.by(Sort.Direction.ASC, "price");
+        } else if ("price_desc".equals(sortBy)) {
+            sort = Sort.by(Sort.Direction.DESC, "price");
+        } else if ("oldest".equals(sortBy)) {
+            sort = Sort.by(Sort.Direction.ASC, "createdAt");
+        }
 
-        // Search by title and/or artist IDs
+        Pageable sortedPageable = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), sort);
+        log.info("DEBUG SEARCH ALBUMS -> Query: {}, GenreID: {}, MinPrice: {}, MaxPrice: {}, SortBy: {}", 
+                 searchQuery, genreId, minPrice, maxPrice, sortBy);
+        
+        // Si no hay query de texto, solo filtrar por género y/o precio
+        if (searchQuery.isEmpty()) {
+            return albumRepository.searchPublishedByFiltersOnly(genreId, minPrice, maxPrice, sortedPageable);
+        }
+        
+        List<Long> artistIds = getArtistIdsByName(searchQuery);
+        log.info("DEBUG SEARCH ALBUMS -> ArtistIds encontrados: {}", artistIds);
+
         if (artistIds.isEmpty()) {
-            // Only search by title
-            return albumRepository.searchByTitle(query, pageable);
+            return albumRepository.searchPublishedByTitleAndFilters(searchQuery, genreId, minPrice, maxPrice, sortedPageable);
         } else {
-            // Search by both title and artist IDs
-            return albumRepository.searchByTitleOrArtistIds(query, artistIds, pageable);
+            return albumRepository.searchPublishedByTitleOrArtistIdsAndFilters(searchQuery, artistIds, genreId, minPrice, maxPrice, sortedPageable);
         }
     }
 
@@ -101,8 +145,7 @@ public class DiscoveryService {
 
             return response.getBody() != null ? response.getBody() : new ArrayList<>();
         } catch (Exception e) {
-            // If community-service is unavailable, just return empty list
-            // This allows searching by title only
+            log.warn("Error al obtener artistIds del community-service: {}", e.getMessage());
             return new ArrayList<>();
         }
     }
