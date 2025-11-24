@@ -299,6 +299,9 @@ public class MetricsService {
                 .map(Song::getId)
                 .collect(Collectors.toSet());
 
+        logger.info("💰 Calculating sales for artist songs. Artist has {} songs", artistSongs.size());
+        logger.info("   Processing {} total orders", allOrders.size());
+
         LocalDateTime thirtyDaysAgo = LocalDateTime.now().minusDays(30);
 
         long totalSales = 0;
@@ -306,19 +309,38 @@ public class MetricsService {
         long salesLast30Days = 0;
         BigDecimal revenueLast30Days = BigDecimal.ZERO;
 
+        int deliveredOrders = 0;
+        int skippedOrders = 0;
+        int relevantOrders = 0;
+
         for (OrderDTO order : allOrders) {
+            logger.debug("   Order ID {} - Status: {} - Created: {}",
+                    order.getId(), order.getStatus(), order.getCreatedAt());
+
             // CRITICAL FIX: Only count DELIVERED orders (successfully paid)
             if (order.getStatus() == null || !"DELIVERED".equals(order.getStatus())) {
+                logger.debug("      ⏭️ Skipped order {} - Status: {} (not DELIVERED)",
+                        order.getId(), order.getStatus());
+                skippedOrders++;
                 continue;
             }
 
-            if (order.getItems() == null) continue;
+            deliveredOrders++;
+
+            if (order.getItems() == null) {
+                logger.debug("      ⚠️ Order {} has no items", order.getId());
+                continue;
+            }
 
             for (OrderItemDTO item : order.getItems()) {
                 if ("SONG".equalsIgnoreCase(item.getItemType()) && artistSongIds.contains(item.getItemId())) {
+                    relevantOrders++;
                     long quantity = item.getQuantity() != null ? item.getQuantity() : 1;
                     BigDecimal price = item.getPrice() != null ? item.getPrice() : BigDecimal.ZERO;
                     BigDecimal itemRevenue = price.multiply(BigDecimal.valueOf(quantity));
+
+                    logger.info("      ✅ Found sale: Song ID {} - Qty: {} - Price: ${} - Revenue: ${}",
+                            item.getItemId(), quantity, price, itemRevenue);
 
                     totalSales += quantity;
                     totalRevenue = totalRevenue.add(itemRevenue);
@@ -330,6 +352,14 @@ public class MetricsService {
                 }
             }
         }
+
+        logger.info("💰 Sales calculation summary:");
+        logger.info("   Total orders processed: {}", allOrders.size());
+        logger.info("   DELIVERED orders: {}", deliveredOrders);
+        logger.info("   Skipped orders (not DELIVERED): {}", skippedOrders);
+        logger.info("   Orders with artist's songs: {}", relevantOrders);
+        logger.info("   Total sales: {}", totalSales);
+        logger.info("   Total revenue: ${}", totalRevenue);
 
         Map<String, Object> result = new HashMap<>();
         result.put("totalSales", totalSales);
