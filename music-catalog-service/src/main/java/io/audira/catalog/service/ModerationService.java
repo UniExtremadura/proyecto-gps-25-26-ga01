@@ -202,12 +202,25 @@ public class ModerationService {
         // Obtener información del artista
         UserDTO artist = userServiceClient.getUserById(product.getArtistId());
 
+        // GA01-163: Determinar el nombre del artista con fallbacks apropiados
+        String artistName = "Desconocido";
+        if (artist != null) {
+            // Prioridad: artistName > username > firstName + lastName
+            if (artist.getArtistName() != null && !artist.getArtistName().trim().isEmpty()) {
+                artistName = artist.getArtistName();
+            } else if (artist.getUsername() != null) {
+                artistName = artist.getUsername();
+            } else if (artist.getFirstName() != null && artist.getLastName() != null) {
+                artistName = artist.getFirstName() + " " + artist.getLastName();
+            }
+        }
+
         ModerationHistory history = ModerationHistory.builder()
                 .productId(product.getId())
                 .productType(product.getProductType())
                 .productTitle(product.getTitle())
                 .artistId(product.getArtistId())
-                .artistName(artist != null ? artist.getArtistName() : "Desconocido")
+                .artistName(artistName)
                 .previousStatus(previousStatus)
                 .newStatus(newStatus)
                 .moderatedBy(moderatedBy)

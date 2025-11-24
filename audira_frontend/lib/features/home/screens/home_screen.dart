@@ -43,7 +43,14 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadData() async {
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      // Limpiar listas antes de recargar para evitar duplicación
+      _featuredSongs = [];
+      _featuredAlbums = [];
+      _genres = [];
+      _recommendedSongs = [];
+    });
 
     // GA01-156, GA01-157: Cargar contenido destacado programado
     final featuredResponse = await _featuredService.getActiveFeaturedContent();
