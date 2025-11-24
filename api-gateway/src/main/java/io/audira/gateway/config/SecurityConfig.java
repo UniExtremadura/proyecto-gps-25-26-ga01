@@ -14,13 +14,13 @@ public class SecurityConfig {
     public SecurityWebFilterChain springSecurityFilterChain(ServerHttpSecurity http) {
         
         http
-            .csrf(csrf -> csrf.disable()) 
-            
+            .csrf(csrf -> csrf.disable())
+            .httpBasic(httpBasic -> httpBasic.disable())
+            .formLogin(formLogin -> formLogin.disable())
             .authorizeExchange(exchange -> exchange
                 .pathMatchers("/**").permitAll()
-                .anyExchange().authenticated()
+                .anyExchange().permitAll()
             );
-            
         return http.build();
     }
 }
