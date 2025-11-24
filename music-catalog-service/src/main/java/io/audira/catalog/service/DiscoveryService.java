@@ -17,14 +17,12 @@ import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
-import org.springframework.data.domain.Sort;
-import java.util.ArrayList;
-import java.util.List;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -49,48 +47,110 @@ public class DiscoveryService {
     }
 
     public List<Album> getTrendingAlbums() {
+        // Por ahora devuelve los álbumes más recientes
         return albumRepository.findTop20ByOrderByCreatedAtDesc();
     }
 
-    public Page<Song> searchSongs(String query, Long genreId, Double minPrice, Double maxPrice, String sortBy, Pageable pageable) {
-        // Permitir búsqueda si hay query, genreId o rango de precio
-        boolean hasQuery = query != null && !query.trim().isEmpty();
-        boolean hasFilters = genreId != null || minPrice != null || maxPrice != null;
-        
-        if (!hasQuery && !hasFilters) {
+    // ============= ADVANCED SEARCH METHODS (User's Implementation) =============
+
+    /**
+     * Simple search - searches by query only
+     */
+    public Page<Song> searchSongs(String query, Pageable pageable) {
+        if (query == null || query.trim().isEmpty()) {
             return Page.empty(pageable);
         }
-        
-        String searchQuery = hasQuery ? query : "";
 
-        Sort sort = Sort.by(Sort.Direction.DESC, "createdAt");
+        // Get artist IDs matching the query from community-service
+        List<Long> artistIds = getArtistIdsByName(query);
+
+        // Search by title and/or artist IDs
+        if (artistIds.isEmpty()) {
+            // Only search by title
+            return songRepository.searchByTitle(query, pageable);
+        } else {
+            // Search by both title and artist IDs
+            return songRepository.searchByTitleOrArtistIds(query, artistIds, pageable);
+        }
+    }
+
+    /**
+     * Advanced search for songs with filters
+     * Full implementation with genreId, price range, and sorting
+     */
+    public Page<Song> searchSongs(String query, Long genreId, Double minPrice, Double maxPrice, String sortBy, Pageable pageable) {
+        log.debug("Advanced search - query: {}, genreId: {}, minPrice: {}, maxPrice: {}, sortBy: {}",
+                query, genreId, minPrice, maxPrice, sortBy);
+
+        boolean hasQuery = query != null && !query.trim().isEmpty();
+        boolean hasFilters = genreId != null || minPrice != null || maxPrice != null;
+
+        // Determine sort order
+        Sort sort = Sort.by(Sort.Direction.DESC, "createdAt"); // Default: newest first
         if ("price_asc".equals(sortBy)) {
             sort = Sort.by(Sort.Direction.ASC, "price");
         } else if ("price_desc".equals(sortBy)) {
             sort = Sort.by(Sort.Direction.DESC, "price");
         } else if ("oldest".equals(sortBy)) {
             sort = Sort.by(Sort.Direction.ASC, "createdAt");
+        } else if ("recent".equals(sortBy) || "newest".equals(sortBy)) {
+            sort = Sort.by(Sort.Direction.DESC, "createdAt");
         }
 
+        // Create new pageable with sort
         Pageable sortedPageable = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), sort);
-        log.info("DEBUG SEARCH SONGS -> Query: {}, GenreID: {}, MinPrice: {}, MaxPrice: {}, SortBy: {}", 
-                 searchQuery, genreId, minPrice, maxPrice, sortBy);
-        
-        // Si no hay query de texto, solo filtrar por género y/o precio
-        if (searchQuery.isEmpty()) {
+
+        // Case 1: Only filters, no search query
+        if (!hasQuery && hasFilters) {
+            log.debug("Searching with filters only");
             return songRepository.searchPublishedByFiltersOnly(genreId, minPrice, maxPrice, sortedPageable);
         }
-        
-        List<Long> artistIds = getArtistIdsByName(searchQuery);
-        log.info("DEBUG SEARCH SONGS -> ArtistIds encontrados: {}", artistIds);
 
-        if (artistIds.isEmpty()) {
-            return songRepository.searchPublishedByTitleAndFilters(searchQuery, genreId, minPrice, maxPrice, sortedPageable);
-        } else {
+        // Case 2: Search query with optional filters
+        if (hasQuery) {
+            String searchQuery = query.trim();
+            List<Long> artistIds = getArtistIdsByName(searchQuery);
+
+            // Case 2a: Search by title only (no artist matches) with filters
+            if (artistIds.isEmpty()) {
+                log.debug("Searching by title with filters: {}", searchQuery);
+                return songRepository.searchPublishedByTitleAndFilters(searchQuery, genreId, minPrice, maxPrice, sortedPageable);
+            }
+
+            // Case 2b: Search by title AND artist with filters
+            log.debug("Searching by title or artist IDs with filters: {}, artistIds: {}", searchQuery, artistIds);
             return songRepository.searchPublishedByTitleOrArtistIdsAndFilters(searchQuery, artistIds, genreId, minPrice, maxPrice, sortedPageable);
+        }
+
+        // Case 3: No query and no filters - return empty
+        log.debug("No query and no filters provided, returning empty page");
+        return Page.empty(sortedPageable);
+    }
+
+    /**
+     * Simple album search
+     */
+    public Page<Album> searchAlbums(String query, Pageable pageable) {
+        if (query == null || query.trim().isEmpty()) {
+            return Page.empty(pageable);
+        }
+
+        // Get artist IDs matching the query from community-service
+        List<Long> artistIds = getArtistIdsByName(query);
+
+        // Search by title and/or artist IDs
+        if (artistIds.isEmpty()) {
+            // Only search by title
+            return albumRepository.searchByTitle(query, pageable);
+        } else {
+            // Search by both title and artist IDs
+            return albumRepository.searchByTitleOrArtistIds(query, artistIds, pageable);
         }
     }
 
+    /**
+     * Advanced search for albums with filters
+     */
     public Page<Album> searchAlbums(String query, Long genreId, Double minPrice, Double maxPrice, String sortBy, Pageable pageable) {
         // Permitir búsqueda si hay query, genreId o rango de precio
         boolean hasQuery = query != null && !query.trim().isEmpty();
@@ -130,6 +190,9 @@ public class DiscoveryService {
         }
     }
 
+    /**
+     * Get artist IDs by name from community-service
+     */
     private List<Long> getArtistIdsByName(String query) {
         try {
             String url = UriComponentsBuilder.fromHttpUrl(communityServiceUrl + "/api/users/search/artist-ids")
@@ -145,10 +208,14 @@ public class DiscoveryService {
 
             return response.getBody() != null ? response.getBody() : new ArrayList<>();
         } catch (Exception e) {
-            log.warn("Error al obtener artistIds del community-service: {}", e.getMessage());
+            log.warn("Failed to get artist IDs from community-service: {}", e.getMessage());
+            // If community-service is unavailable, just return empty list
+            // This allows searching by title only
             return new ArrayList<>();
         }
     }
+
+    // ============= RECOMMENDATIONS METHODS =============
 
     /**
      * Generate personalized recommendations for a user
@@ -174,19 +241,28 @@ public class DiscoveryService {
                 .build();
 
         try {
-            // 1. Based on purchase history (genres from purchased songs)
-            response.setBasedOnPurchases(getRecommendationsFromPurchaseHistory(userId));
+            // 1. NEW: By purchased genres - Most specific genre-based recommendations
+            response.setByPurchasedGenres(getRecommendationsByPurchasedGenres(userId));
 
-            // 2. From followed artists
+            // 2. NEW: By purchased artists - Songs from artists you bought from
+            response.setByPurchasedArtists(getRecommendationsByPurchasedArtists(userId));
+
+            // 3. NEW: By liked songs - Based on 4-5 star ratings
+            response.setByLikedSongs(getRecommendationsByLikedSongs(userId));
+
+            // 4. From followed artists
             response.setFromFollowedArtists(getRecommendationsFromFollowedArtists(userId));
 
-            // 3. Trending songs
+            // 5. Based on purchase history (general - kept for backward compatibility)
+            response.setBasedOnPurchases(getRecommendationsFromPurchaseHistory(userId));
+
+            // 6. Trending songs
             response.setTrending(getTrendingRecommendations());
 
-            // 4. New releases
+            // 7. New releases
             response.setNewReleases(getNewReleasesRecommendations());
 
-            // 5. Similar to favorites (for now, same as purchase-based)
+            // 8. Similar to favorites (same as purchase-based for now)
             response.setSimilarToFavorites(getRecommendationsFromPurchaseHistory(userId));
 
             // Note: basedOnListeningHistory would require a listening history tracking system
@@ -194,7 +270,10 @@ public class DiscoveryService {
             response.setBasedOnListeningHistory(new ArrayList<>());
 
             // Calculate total recommendations
-            int total = safeListSize(response.getBasedOnPurchases())
+            int total = safeListSize(response.getByPurchasedGenres())
+                    + safeListSize(response.getByPurchasedArtists())
+                    + safeListSize(response.getByLikedSongs())
+                    + safeListSize(response.getBasedOnPurchases())
                     + safeListSize(response.getFromFollowedArtists())
                     + safeListSize(response.getTrending())
                     + safeListSize(response.getNewReleases())
@@ -203,11 +282,21 @@ public class DiscoveryService {
 
             response.setTotalRecommendations(total);
 
-            log.info("Generated {} total recommendations for user {}", total, userId);
+            log.info("Generated {} total recommendations for user {} - By genres: {}, By artists: {}, By likes: {}, From followed: {}, Trending: {}, New: {}",
+                    total, userId,
+                    safeListSize(response.getByPurchasedGenres()),
+                    safeListSize(response.getByPurchasedArtists()),
+                    safeListSize(response.getByLikedSongs()),
+                    safeListSize(response.getFromFollowedArtists()),
+                    safeListSize(response.getTrending()),
+                    safeListSize(response.getNewReleases()));
 
         } catch (Exception e) {
             log.error("Error generating recommendations for user {}", userId, e);
             // Return empty recommendations in case of error
+            response.setByPurchasedGenres(new ArrayList<>());
+            response.setByPurchasedArtists(new ArrayList<>());
+            response.setByLikedSongs(new ArrayList<>());
             response.setBasedOnPurchases(new ArrayList<>());
             response.setFromFollowedArtists(new ArrayList<>());
             response.setTrending(new ArrayList<>());
@@ -221,23 +310,25 @@ public class DiscoveryService {
     }
 
     /**
-     * Get recommendations based on user's purchase history
+     * CRITICAL FIX: Get recommendations based on user's purchase history
      * Analyzes genres from purchased songs and recommends similar songs
+     * NOW ONLY counts DELIVERED orders (successfully paid)
      */
     private List<RecommendedSong> getRecommendationsFromPurchaseHistory(Long userId) {
         try {
             // Get user's orders
             List<OrderDTO> orders = commerceServiceClient.getUserOrders(userId);
 
-            // Extract song IDs from orders
+            // CRITICAL FIX: Only count DELIVERED orders (successfully paid)
             Set<Long> purchasedSongIds = orders.stream()
+                    .filter(order -> order.getStatus() != null && "DELIVERED".equals(order.getStatus()))
                     .flatMap(order -> order.getItems().stream())
                     .filter(item -> "SONG".equals(item.getItemType()))
                     .map(OrderItemDTO::getItemId)
                     .collect(Collectors.toSet());
 
             if (purchasedSongIds.isEmpty()) {
-                log.debug("User {} has no purchase history", userId);
+                log.debug("User {} has no delivered purchase history", userId);
                 return new ArrayList<>();
             }
 
@@ -346,6 +437,174 @@ public class DiscoveryService {
 
         } catch (Exception e) {
             log.warn("Error getting new releases recommendations", e);
+            return new ArrayList<>();
+        }
+    }
+
+    /**
+     * NEW: Get recommendations by genres from purchased songs
+     * More specific than purchase history - focuses only on genre matching
+     */
+    private List<RecommendedSong> getRecommendationsByPurchasedGenres(Long userId) {
+        try {
+            List<OrderDTO> orders = commerceServiceClient.getUserOrders(userId);
+
+            // Only DELIVERED orders
+            Set<Long> purchasedSongIds = orders.stream()
+                    .filter(order -> order.getStatus() != null && "DELIVERED".equals(order.getStatus()))
+                    .flatMap(order -> order.getItems().stream())
+                    .filter(item -> "SONG".equals(item.getItemType()))
+                    .map(OrderItemDTO::getItemId)
+                    .collect(Collectors.toSet());
+
+            if (purchasedSongIds.isEmpty()) {
+                return new ArrayList<>();
+            }
+
+            List<Song> purchasedSongs = songRepository.findAllById(purchasedSongIds);
+            Set<Long> favoriteGenres = purchasedSongs.stream()
+                    .flatMap(song -> song.getGenreIds().stream())
+                    .collect(Collectors.toSet());
+
+            if (favoriteGenres.isEmpty()) {
+                return new ArrayList<>();
+            }
+
+            // Get songs from favorite genres
+            List<Song> recommendations = new ArrayList<>();
+            for (Long genreId : favoriteGenres) {
+                List<Song> genreSongs = songRepository.findPublishedByGenreId(genreId);
+                recommendations.addAll(genreSongs.stream()
+                        .filter(song -> !purchasedSongIds.contains(song.getId()))
+                        .limit(4)
+                        .collect(Collectors.toList()));
+            }
+
+            List<Song> limited = recommendations.stream()
+                    .distinct()
+                    .limit(RECOMMENDATIONS_PER_CATEGORY)
+                    .collect(Collectors.toList());
+
+            return enrichWithArtistNames(limited, "Songs from genres you love", 0.88);
+
+        } catch (Exception e) {
+            log.warn("Error getting recommendations by purchased genres for user {}", userId, e);
+            return new ArrayList<>();
+        }
+    }
+
+    /**
+     * NEW: Get recommendations from artists whose songs the user purchased
+     */
+    private List<RecommendedSong> getRecommendationsByPurchasedArtists(Long userId) {
+        try {
+            List<OrderDTO> orders = commerceServiceClient.getUserOrders(userId);
+
+            // Only DELIVERED orders
+            Set<Long> purchasedSongIds = orders.stream()
+                    .filter(order -> order.getStatus() != null && "DELIVERED".equals(order.getStatus()))
+                    .flatMap(order -> order.getItems().stream())
+                    .filter(item -> "SONG".equals(item.getItemType()))
+                    .map(OrderItemDTO::getItemId)
+                    .collect(Collectors.toSet());
+
+            if (purchasedSongIds.isEmpty()) {
+                return new ArrayList<>();
+            }
+
+            // Get artists from purchased songs
+            List<Song> purchasedSongs = songRepository.findAllById(purchasedSongIds);
+            Set<Long> purchasedArtistIds = purchasedSongs.stream()
+                    .map(Song::getArtistId)
+                    .collect(Collectors.toSet());
+
+            // Get other songs from these artists
+            List<Song> recommendations = new ArrayList<>();
+            for (Long artistId : purchasedArtistIds) {
+                List<Song> artistSongs = songRepository.findByArtistId(artistId).stream()
+                        .filter(Song::isPublished)
+                        .filter(song -> !purchasedSongIds.contains(song.getId()))
+                        .limit(3)
+                        .collect(Collectors.toList());
+                recommendations.addAll(artistSongs);
+            }
+
+            List<Song> limited = recommendations.stream()
+                    .distinct()
+                    .limit(RECOMMENDATIONS_PER_CATEGORY)
+                    .collect(Collectors.toList());
+
+            return enrichWithArtistNames(limited, "More from artists you bought", 0.92);
+
+        } catch (Exception e) {
+            log.warn("Error getting recommendations by purchased artists for user {}", userId, e);
+            return new ArrayList<>();
+        }
+    }
+
+    /**
+     * NEW: Get recommendations based on songs the user liked (4-5 stars ratings)
+     */
+    private List<RecommendedSong> getRecommendationsByLikedSongs(Long userId) {
+        try {
+            // Get user's ratings from community-service via REST call
+            String url = communityServiceUrl + "/api/ratings/user/" + userId;
+            ResponseEntity<List<Map<String, Object>>> response = restTemplate.exchange(
+                    url,
+                    HttpMethod.GET,
+                    null,
+                    new ParameterizedTypeReference<List<Map<String, Object>>>() {}
+            );
+
+            if (response.getBody() == null) {
+                return new ArrayList<>();
+            }
+
+            // Extract song IDs from high ratings (4-5 stars)
+            Set<Long> likedSongIds = response.getBody().stream()
+                    .filter(rating -> {
+                        String entityType = (String) rating.get("entityType");
+                        Number ratingValue = (Number) rating.get("rating");
+                        return "SONG".equals(entityType) && ratingValue != null && ratingValue.doubleValue() >= 4.0;
+                    })
+                    .map(rating -> {
+                        Number entityId = (Number) rating.get("entityId");
+                        return entityId != null ? entityId.longValue() : null;
+                    })
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toSet());
+
+            if (likedSongIds.isEmpty()) {
+                return new ArrayList<>();
+            }
+
+            // Get liked songs
+            List<Song> likedSongs = songRepository.findAllById(likedSongIds);
+
+            // Get genres from liked songs
+            Set<Long> likedGenres = likedSongs.stream()
+                    .flatMap(song -> song.getGenreIds().stream())
+                    .collect(Collectors.toSet());
+
+            // Recommend songs from same genres
+            List<Song> recommendations = new ArrayList<>();
+            for (Long genreId : likedGenres) {
+                List<Song> genreSongs = songRepository.findPublishedByGenreId(genreId);
+                recommendations.addAll(genreSongs.stream()
+                        .filter(song -> !likedSongIds.contains(song.getId()))
+                        .limit(4)
+                        .collect(Collectors.toList()));
+            }
+
+            List<Song> limited = recommendations.stream()
+                    .distinct()
+                    .limit(RECOMMENDATIONS_PER_CATEGORY)
+                    .collect(Collectors.toList());
+
+            return enrichWithArtistNames(limited, "Based on songs you liked", 0.90);
+
+        } catch (Exception e) {
+            log.warn("Error getting recommendations by liked songs for user {}", userId, e);
             return new ArrayList<>();
         }
     }

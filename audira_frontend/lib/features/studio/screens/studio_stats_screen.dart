@@ -154,7 +154,7 @@ class _StudioDetailedStatsScreenState extends State<StudioStatsScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: color, size: 32),
+            Icon(icon, color: color, size: 26),
             const SizedBox(height: 8),
             Text(
               value,
