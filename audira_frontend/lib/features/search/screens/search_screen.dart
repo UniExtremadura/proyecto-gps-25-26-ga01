@@ -36,7 +36,14 @@ class _SearchScreenState extends State<SearchScreen>
   List<Album> _albums = [];
   List<Artist> _artists = [];
   List<Genre> _availableGenres = [];
-  List<RecommendedSong> _recommendedSongs = [];
+
+  // GA01-117: Separate recommendation categories
+  List<RecommendedSong> _byPurchasedGenres = [];
+  List<RecommendedSong> _byPurchasedArtists = [];
+  List<RecommendedSong> _byLikedSongs = [];
+  List<RecommendedSong> _fromFollowedArtists = [];
+  List<RecommendedSong> _trending = [];
+  List<RecommendedSong> _newReleases = [];
 
   bool _isLoading = false;
   bool _isLoadingMoreSongs = false;
@@ -136,10 +143,20 @@ class _SearchScreenState extends State<SearchScreen>
       if (response.success && response.data != null) {
         final recommendations = response.data!;
 
-        // Get all recommendations from all categories
-        _recommendedSongs =
-            recommendations.getAllRecommendations().take(10).toList();
-        _hasRecommendations = _recommendedSongs.isNotEmpty;
+        // Separate recommendations by category
+        _byPurchasedGenres = recommendations.byPurchasedGenres;
+        _byPurchasedArtists = recommendations.byPurchasedArtists;
+        _byLikedSongs = recommendations.byLikedSongs;
+        _fromFollowedArtists = recommendations.fromFollowedArtists;
+        _trending = recommendations.trending;
+        _newReleases = recommendations.newReleases;
+
+        _hasRecommendations = _byPurchasedGenres.isNotEmpty ||
+            _byPurchasedArtists.isNotEmpty ||
+            _byLikedSongs.isNotEmpty ||
+            _fromFollowedArtists.isNotEmpty ||
+            _trending.isNotEmpty ||
+            _newReleases.isNotEmpty;
       } else {
         _hasRecommendations = false;
       }
@@ -153,7 +170,10 @@ class _SearchScreenState extends State<SearchScreen>
     final currentContext = context;
 
     // Si no hay query ni filtros, cargar trending
-    if (query.trim().isEmpty && _selectedGenreId == null && _minPrice == null && _maxPrice == null) {
+    if (query.trim().isEmpty &&
+        _selectedGenreId == null &&
+        _minPrice == null &&
+        _maxPrice == null) {
       setState(() {
         _isLoading = true;
         _hasSearched = false;
@@ -218,7 +238,7 @@ class _SearchScreenState extends State<SearchScreen>
       _artists = [];
     } catch (e) {
       debugPrint('Search error: $e');
-      if(!currentContext.mounted) return;
+      if (!currentContext.mounted) return;
       ScaffoldMessenger.of(currentContext).showSnackBar(
         SnackBar(content: Text('Error searching: $e')),
       );
@@ -312,8 +332,7 @@ class _SearchScreenState extends State<SearchScreen>
         builder: (context, setModalState) {
           return Padding(
             padding: EdgeInsets.fromLTRB(
-              24, 24, 24, MediaQuery.of(context).viewInsets.bottom + 24
-            ),
+                24, 24, 24, MediaQuery.of(context).viewInsets.bottom + 24),
             child: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -321,35 +340,44 @@ class _SearchScreenState extends State<SearchScreen>
                 children: [
                   const Text(
                     'Filtrar y Ordenar',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+                    style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white),
                   ),
                   const SizedBox(height: 20),
 
                   // SECCIÓN DE ORDENAMIENTO
-                  const Text('Ordenar por:', style: TextStyle(color: Colors.grey, fontSize: 14)),
+                  const Text('Ordenar por:',
+                      style: TextStyle(color: Colors.grey, fontSize: 14)),
                   const SizedBox(height: 10),
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
                     children: [
-                      _buildStyledChip('Más Recientes', 'recent', setModalState),
+                      _buildStyledChip(
+                          'Más Recientes', 'recent', setModalState),
                       _buildStyledChip('Más Antiguos', 'oldest', setModalState),
-                      _buildStyledChip('Precio: Bajo', 'price_asc', setModalState),
-                      _buildStyledChip('Precio: Alto', 'price_desc', setModalState),
+                      _buildStyledChip(
+                          'Precio: Bajo', 'price_asc', setModalState),
+                      _buildStyledChip(
+                          'Precio: Alto', 'price_desc', setModalState),
                     ],
                   ),
 
                   const Divider(height: 30, color: Colors.grey),
 
                   // SECCIÓN DE RANGO DE PRECIO
-                  const Text('Rango de Precio:', style: TextStyle(color: Colors.grey, fontSize: 14)),
+                  const Text('Rango de Precio:',
+                      style: TextStyle(color: Colors.grey, fontSize: 14)),
                   const SizedBox(height: 10),
                   Row(
                     children: [
                       Expanded(
                         child: TextField(
                           controller: _minPriceController,
-                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true),
                           style: const TextStyle(color: Colors.white),
                           decoration: InputDecoration(
                             hintText: 'Mín',
@@ -362,7 +390,8 @@ class _SearchScreenState extends State<SearchScreen>
                               borderRadius: BorderRadius.circular(12),
                               borderSide: BorderSide.none,
                             ),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 12),
                           ),
                           onChanged: (value) {
                             setModalState(() {
@@ -373,12 +402,15 @@ class _SearchScreenState extends State<SearchScreen>
                       ),
                       const Padding(
                         padding: EdgeInsets.symmetric(horizontal: 12),
-                        child: Text('-', style: TextStyle(color: Colors.white, fontSize: 20)),
+                        child: Text('-',
+                            style:
+                                TextStyle(color: Colors.white, fontSize: 20)),
                       ),
                       Expanded(
                         child: TextField(
                           controller: _maxPriceController,
-                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true),
                           style: const TextStyle(color: Colors.white),
                           decoration: InputDecoration(
                             hintText: 'Máx',
@@ -391,7 +423,8 @@ class _SearchScreenState extends State<SearchScreen>
                               borderRadius: BorderRadius.circular(12),
                               borderSide: BorderSide.none,
                             ),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 12),
                           ),
                           onChanged: (value) {
                             setModalState(() {
@@ -406,10 +439,12 @@ class _SearchScreenState extends State<SearchScreen>
                   const Divider(height: 30, color: Colors.grey),
 
                   // SECCIÓN DE GÉNEROS
-                  const Text('Filtrar por Género:', style: TextStyle(color: Colors.grey, fontSize: 14)),
+                  const Text('Filtrar por Género:',
+                      style: TextStyle(color: Colors.grey, fontSize: 14)),
                   const SizedBox(height: 10),
                   _availableGenres.isEmpty
-                      ? const Text("Cargando géneros...", style: TextStyle(color: Colors.white54))
+                      ? const Text("Cargando géneros...",
+                          style: TextStyle(color: Colors.white54))
                       : ConstrainedBox(
                           constraints: const BoxConstraints(maxHeight: 150),
                           child: SingleChildScrollView(
@@ -425,11 +460,14 @@ class _SearchScreenState extends State<SearchScreen>
                                   backgroundColor: Colors.grey[800],
                                   labelStyle: TextStyle(
                                     color: Colors.white,
-                                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                    fontWeight: isSelected
+                                        ? FontWeight.bold
+                                        : FontWeight.normal,
                                   ),
                                   onSelected: (bool selected) {
                                     setModalState(() {
-                                      _selectedGenreId = selected ? genre.id : null;
+                                      _selectedGenreId =
+                                          selected ? genre.id : null;
                                     });
                                   },
                                 );
@@ -465,7 +503,8 @@ class _SearchScreenState extends State<SearchScreen>
                             side: const BorderSide(color: Colors.grey),
                             padding: const EdgeInsets.symmetric(vertical: 12),
                           ),
-                          child: const Text('Limpiar', style: TextStyle(color: Colors.white)),
+                          child: const Text('Limpiar',
+                              style: TextStyle(color: Colors.white)),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -474,8 +513,10 @@ class _SearchScreenState extends State<SearchScreen>
                           onPressed: () {
                             // Actualizar estado padre antes de cerrar
                             setState(() {
-                              _minPrice = double.tryParse(_minPriceController.text);
-                              _maxPrice = double.tryParse(_maxPriceController.text);
+                              _minPrice =
+                                  double.tryParse(_minPriceController.text);
+                              _maxPrice =
+                                  double.tryParse(_maxPriceController.text);
                             });
                             Navigator.pop(context);
                             _performSearch(_searchController.text);
@@ -499,7 +540,8 @@ class _SearchScreenState extends State<SearchScreen>
     );
   }
 
-  Widget _buildStyledChip(String label, String value, StateSetter setModalState) {
+  Widget _buildStyledChip(
+      String label, String value, StateSetter setModalState) {
     final isSelected = _selectedSort == value;
     return ChoiceChip(
       label: Text(label),
@@ -599,7 +641,9 @@ class _SearchScreenState extends State<SearchScreen>
 
   Widget _buildContent() {
     if (!_hasSearched) return _buildTrendingSection();
-    if (_songs.isEmpty && _albums.isEmpty && _artists.isEmpty) return _buildEmptyState();
+    if (_songs.isEmpty && _albums.isEmpty && _artists.isEmpty) {
+      return _buildEmptyState();
+    }
 
     return TabBarView(
       controller: _tabController,
@@ -629,56 +673,200 @@ class _SearchScreenState extends State<SearchScreen>
 
           // GA01-117: Personalized Recommendations
           if (_hasRecommendations) ...[
-            Row(
-              children: [
-                Icon(
-                  Icons.stars,
-                  color: AppTheme.primaryBlue,
-                  size: 20,
-                ),
-                const SizedBox(width: 8),
-                const Text(
-                  'Recomendado para ti',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              height: 240,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                itemCount: _recommendedSongs.length,
-                itemBuilder: (context, index) {
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 12),
-                    child: RecommendedSongCard(song: _recommendedSongs[index]),
-                  );
-                },
+            // Section: By Purchased Genres
+            if (_byPurchasedGenres.isNotEmpty) ...[
+              Row(
+                children: [
+                  Icon(Icons.music_note, color: AppTheme.primaryBlue, size: 20),
+                  const SizedBox(width: 8),
+                  const Text('De géneros que te gustan',
+                      style:
+                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                ],
               ),
-            ),
-            const SizedBox(height: 24),
+              const SizedBox(height: 12),
+              SizedBox(
+                height: 240,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _byPurchasedGenres.length,
+                  itemBuilder: (context, index) {
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 12),
+                      child:
+                          RecommendedSongCard(song: _byPurchasedGenres[index]),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 24),
+            ],
+
+            // Section: By Purchased Artists
+            if (_byPurchasedArtists.isNotEmpty) ...[
+              Row(
+                children: [
+                  Icon(Icons.person, color: AppTheme.primaryBlue, size: 20),
+                  const SizedBox(width: 8),
+                  const Text('Más de artistas que compraste',
+                      style:
+                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                ],
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                height: 240,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _byPurchasedArtists.length,
+                  itemBuilder: (context, index) {
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 12),
+                      child:
+                          RecommendedSongCard(song: _byPurchasedArtists[index]),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 24),
+            ],
+
+            // Section: By Liked Songs
+            if (_byLikedSongs.isNotEmpty) ...[
+              Row(
+                children: [
+                  Icon(Icons.favorite, color: AppTheme.primaryBlue, size: 20),
+                  const SizedBox(width: 8),
+                  const Text('Basado en tus favoritas',
+                      style:
+                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                ],
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                height: 240,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _byLikedSongs.length,
+                  itemBuilder: (context, index) {
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 12),
+                      child: RecommendedSongCard(song: _byLikedSongs[index]),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 24),
+            ],
+
+            // Section: From Followed Artists
+            if (_fromFollowedArtists.isNotEmpty) ...[
+              Row(
+                children: [
+                  Icon(Icons.people, color: AppTheme.primaryBlue, size: 20),
+                  const SizedBox(width: 8),
+                  const Text('De artistas que sigues',
+                      style:
+                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                ],
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                height: 240,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _fromFollowedArtists.length,
+                  itemBuilder: (context, index) {
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 12),
+                      child: RecommendedSongCard(
+                          song: _fromFollowedArtists[index]),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 24),
+            ],
+
+            // Section: Trending
+            if (_trending.isNotEmpty) ...[
+              Row(
+                children: [
+                  Icon(Icons.trending_up,
+                      color: AppTheme.primaryBlue, size: 20),
+                  const SizedBox(width: 8),
+                  const Text('Tendencias',
+                      style:
+                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                ],
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                height: 240,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _trending.length,
+                  itemBuilder: (context, index) {
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 12),
+                      child: RecommendedSongCard(song: _trending[index]),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 24),
+            ],
+
+            // Section: New Releases
+            if (_newReleases.isNotEmpty) ...[
+              Row(
+                children: [
+                  Icon(Icons.new_releases,
+                      color: AppTheme.primaryBlue, size: 20),
+                  const SizedBox(width: 8),
+                  const Text('Nuevos lanzamientos',
+                      style:
+                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                ],
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                height: 240,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _newReleases.length,
+                  itemBuilder: (context, index) {
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 12),
+                      child: RecommendedSongCard(song: _newReleases[index]),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 24),
+            ],
           ],
 
           if (_songs.isNotEmpty) ...[
-            const Text('Trending Songs', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const Text('Trending Songs',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             ..._songs.map((song) => SongListItem(
-              song: song,
-              onTap: () => Navigator.pushNamed(context, '/song', arguments: song.id),
-            )),
+                  song: song,
+                  onTap: () =>
+                      Navigator.pushNamed(context, '/song', arguments: song.id),
+                )),
           ],
           if (_albums.isNotEmpty) ...[
             const SizedBox(height: 24),
-            const Text('Trending Albums', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const Text('Trending Albums',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             ..._albums.map((album) => AlbumListItem(
-              album: album,
-              onTap: () => Navigator.pushNamed(context, '/album', arguments: album.id),
-            )),
+                  album: album,
+                  onTap: () => Navigator.pushNamed(context, '/album',
+                      arguments: album.id),
+                )),
           ],
         ],
       ),
@@ -692,9 +880,11 @@ class _SearchScreenState extends State<SearchScreen>
         children: [
           const Icon(Icons.search_off, size: 64, color: AppTheme.textGrey),
           const SizedBox(height: 16),
-          const Text('No results found', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const Text('No results found',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
-          Text('Try searching with different keywords', style: TextStyle(color: AppTheme.textSecondary)),
+          Text('Try searching with different keywords',
+              style: TextStyle(color: AppTheme.textSecondary)),
         ],
       ),
     );
@@ -707,37 +897,49 @@ class _SearchScreenState extends State<SearchScreen>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (_songs.isNotEmpty) ...[
-            const Text('Songs', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const Text('Songs',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             ..._songs.take(5).map((song) => SongListItem(
-              song: song,
-              onTap: () => Navigator.pushNamed(context, '/song', arguments: song.id),
-            )),
+                  song: song,
+                  onTap: () =>
+                      Navigator.pushNamed(context, '/song', arguments: song.id),
+                )),
             if (_songs.length > 5)
-              TextButton(onPressed: () => _tabController.animateTo(1), child: const Text('View all songs')),
+              TextButton(
+                  onPressed: () => _tabController.animateTo(1),
+                  child: const Text('View all songs')),
             const SizedBox(height: 16),
           ],
           if (_albums.isNotEmpty) ...[
-            const Text('Albums', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const Text('Albums',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             ..._albums.take(5).map((album) => AlbumListItem(
-              album: album,
-              onTap: () => Navigator.pushNamed(context, '/album', arguments: album.id),
-            )),
+                  album: album,
+                  onTap: () => Navigator.pushNamed(context, '/album',
+                      arguments: album.id),
+                )),
             if (_albums.length > 5)
-              TextButton(onPressed: () => _tabController.animateTo(2), child: const Text('View all albums')),
+              TextButton(
+                  onPressed: () => _tabController.animateTo(2),
+                  child: const Text('View all albums')),
             const SizedBox(height: 16),
           ],
           if (_artists.isNotEmpty) ...[
-            const Text('Artists', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const Text('Artists',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             ..._artists.take(5).map((artist) => ListTile(
-              leading: const CircleAvatar(child: Icon(Icons.person)),
-              title: Text(artist.artistName ?? artist.username),
-              onTap: () => Navigator.pushNamed(context, '/artist', arguments: artist.id),
-            )),
+                  leading: const CircleAvatar(child: Icon(Icons.person)),
+                  title: Text(artist.artistName ?? artist.username),
+                  onTap: () => Navigator.pushNamed(context, '/artist',
+                      arguments: artist.id),
+                )),
             if (_artists.length > 5)
-              TextButton(onPressed: () => _tabController.animateTo(3), child: const Text('View all artists')),
+              TextButton(
+                  onPressed: () => _tabController.animateTo(3),
+                  child: const Text('View all artists')),
           ],
         ],
       ),
@@ -751,10 +953,16 @@ class _SearchScreenState extends State<SearchScreen>
       itemCount: _songs.length + (_hasMoreSongs ? 1 : 0),
       itemBuilder: (context, index) {
         if (index == _songs.length) {
-          return const Center(child: Padding(padding: EdgeInsets.all(16.0), child: CircularProgressIndicator()));
+          return const Center(
+              child: Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: CircularProgressIndicator()));
         }
         final song = _songs[index];
-        return SongListItem(song: song, onTap: () => Navigator.pushNamed(context, '/song', arguments: song.id));
+        return SongListItem(
+            song: song,
+            onTap: () =>
+                Navigator.pushNamed(context, '/song', arguments: song.id));
       },
     );
   }
@@ -766,10 +974,16 @@ class _SearchScreenState extends State<SearchScreen>
       itemCount: _albums.length + (_hasMoreAlbums ? 1 : 0),
       itemBuilder: (context, index) {
         if (index == _albums.length) {
-          return const Center(child: Padding(padding: EdgeInsets.all(16.0), child: CircularProgressIndicator()));
+          return const Center(
+              child: Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: CircularProgressIndicator()));
         }
         final album = _albums[index];
-        return AlbumListItem(album: album, onTap: () => Navigator.pushNamed(context, '/album', arguments: album.id));
+        return AlbumListItem(
+            album: album,
+            onTap: () =>
+                Navigator.pushNamed(context, '/album', arguments: album.id));
       },
     );
   }
@@ -784,7 +998,8 @@ class _SearchScreenState extends State<SearchScreen>
           leading: const CircleAvatar(child: Icon(Icons.person)),
           title: Text(artist.artistName ?? artist.username),
           subtitle: artist.bio != null ? Text(artist.bio!) : null,
-          onTap: () => Navigator.pushNamed(context, '/artist', arguments: artist.id),
+          onTap: () =>
+              Navigator.pushNamed(context, '/artist', arguments: artist.id),
         );
       },
     );
