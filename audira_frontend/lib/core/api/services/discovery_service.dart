@@ -1,7 +1,10 @@
+import 'dart:developer' as developer;
 import 'package:audira_frontend/core/api/api_client.dart';
 import 'package:audira_frontend/core/models/album.dart';
 import 'package:audira_frontend/core/models/song.dart';
+import 'package:audira_frontend/core/models/genre.dart';
 import 'package:audira_frontend/core/models/recommendations_response.dart';
+
 
 class DiscoveryService {
   static final DiscoveryService _instance = DiscoveryService._internal();
@@ -15,15 +18,30 @@ class DiscoveryService {
     String query, {
     int page = 0,
     int size = 20,
+    int? genreId,
+    String? sortBy,
+    double? minPrice,  // NUEVO
+    double? maxPrice,  // NUEVO
   }) async {
+    final Map<String, String> queryParams = {
+      'query': query,
+      'page': page.toString(),
+      'size': size.toString(),
+    };
+
+    if (genreId != null) queryParams['genreId'] = genreId.toString();
+    if (sortBy != null) queryParams['sortBy'] = sortBy;
+    if (minPrice != null) queryParams['minPrice'] = minPrice.toString();
+    if (maxPrice != null) queryParams['maxPrice'] = maxPrice.toString();
+
     try {
+      developer.log(
+        'Searching Songs: Params=$queryParams',
+        name: 'DiscoveryService',
+      );
       final response = await _apiClient.get(
         '/api/discovery/search/songs',
-        queryParameters: {
-          'query': query,
-          'page': page.toString(),
-          'size': size.toString(),
-        },
+        queryParameters: queryParams,
       );
 
       if (response.success && response.data != null) {
@@ -59,15 +77,30 @@ class DiscoveryService {
     String query, {
     int page = 0,
     int size = 20,
+    int? genreId,
+    String? sortBy,
+    double? minPrice,  // NUEVO
+    double? maxPrice,  // NUEVO
   }) async {
+    final Map<String, String> queryParams = {
+      'query': query,
+      'page': page.toString(),
+      'size': size.toString(),
+    };
+
+    if (genreId != null) queryParams['genreId'] = genreId.toString();
+    if (sortBy != null) queryParams['sortBy'] = sortBy;
+    if (minPrice != null) queryParams['minPrice'] = minPrice.toString();
+    if (maxPrice != null) queryParams['maxPrice'] = maxPrice.toString();
+
     try {
+      developer.log(
+        'Searching Albums: Params=$queryParams',
+        name: 'DiscoveryService',
+      );
       final response = await _apiClient.get(
         '/api/discovery/search/albums',
-        queryParameters: {
-          'query': query,
-          'page': page.toString(),
-          'size': size.toString(),
-        },
+        queryParameters: queryParams,
       );
 
       if (response.success && response.data != null) {
@@ -93,6 +126,25 @@ class DiscoveryService {
         error: response.error ?? 'Failed to search albums',
         statusCode: response.statusCode,
       );
+    } catch (e) {
+      return ApiResponse(success: false, error: e.toString());
+    }
+  }
+
+  Future<ApiResponse<List<Genre>>> getGenres() async {
+    try {
+      final response = await _apiClient.get('/api/genres');
+
+      if (response.success && response.data != null) {
+        final List<dynamic> data = response.data as List;
+        final genres = data.map((json) => Genre.fromJson(json)).toList();
+        return ApiResponse(
+          success: true,
+          data: genres,
+          statusCode: response.statusCode
+        );
+      }
+      return ApiResponse(success: false, error: 'Error fetching genres');
     } catch (e) {
       return ApiResponse(success: false, error: e.toString());
     }
@@ -184,7 +236,6 @@ class DiscoveryService {
     }
   }
 
-  /// Get recommendations for user
   /// GA01-117: Módulo básico de recomendaciones (placeholder)
   Future<ApiResponse<RecommendationsResponse>> getRecommendations(
       int userId) async {
