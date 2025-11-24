@@ -1,5 +1,6 @@
 package io.audira.catalog.repository;
 
+import io.audira.catalog.model.ModerationStatus;
 import io.audira.catalog.model.Song;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -59,7 +60,70 @@ public interface SongRepository extends JpaRepository<Song, Long> {
 
     @Query("SELECT s FROM Song s WHERE s.published = true AND s.artistId IN :artistIds")
     Page<Song> searchPublishedByArtistIds(@Param("artistIds") List<Long> artistIds, Pageable pageable);
+    
+    // Solo filtros (sin query de texto)
+    @Query("SELECT DISTINCT s FROM Song s " +
+           "LEFT JOIN s.genreIds g " + 
+           "WHERE s.published = true " +
+           "AND (:genreId IS NULL OR g = :genreId) " +
+           "AND (:minPrice IS NULL OR s.price >= :minPrice) " +
+           "AND (:maxPrice IS NULL OR s.price <= :maxPrice)")
+    Page<Song> searchPublishedByFiltersOnly(
+            @Param("genreId") Long genreId,
+            @Param("minPrice") Double minPrice,
+            @Param("maxPrice") Double maxPrice,
+            Pageable pageable
+    );
+
+    // Búsqueda por título con filtros
+    @Query("SELECT DISTINCT s FROM Song s " +
+           "LEFT JOIN s.genreIds g " + 
+           "WHERE s.published = true " +
+           "AND (:genreId IS NULL OR g = :genreId) " +
+           "AND (:minPrice IS NULL OR s.price >= :minPrice) " +
+           "AND (:maxPrice IS NULL OR s.price <= :maxPrice) " +
+           "AND LOWER(s.title) LIKE LOWER(CONCAT('%', :query, '%'))")
+    Page<Song> searchPublishedByTitleAndFilters(
+            @Param("query") String query, 
+            @Param("genreId") Long genreId,
+            @Param("minPrice") Double minPrice,
+            @Param("maxPrice") Double maxPrice,
+            Pageable pageable
+    );
+
+    // Búsqueda por título O artistIds con filtros
+    @Query("SELECT DISTINCT s FROM Song s " +
+           "LEFT JOIN s.genreIds g " + 
+           "WHERE s.published = true " +
+           "AND (:genreId IS NULL OR g = :genreId) " +
+           "AND (:minPrice IS NULL OR s.price >= :minPrice) " +
+           "AND (:maxPrice IS NULL OR s.price <= :maxPrice) " +
+           "AND (LOWER(s.title) LIKE LOWER(CONCAT('%', :query, '%')) OR s.artistId IN :artistIds)")
+    Page<Song> searchPublishedByTitleOrArtistIdsAndFilters(
+            @Param("query") String query, 
+            @Param("artistIds") List<Long> artistIds,
+            @Param("genreId") Long genreId,
+            @Param("minPrice") Double minPrice,
+            @Param("maxPrice") Double maxPrice,
+            Pageable pageable
+    );
 
     @Query("SELECT s FROM Song s WHERE s.published = true AND (LOWER(s.title) LIKE LOWER(CONCAT('%', :query, '%')) OR s.artistId IN :artistIds)")
     Page<Song> searchPublishedByTitleOrArtistIds(@Param("query") String query, @Param("artistIds") List<Long> artistIds, Pageable pageable);
+    
+    // Búsqueda por estado
+    List<Song> findByModerationStatus(ModerationStatus status);
+    List<Song> findByModerationStatusOrderByCreatedAtDesc(ModerationStatus status);
+    List<Song> findByArtistIdAndModerationStatus(Long artistId, ModerationStatus status);
+
+    // Paginación
+    @Query("SELECT s FROM Song s WHERE s.moderationStatus = :status ORDER BY s.createdAt DESC")
+    Page<Song> findByModerationStatusPaged(@Param("status") ModerationStatus status, Pageable pageable);
+
+    // Pendientes de moderación (ordenados por antigüedad)
+    @Query("SELECT s FROM Song s WHERE s.moderationStatus = 'PENDING' ORDER BY s.createdAt ASC")
+    List<Song> findPendingModerationSongs();
+
+    // Contadores
+    Long countByModerationStatus(ModerationStatus status);
 }

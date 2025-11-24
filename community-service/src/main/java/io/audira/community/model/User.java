@@ -41,7 +41,7 @@ public abstract class User {
     private String username;
 
     @Column(nullable = false)
-    private String password; // TODO: Remove when Firebase auth is fully implemented
+    private String password;
 
     @Column(nullable = false)
     private String firstName;

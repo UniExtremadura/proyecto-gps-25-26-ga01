@@ -4,6 +4,7 @@ import io.audira.catalog.dto.AlbumCreateRequest;
 import io.audira.catalog.dto.AlbumResponse;
 import io.audira.catalog.dto.AlbumUpdateRequest;
 import io.audira.catalog.model.Album;
+import io.audira.catalog.model.ModerationStatus;
 import io.audira.catalog.model.Song;
 import io.audira.catalog.repository.AlbumRepository;
 import io.audira.catalog.repository.SongRepository;
@@ -91,6 +92,13 @@ public class AlbumService {
         if (request.getDiscountPercentage() != null)
             album.setDiscountPercentage(request.getDiscountPercentage());
 
+        // GA01-162: Cualquier modificación requiere nueva moderación
+        album.setModerationStatus(ModerationStatus.PENDING);
+        album.setModeratedBy(null);
+        album.setModeratedAt(null);
+        album.setRejectionReason(null);
+        album.setPublished(false); // Ocultar hasta nueva aprobación
+
         album = albumRepository.save(album);
         int songCount = songRepository.findByAlbumId(album.getId()).size();
         return Optional.of(AlbumResponse.fromAlbum(album, songCount));
@@ -104,6 +112,14 @@ public class AlbumService {
         }
 
         Album album = albumOpt.get();
+
+        // GA01-162: Solo se puede publicar si está aprobado
+        if (published && album.getModerationStatus() != ModerationStatus.APPROVED) {
+            throw new IllegalArgumentException(
+                "No se puede publicar un álbum que no está aprobado. Estado actual: " +
+                album.getModerationStatus().getDisplayName());
+        }
+
         album.setPublished(published);
         album = albumRepository.save(album);
 

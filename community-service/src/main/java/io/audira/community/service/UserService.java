@@ -48,7 +48,7 @@ public class UserService {
 
         User user;
         String encodedPassword = passwordEncoder.encode(request.getPassword());
-        String uid = request.getEmail(); // TODO: Use Firebase UID
+        String uid = request.getEmail(); 
 
         // Create specific user type based on role
         if (request.getRole() == UserRole.ARTIST) {

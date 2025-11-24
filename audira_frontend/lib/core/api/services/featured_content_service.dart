@@ -10,7 +10,7 @@ class FeaturedContentService {
   /// GA01-156: Seleccionar/ordenar contenido destacado
   Future<ApiResponse<List<FeaturedContent>>> getAllFeaturedContent() async {
     final response = await _apiClient.get(
-      '/api/admin/featured-content',
+      '/api/featured-content',
       requiresAuth: true,
     );
 
@@ -37,7 +37,7 @@ class FeaturedContentService {
   Future<ApiResponse<FeaturedContent>> createFeaturedContent(
       Map<String, dynamic> data) async {
     final response = await _apiClient.post(
-      '/api/admin/featured-content',
+      '/api/featured-content',
       body: data,
       requiresAuth: true,
     );
@@ -64,7 +64,7 @@ class FeaturedContentService {
   Future<ApiResponse<FeaturedContent>> updateFeaturedContent(
       int id, Map<String, dynamic> data) async {
     final response = await _apiClient.put(
-      '/api/admin/featured-content/$id',
+      '/api/featured-content/$id',
       body: data,
       requiresAuth: true,
     );
@@ -89,7 +89,7 @@ class FeaturedContentService {
   /// GA01-156: Seleccionar/ordenar contenido destacado
   Future<ApiResponse<void>> deleteFeaturedContent(int id) async {
     final response = await _apiClient.delete(
-      '/api/admin/featured-content/$id',
+      '/api/featured-content/$id',
       requiresAuth: true,
     );
 
@@ -101,7 +101,7 @@ class FeaturedContentService {
   Future<ApiResponse<List<FeaturedContent>>> reorderFeaturedContent(
       List<Map<String, dynamic>> orderData) async {
     final response = await _apiClient.put(
-      '/api/admin/featured-content/reorder',
+      '/api/featured-content/reorder',
       body: {'items': orderData},
       requiresAuth: true,
     );
@@ -129,7 +129,7 @@ class FeaturedContentService {
   Future<ApiResponse<FeaturedContent>> toggleActive(
       int id, bool isActive) async {
     final response = await _apiClient.patch(
-      '/api/admin/featured-content/$id/toggle-active',
+      '/api/featured-content/$id/toggle-active',
       body: {'isActive': isActive},
       requiresAuth: true,
     );
