@@ -105,6 +105,7 @@ class _AdminAlbumsScreenState extends State<AdminAlbumsScreen> {
 
   // GA01-162: Aprobar álbum
   Future<void> _approveAlbum(Album album) async {
+    final currentContext = context;
     final authProvider = context.read<AuthProvider>();
     final adminId = authProvider.currentUser?.id;
 
@@ -127,7 +128,8 @@ class _AdminAlbumsScreenState extends State<AdminAlbumsScreen> {
             await _moderationService.approveAlbum(album.id, adminId);
 
         if (response.success) {
-          ScaffoldMessenger.of(context).showSnackBar(
+          if(!currentContext.mounted) return;
+          ScaffoldMessenger.of(currentContext).showSnackBar(
             SnackBar(
               content: Text('Álbum "${album.name}" aprobado exitosamente'),
               backgroundColor: Colors.green,
@@ -135,7 +137,8 @@ class _AdminAlbumsScreenState extends State<AdminAlbumsScreen> {
           );
           _loadAlbums();
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
+          if(!currentContext.mounted) return;
+          ScaffoldMessenger.of(currentContext).showSnackBar(
             SnackBar(
               content: Text(response.error ?? 'Error al aprobar el álbum'),
               backgroundColor: Colors.red,
@@ -143,7 +146,8 @@ class _AdminAlbumsScreenState extends State<AdminAlbumsScreen> {
           );
         }
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        if(!currentContext.mounted) return;
+        ScaffoldMessenger.of(currentContext).showSnackBar(
           SnackBar(
             content: Text('Error: $e'),
             backgroundColor: Colors.red,
@@ -155,6 +159,7 @@ class _AdminAlbumsScreenState extends State<AdminAlbumsScreen> {
 
   // GA01-162: Rechazar álbum
   Future<void> _rejectAlbum(Album album) async {
+    final currentContext = context;
     final authProvider = context.read<AuthProvider>();
     final adminId = authProvider.currentUser?.id;
 
@@ -181,7 +186,8 @@ class _AdminAlbumsScreenState extends State<AdminAlbumsScreen> {
         );
 
         if (response.success) {
-          ScaffoldMessenger.of(context).showSnackBar(
+          if(!currentContext.mounted) return;
+          ScaffoldMessenger.of(currentContext).showSnackBar(
             SnackBar(
               content: Text('Álbum "${album.name}" rechazado'),
               backgroundColor: Colors.orange,
@@ -189,7 +195,8 @@ class _AdminAlbumsScreenState extends State<AdminAlbumsScreen> {
           );
           _loadAlbums();
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
+          if(!currentContext.mounted) return;
+          ScaffoldMessenger.of(currentContext).showSnackBar(
             SnackBar(
               content: Text(response.error ?? 'Error al rechazar el álbum'),
               backgroundColor: Colors.red,
@@ -197,7 +204,8 @@ class _AdminAlbumsScreenState extends State<AdminAlbumsScreen> {
           );
         }
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        if(!currentContext.mounted) return;
+        ScaffoldMessenger.of(currentContext).showSnackBar(
           SnackBar(
             content: Text('Error: $e'),
             backgroundColor: Colors.red,
@@ -208,6 +216,7 @@ class _AdminAlbumsScreenState extends State<AdminAlbumsScreen> {
   }
 
   Future<void> _deleteAlbum(int albumId) async {
+    final currentContext = context;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -231,19 +240,22 @@ class _AdminAlbumsScreenState extends State<AdminAlbumsScreen> {
       try {
         final response = await _musicService.deleteAlbum(albumId);
         if (response.success) {
-          ScaffoldMessenger.of(context).showSnackBar(
+          if(!currentContext.mounted) return;
+          ScaffoldMessenger.of(currentContext).showSnackBar(
             const SnackBar(content: Text('Album deleted successfully')),
           );
           _loadAlbums();
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
+          if(!currentContext.mounted) return;
+          ScaffoldMessenger.of(currentContext).showSnackBar(
             SnackBar(
               content: Text(response.error ?? 'Failed to delete album'),
             ),
           );
         }
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        if(!currentContext.mounted) return;
+        ScaffoldMessenger.of(currentContext).showSnackBar(
           SnackBar(content: Text('Error: $e')),
         );
       }

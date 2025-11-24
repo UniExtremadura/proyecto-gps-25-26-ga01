@@ -1,5 +1,3 @@
-// ignore_for_file: use_build_context_synchronously
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -161,6 +159,7 @@ class _CreatePlaylistScreenState extends State<CreatePlaylistScreen> {
 
   /// Eliminar playlist
   Future<void> _deletePlaylist() async {
+    final currentContext = context;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -194,7 +193,8 @@ class _CreatePlaylistScreenState extends State<CreatePlaylistScreen> {
       setState(() => _isLoading = true);
 
       try {
-        final libraryProvider = context.read<LibraryProvider>();
+        if(!currentContext.mounted) return;
+        final libraryProvider = currentContext.read<LibraryProvider>();
         await libraryProvider.deletePlaylist(widget.playlistId!);
 
         if (mounted) {
@@ -229,6 +229,7 @@ class _CreatePlaylistScreenState extends State<CreatePlaylistScreen> {
 
   /// Abrir pantalla de selección de canciones
   Future<void> _addSongsToPlaylist() async {
+    final currentContext = context;
     final currentSongIds = _selectedSongs.map((s) => s.id).toList();
     final playlistName = _nameController.text.trim().isEmpty
         ? 'Nueva Playlist'
@@ -249,7 +250,8 @@ class _CreatePlaylistScreenState extends State<CreatePlaylistScreen> {
       if (widget.playlistId != null) {
         setState(() => _isLoading = true);
         try {
-          final libraryProvider = context.read<LibraryProvider>();
+          if(!currentContext.mounted) return;
+          final libraryProvider = currentContext.read<LibraryProvider>();
           for (final song in selectedSongs) {
             await libraryProvider.addSongToPlaylist(widget.playlistId!, song.id);
           }
@@ -284,6 +286,7 @@ class _CreatePlaylistScreenState extends State<CreatePlaylistScreen> {
 
   /// Eliminar canción de la playlist
   Future<void> _removeSong(Song song) async {
+    final currentContext = context;
     if (widget.playlistId != null) {
       final confirmed = await showDialog<bool>(
         context: context,
@@ -307,7 +310,8 @@ class _CreatePlaylistScreenState extends State<CreatePlaylistScreen> {
       if (confirmed == true) {
         setState(() => _isLoading = true);
         try {
-          final libraryProvider = context.read<LibraryProvider>();
+          if(!currentContext.mounted) return;
+          final libraryProvider = currentContext.read<LibraryProvider>();
           await libraryProvider.removeSongFromPlaylist(
               widget.playlistId!, song.id);
           await _loadPlaylistData();

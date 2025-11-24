@@ -1,5 +1,3 @@
-// ignore_for_file: use_build_context_synchronously
-
 import 'package:flutter/material.dart';
 import '../../../config/theme.dart';
 import '../../../core/models/song.dart';
@@ -83,6 +81,7 @@ class _AddCollaboratorDialogState extends State<AddCollaboratorDialog> {
   }
 
   Future<void> _inviteCollaborator() async {
+    final currentContext = context;
     if (!_formKey.currentState!.validate()) {
       return;
     }
@@ -126,18 +125,21 @@ class _AddCollaboratorDialogState extends State<AddCollaboratorDialog> {
             );
 
       if (response.success) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        if(!currentContext.mounted) return;
+        ScaffoldMessenger.of(currentContext).showSnackBar(
           const SnackBar(
             content: Text('Colaborador invitado exitosamente'),
             backgroundColor: Colors.green,
           ),
         );
-        Navigator.pop(context, true); // Return true to indicate success
+        if(!currentContext.mounted) return;
+        Navigator.pop(currentContext, true); // Return true to indicate success
       } else {
         throw Exception(response.error ?? 'Error desconocido');
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      if(!currentContext.mounted) return;
+      ScaffoldMessenger.of(currentContext).showSnackBar(
         SnackBar(
           content: Text('Error: $e'),
           backgroundColor: Colors.red,
