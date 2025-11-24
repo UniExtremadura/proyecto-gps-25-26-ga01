@@ -1,4 +1,6 @@
+// ignore_for_file: use_build_context_synchronously
 
+import 'package:audira_frontend/features/studio/screens/edit_song_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
@@ -110,7 +112,6 @@ class _AdminSongsScreenState extends State<AdminSongsScreen> {
 
   // GA01-162: Aprobar canción
   Future<void> _approveSong(Song song) async {
-    final currentContext = context;
     final authProvider = context.read<AuthProvider>();
     final adminId = authProvider.currentUser?.id;
 
@@ -129,12 +130,10 @@ class _AdminSongsScreenState extends State<AdminSongsScreen> {
 
     if (result == true) {
       try {
-        final response =
-            await _moderationService.approveSong(song.id, adminId);
+        final response = await _moderationService.approveSong(song.id, adminId);
 
         if (response.success) {
-          if(!currentContext.mounted) return;
-          ScaffoldMessenger.of(currentContext).showSnackBar(
+          ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Canción "${song.name}" aprobada exitosamente'),
               backgroundColor: Colors.green,
@@ -142,8 +141,7 @@ class _AdminSongsScreenState extends State<AdminSongsScreen> {
           );
           _loadSongs();
         } else {
-          if(!currentContext.mounted) return;
-          ScaffoldMessenger.of(currentContext).showSnackBar(
+          ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(response.error ?? 'Error al aprobar la canción'),
               backgroundColor: Colors.red,
@@ -151,8 +149,7 @@ class _AdminSongsScreenState extends State<AdminSongsScreen> {
           );
         }
       } catch (e) {
-        if(!currentContext.mounted) return;
-        ScaffoldMessenger.of(currentContext).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error: $e'),
             backgroundColor: Colors.red,
@@ -164,7 +161,6 @@ class _AdminSongsScreenState extends State<AdminSongsScreen> {
 
   // GA01-162: Rechazar canción
   Future<void> _rejectSong(Song song) async {
-    final currentContext = context;
     final authProvider = context.read<AuthProvider>();
     final adminId = authProvider.currentUser?.id;
 
@@ -191,8 +187,7 @@ class _AdminSongsScreenState extends State<AdminSongsScreen> {
         );
 
         if (response.success) {
-          if(!currentContext.mounted) return;
-          ScaffoldMessenger.of(currentContext).showSnackBar(
+          ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Canción "${song.name}" rechazada'),
               backgroundColor: Colors.orange,
@@ -200,8 +195,7 @@ class _AdminSongsScreenState extends State<AdminSongsScreen> {
           );
           _loadSongs();
         } else {
-          if(!currentContext.mounted) return;
-          ScaffoldMessenger.of(currentContext).showSnackBar(
+          ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(response.error ?? 'Error al rechazar la canción'),
               backgroundColor: Colors.red,
@@ -209,8 +203,7 @@ class _AdminSongsScreenState extends State<AdminSongsScreen> {
           );
         }
       } catch (e) {
-        if(!currentContext.mounted) return;
-        ScaffoldMessenger.of(currentContext).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error: $e'),
             backgroundColor: Colors.red,
@@ -221,7 +214,6 @@ class _AdminSongsScreenState extends State<AdminSongsScreen> {
   }
 
   Future<void> _deleteSong(int songId) async {
-    final currentContext = context;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -245,22 +237,19 @@ class _AdminSongsScreenState extends State<AdminSongsScreen> {
       try {
         final response = await _musicService.deleteSong(songId);
         if (response.success) {
-          if(!currentContext.mounted) return;
-          ScaffoldMessenger.of(currentContext).showSnackBar(
+          ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Song deleted successfully')),
           );
           _loadSongs();
         } else {
-          if(!currentContext.mounted) return;
-          ScaffoldMessenger.of(currentContext).showSnackBar(
+          ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(response.error ?? 'Failed to delete song'),
             ),
           );
         }
       } catch (e) {
-        if(!currentContext.mounted) return;
-        ScaffoldMessenger.of(currentContext).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error: $e')),
         );
       }
@@ -410,13 +399,15 @@ class _AdminSongsScreenState extends State<AdminSongsScreen> {
                                 child: Padding(
                                   padding: const EdgeInsets.all(12),
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       // Título y badge de estado
                                       Row(
                                         children: [
                                           CircleAvatar(
-                                            backgroundColor: AppTheme.primaryBlue,
+                                            backgroundColor:
+                                                AppTheme.primaryBlue,
                                             child: const Icon(Icons.music_note,
                                                 color: Colors.white),
                                           ),
@@ -463,9 +454,10 @@ class _AdminSongsScreenState extends State<AdminSongsScreen> {
                                       const SizedBox(height: 12),
 
                                       // Botones de acción
-                                      Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.end,
+                                      Wrap(
+                                        alignment: WrapAlignment.end,
+                                        spacing: 4,
+                                        runSpacing: 8,
                                         children: [
                                           // GA01-162: Botones de moderación para canciones pendientes
                                           if (song.moderationStatus ==
@@ -474,38 +466,60 @@ class _AdminSongsScreenState extends State<AdminSongsScreen> {
                                               onPressed: () =>
                                                   _approveSong(song),
                                               icon: const Icon(Icons.check,
-                                                  size: 18),
-                                              label: const Text('Aprobar'),
+                                                  size: 16),
+                                              label: const Text('Aprobar',
+                                                  style:
+                                                      TextStyle(fontSize: 13)),
                                               style: TextButton.styleFrom(
                                                 foregroundColor: Colors.green,
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                        horizontal: 8,
+                                                        vertical: 4),
                                               ),
                                             ),
-                                            const SizedBox(width: 8),
                                             TextButton.icon(
                                               onPressed: () =>
                                                   _rejectSong(song),
-                                              icon:
-                                                  const Icon(Icons.close, size: 18),
-                                              label: const Text('Rechazar'),
+                                              icon: const Icon(Icons.close,
+                                                  size: 16),
+                                              label: const Text('Rechazar',
+                                                  style:
+                                                      TextStyle(fontSize: 13)),
                                               style: TextButton.styleFrom(
                                                 foregroundColor: Colors.red,
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                        horizontal: 8,
+                                                        vertical: 4),
                                               ),
                                             ),
-                                            const SizedBox(width: 8),
                                           ],
                                           IconButton(
                                             icon: const Icon(Icons.edit,
-                                                color: AppTheme.primaryBlue),
-                                            onPressed: () {
-                                              _showSongForm(song);
+                                                color: AppTheme.primaryBlue,
+                                                size: 20),
+                                            onPressed: () async {
+                                              await Navigator.push<bool>(
+                                                context,
+                                                MaterialPageRoute(
+                                                  builder: (context) =>
+                                                      EditSongScreen(
+                                                          song: song),
+                                                ),
+                                              );
                                             },
+                                            padding: const EdgeInsets.all(8),
+                                            constraints: const BoxConstraints(),
                                           ),
                                           IconButton(
                                             icon: const Icon(Icons.delete,
-                                                color: Colors.red),
+                                                color: Colors.red, size: 20),
                                             onPressed: () {
                                               _deleteSong(song.id);
                                             },
+                                            padding: const EdgeInsets.all(8),
+                                            constraints: const BoxConstraints(),
                                           ),
                                         ],
                                       ),

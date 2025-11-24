@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:intl/intl.dart';
 import '../../../config/theme.dart';
 import '../../../core/api/services/featured_content_service.dart';
@@ -39,7 +38,8 @@ class _AdminFeaturedContentScreenState
     if (response.success && response.data != null) {
       setState(() {
         _featuredContent = response.data!;
-        _featuredContent.sort((a, b) => a.displayOrder.compareTo(b.displayOrder));
+        _featuredContent
+            .sort((a, b) => a.displayOrder.compareTo(b.displayOrder));
       });
     } else {
       if (mounted) {
@@ -96,9 +96,8 @@ class _AdminFeaturedContentScreenState
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(item.isActive
-                ? 'Contenido desactivado'
-                : 'Contenido activado'),
+            content: Text(
+                item.isActive ? 'Contenido desactivado' : 'Contenido activado'),
             backgroundColor: Colors.green,
           ),
         );
@@ -228,6 +227,8 @@ class _AdminFeaturedContentScreenState
                   onReorder: _moveItem,
                   itemBuilder: (context, index) {
                     final item = _featuredContent[index];
+                    // Note: ReorderableListView requires keys at the top level
+                    // Animation removed to maintain proper key positioning
                     return _FeaturedContentCard(
                       key: ValueKey(item.id),
                       item: item,
@@ -235,10 +236,7 @@ class _AdminFeaturedContentScreenState
                       onToggleActive: () => _toggleActive(item),
                       onEdit: () => _showEditDialog(item),
                       onDelete: () => _deleteItem(item),
-                    ).animate().fadeIn().slideX(
-                          begin: -0.2,
-                          delay: (50 * index).ms,
-                        );
+                    );
                   },
                 ),
       floatingActionButton: FloatingActionButton.extended(
@@ -272,13 +270,14 @@ class _FeaturedContentCard extends StatelessWidget {
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      child: ListTile(
-        leading: Row(
-          mainAxisSize: MainAxisSize.min,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
           children: [
+            // Número de orden
             Container(
-              width: 32,
-              height: 32,
+              width: 36,
+              height: 36,
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 color: AppTheme.primaryBlue.withValues(alpha: 0.2),
@@ -289,92 +288,148 @@ class _FeaturedContentCard extends StatelessWidget {
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
                   color: AppTheme.primaryBlue,
+                  fontSize: 16,
                 ),
               ),
             ),
             const SizedBox(width: 12),
-            if (item.contentImageUrl != null)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(4),
-                child: Image.network(
-                  item.contentImageUrl!,
-                  width: 50,
-                  height: 50,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => Container(
-                    width: 50,
-                    height: 50,
-                    color: Colors.grey[300],
-                    child: const Icon(Icons.music_note),
-                  ),
-                ),
-              )
-            else
-              Container(
-                width: 50,
-                height: 50,
-                color: Colors.grey[300],
-                child: Icon(
-                  item.contentType == FeaturedContentType.song
-                      ? Icons.music_note
-                      : Icons.album,
-                ),
-              ),
-          ],
-        ),
-        title: Row(
-          children: [
+
+            // Contenido principal
             Expanded(
-              child: Text(
-                item.contentTitle ?? 'Sin título',
-                style: const TextStyle(fontWeight: FontWeight.bold),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Título y badge de estado
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          item.contentTitle ?? 'Sin título',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      _StatusChip(status: item.scheduleStatus),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+
+                  // Tipo y artista
+                  Row(
+                    children: [
+                      Icon(
+                        item.contentType == FeaturedContentType.song
+                            ? Icons.music_note
+                            : Icons.album,
+                        size: 14,
+                        color: Colors.grey[500],
+                      ),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          '${item.contentType == FeaturedContentType.song ? 'Canción' : 'Álbum'} • ${item.contentArtist ?? 'Desconocido'}',
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 12,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  // Fechas programadas
+                  if (item.startDate != null || item.endDate != null) ...[
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Icon(Icons.schedule, size: 14, color: Colors.grey[500]),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            '${item.startDate != null ? dateFormat.format(item.startDate!) : 'Sin inicio'} - ${item.endDate != null ? dateFormat.format(item.endDate!) : 'Sin fin'}',
+                            style: TextStyle(
+                              color: Colors.grey[500],
+                              fontSize: 11,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
               ),
             ),
-            _StatusChip(status: item.scheduleStatus),
-          ],
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '${item.contentType == FeaturedContentType.song ? 'Canción' : 'Álbum'} • ${item.contentArtist ?? 'Desconocido'}',
-              style: TextStyle(color: Colors.grey[600], fontSize: 12),
-            ),
-            if (item.startDate != null || item.endDate != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 4),
-                child: Text(
-                  '${item.startDate != null ? 'Desde: ${dateFormat.format(item.startDate!)}' : ''} ${item.endDate != null ? 'Hasta: ${dateFormat.format(item.endDate!)}' : ''}',
-                  style: TextStyle(color: Colors.grey[500], fontSize: 11),
+            const SizedBox(width: 8),
+
+            // Botones de acción compactos
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Toggle visibility
+                IconButton(
+                  icon: Icon(
+                    item.isActive ? Icons.visibility : Icons.visibility_off,
+                    color: item.isActive ? Colors.green : Colors.grey,
+                    size: 20,
+                  ),
+                  onPressed: onToggleActive,
+                  tooltip: item.isActive ? 'Desactivar' : 'Activar',
+                  padding: const EdgeInsets.all(8),
+                  constraints: const BoxConstraints(),
                 ),
-              ),
+
+                // Menú de acciones
+                PopupMenuButton<String>(
+                  icon: const Icon(Icons.more_vert, size: 20),
+                  padding: const EdgeInsets.all(8),
+                  tooltip: 'Más acciones',
+                  onSelected: (value) {
+                    if (value == 'edit') {
+                      onEdit();
+                    } else if (value == 'delete') {
+                      onDelete();
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(
+                      value: 'edit',
+                      child: Row(
+                        children: [
+                          Icon(Icons.edit, size: 18, color: Colors.blue),
+                          SizedBox(width: 12),
+                          Text('Editar programación'),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuItem(
+                      value: 'delete',
+                      child: Row(
+                        children: [
+                          Icon(Icons.delete, size: 18, color: Colors.red),
+                          SizedBox(width: 12),
+                          Text('Eliminar'),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+
+                // Drag handle
+                const Icon(Icons.drag_handle, color: Colors.grey, size: 20),
+              ],
+            ),
           ],
         ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconButton(
-              icon: Icon(
-                item.isActive ? Icons.visibility : Icons.visibility_off,
-                color: item.isActive ? Colors.green : Colors.grey,
-              ),
-              onPressed: onToggleActive,
-              tooltip: item.isActive ? 'Desactivar' : 'Activar',
-            ),
-            IconButton(
-              icon: const Icon(Icons.edit, color: Colors.blue),
-              onPressed: onEdit,
-              tooltip: 'Editar programación',
-            ),
-            IconButton(
-              icon: const Icon(Icons.delete, color: Colors.red),
-              onPressed: onDelete,
-              tooltip: 'Eliminar',
-            ),
-            const Icon(Icons.drag_handle, color: Colors.grey),
-          ],
-        ),
-        isThreeLine: item.startDate != null || item.endDate != null,
       ),
     );
   }
@@ -585,12 +640,15 @@ class _AddFeaturedContentDialogState extends State<_AddFeaturedContentDialog> {
                             itemCount: contentList.length,
                             itemBuilder: (context, index) {
                               final item = contentList[index];
-                              final id = item is Song ? item.id : (item as Album).id;
-                              final name = item is Song ? item.name : (item as Album).name;
+                              final id =
+                                  item is Song ? item.id : (item as Album).id;
+                              final name = item is Song
+                                  ? item.name
+                                  : (item as Album).name;
                               final artist = item is Song
                                   ? item.artistName
                                   : 'Álbum de artista';
-                          
+
                               return RadioListTile<int>(
                                 value: id,
                                 title: Text(name),
@@ -619,7 +677,8 @@ class _AddFeaturedContentDialogState extends State<_AddFeaturedContentDialog> {
                             context: context,
                             initialDate: _startDate ?? DateTime.now(),
                             firstDate: DateTime.now(),
-                            lastDate: DateTime.now().add(const Duration(days: 365)),
+                            lastDate:
+                                DateTime.now().add(const Duration(days: 365)),
                           );
                           if (date != null) {
                             setState(() => _startDate = date);
@@ -646,7 +705,8 @@ class _AddFeaturedContentDialogState extends State<_AddFeaturedContentDialog> {
                             context: context,
                             initialDate: _endDate ?? DateTime.now(),
                             firstDate: DateTime.now(),
-                            lastDate: DateTime.now().add(const Duration(days: 365)),
+                            lastDate:
+                                DateTime.now().add(const Duration(days: 365)),
                           );
                           if (date != null) {
                             setState(() => _endDate = date);

@@ -70,7 +70,7 @@ class _AdminModerationHistoryScreenState
     return Scaffold(
       appBar: AppBar(
         title: const Text('Historial de Moderaciones'),
-        backgroundColor: Colors.deepPurple,
+        backgroundColor: Colors.black,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -228,14 +228,13 @@ class _AdminModerationHistoryScreenState
     );
   }
 
-  Widget _buildStatItem(
-      String label, int value, Color color, IconData icon) {
+  Widget _buildStatItem(String label, int value, Color color, IconData icon) {
     return Column(
       children: [
         Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: color.withValues(alpha:0.1),
+            color: color.withValues(alpha: 0.1),
             shape: BoxShape.circle,
           ),
           child: Icon(icon, color: color, size: 32),
@@ -303,7 +302,7 @@ class _AdminModerationHistoryScreenState
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: color.withValues(alpha:0.1),
+                      color: color.withValues(alpha: 0.1),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(icon, color: color, size: 20),
@@ -369,7 +368,7 @@ class _AdminModerationHistoryScreenState
                 padding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
+                  color: Colors.grey.shade800,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
@@ -430,7 +429,8 @@ class _AdminModerationHistoryScreenState
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(Icons.warning_amber, color: Colors.red.shade700, size: 20),
+                      Icon(Icons.warning_amber,
+                          color: Colors.red.shade700, size: 20),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Column(
