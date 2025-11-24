@@ -23,8 +23,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 import org.springframework.data.domain.Sort;
-import java.util.ArrayList;
-import java.util.List;
+
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -130,11 +129,24 @@ public class DiscoveryService {
         }
     }
 
+    /**
+     * Get artist IDs by searching artist names
+     * Searches by artistName, firstName, lastName, or full name
+     * 
+     * @param query Search query (can be partial name)
+     * @return List of artist IDs matching the query
+     */
     private List<Long> getArtistIdsByName(String query) {
+        if (query == null || query.trim().isEmpty()) {
+            return new ArrayList<>();
+        }
+        
         try {
             String url = UriComponentsBuilder.fromHttpUrl(communityServiceUrl + "/api/users/search/artist-ids")
-                    .queryParam("query", query)
+                    .queryParam("query", query.trim())
                     .toUriString();
+
+            log.debug("Searching artists with query: '{}' at URL: {}", query, url);
 
             ResponseEntity<List<Long>> response = restTemplate.exchange(
                     url,
@@ -143,9 +155,13 @@ public class DiscoveryService {
                     new ParameterizedTypeReference<List<Long>>() {}
             );
 
-            return response.getBody() != null ? response.getBody() : new ArrayList<>();
+            List<Long> artistIds = response.getBody() != null ? response.getBody() : new ArrayList<>();
+            log.info("Found {} artist(s) matching query: '{}'", artistIds.size(), query);
+            
+            return artistIds;
+            
         } catch (Exception e) {
-            log.warn("Error al obtener artistIds del community-service: {}", e.getMessage());
+            log.warn("Error searching artists by name '{}': {}", query, e.getMessage());
             return new ArrayList<>();
         }
     }

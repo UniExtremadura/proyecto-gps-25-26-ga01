@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -509,14 +510,27 @@ public class UserService {
 
     // Search methods for GA01-96
     public List<UserDTO> searchArtists(String query) {
-        List<Artist> artists = userRepository.searchArtistsByName(query);
+        if (query == null || query.trim().isEmpty()) {
+            return new ArrayList<>();
+        }
+        
+        List<User> artists = userRepository.searchArtistsByName(query.trim());
+        logger.info("Search artists query='{}' found {} results", query, artists.size());
+        
         return artists.stream()
                 .map(this::mapToDTO)
                 .collect(Collectors.toList());
     }
 
     public List<Long> searchArtistIds(String query) {
-        return userRepository.searchArtistIdsByName(query);
+        if (query == null || query.trim().isEmpty()) {
+            return new ArrayList<>();
+        }
+        
+        List<Long> artistIds = userRepository.searchArtistIdsByName(query.trim());
+        logger.info("Search artist IDs query='{}' found {} results", query, artistIds.size());
+        
+        return artistIds;
     }
 
     @Transactional
