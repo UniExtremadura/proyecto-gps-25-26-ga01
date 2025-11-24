@@ -15,6 +15,11 @@ class RecommendationsResponse extends Equatable {
   final List<RecommendedSong> newReleases;
   final List<RecommendedSong> similarToFavorites;
 
+  // NEW: More specific recommendation categories
+  final List<RecommendedSong> byPurchasedGenres;
+  final List<RecommendedSong> byPurchasedArtists;
+  final List<RecommendedSong> byLikedSongs;
+
   // Metadata
   final String algorithm;
   final int totalRecommendations;
@@ -28,6 +33,9 @@ class RecommendationsResponse extends Equatable {
     required this.trending,
     required this.newReleases,
     required this.similarToFavorites,
+    this.byPurchasedGenres = const [],
+    this.byPurchasedArtists = const [],
+    this.byLikedSongs = const [],
     required this.algorithm,
     required this.totalRecommendations,
   });
@@ -43,6 +51,9 @@ class RecommendationsResponse extends Equatable {
       trending: _parseRecommendedSongs(json['trending']),
       newReleases: _parseRecommendedSongs(json['newReleases']),
       similarToFavorites: _parseRecommendedSongs(json['similarToFavorites']),
+      byPurchasedGenres: _parseRecommendedSongs(json['byPurchasedGenres']),
+      byPurchasedArtists: _parseRecommendedSongs(json['byPurchasedArtists']),
+      byLikedSongs: _parseRecommendedSongs(json['byLikedSongs']),
       algorithm: json['algorithm'] as String,
       totalRecommendations: json['totalRecommendations'] as int,
     );
@@ -68,6 +79,9 @@ class RecommendationsResponse extends Equatable {
       'trending': trending.map((s) => s.toJson()).toList(),
       'newReleases': newReleases.map((s) => s.toJson()).toList(),
       'similarToFavorites': similarToFavorites.map((s) => s.toJson()).toList(),
+      'byPurchasedGenres': byPurchasedGenres.map((s) => s.toJson()).toList(),
+      'byPurchasedArtists': byPurchasedArtists.map((s) => s.toJson()).toList(),
+      'byLikedSongs': byLikedSongs.map((s) => s.toJson()).toList(),
       'algorithm': algorithm,
       'totalRecommendations': totalRecommendations,
     };
@@ -82,6 +96,9 @@ class RecommendationsResponse extends Equatable {
       ...trending,
       ...newReleases,
       ...similarToFavorites,
+      ...byPurchasedGenres,
+      ...byPurchasedArtists,
+      ...byLikedSongs,
     ];
   }
 
@@ -98,6 +115,9 @@ class RecommendationsResponse extends Equatable {
         trending,
         newReleases,
         similarToFavorites,
+        byPurchasedGenres,
+        byPurchasedArtists,
+        byLikedSongs,
         algorithm,
         totalRecommendations,
       ];

@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 import '../api_client.dart';
 import '../../../config/constants.dart';
 import '../../models/song.dart';
@@ -11,35 +13,59 @@ class MusicService {
 
   // Songs
   Future<ApiResponse<List<Song>>> getAllSongs() async {
-    final response = await _apiClient.get(AppConstants.songsUrl, requiresAuth: false);
+    final response =
+        await _apiClient.get(AppConstants.songsUrl, requiresAuth: false);
     if (response.success && response.data != null) {
-      final songs = (response.data as List).map((json) => Song.fromJson(json)).toList();
+      final songs =
+          (response.data as List).map((json) => Song.fromJson(json)).toList();
       return ApiResponse(success: true, data: songs);
     }
     return ApiResponse(success: false, error: response.error);
   }
 
   Future<ApiResponse<Song>> getSongById(int id) async {
-    final response = await _apiClient.get('${AppConstants.songsUrl}/$id', requiresAuth: false);
+    final response = await _apiClient.get('${AppConstants.songsUrl}/$id',
+        requiresAuth: false);
     if (response.success && response.data != null) {
       return ApiResponse(success: true, data: Song.fromJson(response.data));
     }
     return ApiResponse(success: false, error: response.error);
   }
 
+  /// CRITICAL FIX: Increment play count for a song
+  /// This tracks when users play a song and updates artist metrics
+  Future<ApiResponse<Song>> incrementPlays(int id) async {
+    try {
+      final response = await _apiClient
+          .post('${AppConstants.songsUrl}/$id/plays', requiresAuth: false);
+      if (response.success && response.data != null) {
+        return ApiResponse(success: true, data: Song.fromJson(response.data));
+      }
+      return ApiResponse(success: false, error: response.error);
+    } catch (e) {
+      // Log error but don't fail playback if this endpoint fails
+      debugPrint('Error incrementing plays for song $id: $e');
+      return ApiResponse(success: false, error: 'Failed to increment plays');
+    }
+  }
+
   Future<ApiResponse<List<Song>>> getSongsByArtist(int artistId) async {
-    final response = await _apiClient.get('${AppConstants.songsUrl}/artist/$artistId', requiresAuth: false);
+    final response = await _apiClient
+        .get('${AppConstants.songsUrl}/artist/$artistId', requiresAuth: false);
     if (response.success && response.data != null) {
-      final songs = (response.data as List).map((json) => Song.fromJson(json)).toList();
+      final songs =
+          (response.data as List).map((json) => Song.fromJson(json)).toList();
       return ApiResponse(success: true, data: songs);
     }
     return ApiResponse(success: false, error: response.error);
   }
 
   Future<ApiResponse<List<Song>>> getSongsByGenre(int genreId) async {
-    final response = await _apiClient.get('${AppConstants.songsUrl}/genre/$genreId', requiresAuth: false);
+    final response = await _apiClient
+        .get('${AppConstants.songsUrl}/genre/$genreId', requiresAuth: false);
     if (response.success && response.data != null) {
-      final songs = (response.data as List).map((json) => Song.fromJson(json)).toList();
+      final songs =
+          (response.data as List).map((json) => Song.fromJson(json)).toList();
       return ApiResponse(success: true, data: songs);
     }
     return ApiResponse(success: false, error: response.error);
@@ -47,16 +73,19 @@ class MusicService {
 
   // Albums
   Future<ApiResponse<List<Album>>> getAllAlbums() async {
-    final response = await _apiClient.get(AppConstants.albumsUrl, requiresAuth: false);
+    final response =
+        await _apiClient.get(AppConstants.albumsUrl, requiresAuth: false);
     if (response.success && response.data != null) {
-      final albums = (response.data as List).map((json) => Album.fromJson(json)).toList();
+      final albums =
+          (response.data as List).map((json) => Album.fromJson(json)).toList();
       return ApiResponse(success: true, data: albums);
     }
     return ApiResponse(success: false, error: response.error);
   }
 
   Future<ApiResponse<Album>> getAlbumById(int id) async {
-    final response = await _apiClient.get('${AppConstants.albumsUrl}/$id', requiresAuth: false);
+    final response = await _apiClient.get('${AppConstants.albumsUrl}/$id',
+        requiresAuth: false);
     if (response.success && response.data != null) {
       return ApiResponse(success: true, data: Album.fromJson(response.data));
     }
@@ -64,27 +93,33 @@ class MusicService {
   }
 
   Future<ApiResponse<List<Album>>> getAlbumsByArtist(int artistId) async {
-    final response = await _apiClient.get('${AppConstants.albumsUrl}/artist/$artistId', requiresAuth: false);
+    final response = await _apiClient
+        .get('${AppConstants.albumsUrl}/artist/$artistId', requiresAuth: false);
     if (response.success && response.data != null) {
-      final albums = (response.data as List).map((json) => Album.fromJson(json)).toList();
+      final albums =
+          (response.data as List).map((json) => Album.fromJson(json)).toList();
       return ApiResponse(success: true, data: albums);
     }
     return ApiResponse(success: false, error: response.error);
   }
 
   Future<ApiResponse<List<Album>>> getAlbumsByGenre(int genreId) async {
-    final response = await _apiClient.get('${AppConstants.albumsUrl}/genre/$genreId', requiresAuth: false);
+    final response = await _apiClient
+        .get('${AppConstants.albumsUrl}/genre/$genreId', requiresAuth: false);
     if (response.success && response.data != null) {
-      final albums = (response.data as List).map((json) => Album.fromJson(json)).toList();
+      final albums =
+          (response.data as List).map((json) => Album.fromJson(json)).toList();
       return ApiResponse(success: true, data: albums);
     }
     return ApiResponse(success: false, error: response.error);
   }
 
   Future<ApiResponse<List<Song>>> getAlbumSongs(int albumId) async {
-    final response = await _apiClient.get('${AppConstants.songsUrl}/album/$albumId', requiresAuth: false);
+    final response = await _apiClient
+        .get('${AppConstants.songsUrl}/album/$albumId', requiresAuth: false);
     if (response.success && response.data != null) {
-      final songs = (response.data as List).map((json) => Song.fromJson(json)).toList();
+      final songs =
+          (response.data as List).map((json) => Song.fromJson(json)).toList();
       return ApiResponse(success: true, data: songs);
     }
     return ApiResponse(success: false, error: response.error);
@@ -96,16 +131,19 @@ class MusicService {
 
   // Genres
   Future<ApiResponse<List<Genre>>> getAllGenres() async {
-    final response = await _apiClient.get(AppConstants.genresUrl, requiresAuth: false);
+    final response =
+        await _apiClient.get(AppConstants.genresUrl, requiresAuth: false);
     if (response.success && response.data != null) {
-      final genres = (response.data as List).map((json) => Genre.fromJson(json)).toList();
+      final genres =
+          (response.data as List).map((json) => Genre.fromJson(json)).toList();
       return ApiResponse(success: true, data: genres);
     }
     return ApiResponse(success: false, error: response.error);
   }
 
   Future<ApiResponse<Genre>> getGenreById(int id) async {
-    final response = await _apiClient.get('${AppConstants.genresUrl}/$id', requiresAuth: false);
+    final response = await _apiClient.get('${AppConstants.genresUrl}/$id',
+        requiresAuth: false);
     if (response.success && response.data != null) {
       return ApiResponse(success: true, data: Genre.fromJson(response.data));
     }
@@ -113,22 +151,29 @@ class MusicService {
   }
 
   // Collaborators
-  Future<ApiResponse<List<Collaborator>>> getSongCollaborators(int songId) async {
-    final response = await _apiClient.get('${AppConstants.collaborationsUrl}/song/$songId', requiresAuth: false);
+  Future<ApiResponse<List<Collaborator>>> getSongCollaborators(
+      int songId) async {
+    final response = await _apiClient.get(
+        '${AppConstants.collaborationsUrl}/song/$songId',
+        requiresAuth: false);
     if (response.success && response.data != null) {
-      final collaborators = (response.data as List).map((json) => Collaborator.fromJson(json)).toList();
+      final collaborators = (response.data as List)
+          .map((json) => Collaborator.fromJson(json))
+          .toList();
       return ApiResponse(success: true, data: collaborators);
     }
     return ApiResponse(success: false, error: response.error);
   }
 
-  Future<ApiResponse<List<Collaborator>>> getCollaboratorsBySongId(int songId) async {
+  Future<ApiResponse<List<Collaborator>>> getCollaboratorsBySongId(
+      int songId) async {
     return getSongCollaborators(songId);
   }
 
   // Create Song (Artist only)
   Future<ApiResponse<Song>> createSong(Map<String, dynamic> songData) async {
-    final response = await _apiClient.post(AppConstants.songsUrl, body: songData);
+    final response =
+        await _apiClient.post(AppConstants.songsUrl, body: songData);
     if (response.success && response.data != null) {
       return ApiResponse(success: true, data: Song.fromJson(response.data));
     }
@@ -137,16 +182,19 @@ class MusicService {
 
   // Create Album (Artist only)
   Future<ApiResponse<Album>> createAlbum(Map<String, dynamic> albumData) async {
-    final response = await _apiClient.post(AppConstants.albumsUrl, body: albumData);
+    final response =
+        await _apiClient.post(AppConstants.albumsUrl, body: albumData);
     if (response.success && response.data != null) {
       return ApiResponse(success: true, data: Album.fromJson(response.data));
     }
     return ApiResponse(success: false, error: response.error);
   }
 
-  // Update Song (Artist only)
-  Future<ApiResponse<Song>> updateSong(int id, Map<String, dynamic> songData) async {
-    final response = await _apiClient.put('${AppConstants.songsUrl}/$id', body: songData);
+  // GA01-151: Update Song (Artist only)
+  Future<ApiResponse<Song>> updateSong(
+      int id, Map<String, dynamic> songData) async {
+    final response =
+        await _apiClient.put('${AppConstants.songsUrl}/$id', body: songData);
     if (response.success && response.data != null) {
       return ApiResponse(success: true, data: Song.fromJson(response.data));
     }
@@ -154,20 +202,12 @@ class MusicService {
   }
 
   // Update Album (Artist only)
-  Future<ApiResponse<Album>> updateAlbum(int id, Map<String, dynamic> albumData) async {
-    final response = await _apiClient.put('${AppConstants.albumsUrl}/$id', body: albumData);
+  Future<ApiResponse<Album>> updateAlbum(
+      int id, Map<String, dynamic> albumData) async {
+    final response =
+        await _apiClient.put('${AppConstants.albumsUrl}/$id', body: albumData);
     if (response.success && response.data != null) {
       return ApiResponse(success: true, data: Album.fromJson(response.data));
-    }
-    return ApiResponse(success: false, error: response.error);
-  }
-
-  Future<ApiResponse<Song>> publishSong(int id, bool published) async {
-    final response = await _apiClient.patch(
-      '${AppConstants.songsUrl}/$id/publish?published=$published',
-    );
-    if (response.success && response.data != null) {
-      return ApiResponse(success: true, data: Song.fromJson(response.data));
     }
     return ApiResponse(success: false, error: response.error);
   }
@@ -183,8 +223,20 @@ class MusicService {
     return ApiResponse(success: false, error: response.error);
   }
 
+  // GA01-152: Publish/Unpublish Song (Artist only)
+  Future<ApiResponse<Song>> publishSong(int id, bool published) async {
+    final response = await _apiClient.patch(
+      '${AppConstants.songsUrl}/$id/publish?published=$published',
+    );
+    if (response.success && response.data != null) {
+      return ApiResponse(success: true, data: Song.fromJson(response.data));
+    }
+    return ApiResponse(success: false, error: response.error);
+  }
+
   // Upload Album Cover (Artist only)
-  Future<ApiResponse<String>> uploadAlbumCover(int albumId, String filePath) async {
+  Future<ApiResponse<String>> uploadAlbumCover(
+      int albumId, String filePath) async {
     final response = await _apiClient.uploadFile(
       '${AppConstants.albumsUrl}/$albumId/cover',
       filePath,
@@ -196,47 +248,60 @@ class MusicService {
     return ApiResponse(success: false, error: response.error);
   }
 
-    // Public endpoints - Solo retornan contenido publicado
+  // Public endpoints - Solo retornan contenido publicado
   Future<ApiResponse<List<Song>>> getRecentPublishedSongs() async {
-    final response = await _apiClient.get('${AppConstants.songsUrl}/public/recent', requiresAuth: false);
+    final response = await _apiClient
+        .get('${AppConstants.songsUrl}/public/recent', requiresAuth: false);
     if (response.success && response.data != null) {
-      final songs = (response.data as List).map((json) => Song.fromJson(json)).toList();
+      final songs =
+          (response.data as List).map((json) => Song.fromJson(json)).toList();
       return ApiResponse(success: true, data: songs);
     }
     return ApiResponse(success: false, error: response.error);
   }
 
   Future<ApiResponse<List<Song>>> getTopPublishedSongs() async {
-    final response = await _apiClient.get('${AppConstants.songsUrl}/public/top', requiresAuth: false);
+    final response = await _apiClient.get('${AppConstants.songsUrl}/public/top',
+        requiresAuth: false);
     if (response.success && response.data != null) {
-      final songs = (response.data as List).map((json) => Song.fromJson(json)).toList();
+      final songs =
+          (response.data as List).map((json) => Song.fromJson(json)).toList();
       return ApiResponse(success: true, data: songs);
     }
     return ApiResponse(success: false, error: response.error);
   }
 
   Future<ApiResponse<List<Song>>> searchPublishedSongs(String query) async {
-    final response = await _apiClient.get('${AppConstants.songsUrl}/public/search?query=$query', requiresAuth: false);
+    final response = await _apiClient.get(
+        '${AppConstants.songsUrl}/public/search?query=$query',
+        requiresAuth: false);
     if (response.success && response.data != null) {
-      final songs = (response.data as List).map((json) => Song.fromJson(json)).toList();
+      final songs =
+          (response.data as List).map((json) => Song.fromJson(json)).toList();
       return ApiResponse(success: true, data: songs);
     }
     return ApiResponse(success: false, error: response.error);
   }
 
   Future<ApiResponse<List<Song>>> getPublishedSongsByGenre(int genreId) async {
-    final response = await _apiClient.get('${AppConstants.songsUrl}/public/genre/$genreId', requiresAuth: false);
+    final response = await _apiClient.get(
+        '${AppConstants.songsUrl}/public/genre/$genreId',
+        requiresAuth: false);
     if (response.success && response.data != null) {
-      final songs = (response.data as List).map((json) => Song.fromJson(json)).toList();
+      final songs =
+          (response.data as List).map((json) => Song.fromJson(json)).toList();
       return ApiResponse(success: true, data: songs);
     }
     return ApiResponse(success: false, error: response.error);
   }
 
   Future<ApiResponse<List<Album>>> getRecentPublishedAlbums() async {
-    final response = await _apiClient.get('${AppConstants.albumsUrl}/public/latest-releases', requiresAuth: false);
+    final response = await _apiClient.get(
+        '${AppConstants.albumsUrl}/public/latest-releases',
+        requiresAuth: false);
     if (response.success && response.data != null) {
-      final albums = (response.data as List).map((json) => Album.fromJson(json)).toList();
+      final albums =
+          (response.data as List).map((json) => Album.fromJson(json)).toList();
       return ApiResponse(success: true, data: albums);
     }
     return ApiResponse(success: false, error: response.error);
@@ -260,7 +325,8 @@ class MusicService {
 
   // Artists
   Future<ApiResponse<Artist>> getArtistById(int id) async {
-    final response = await _apiClient.get('/api/users/$id', requiresAuth: false);
+    final response =
+        await _apiClient.get('/api/users/$id', requiresAuth: false);
     if (response.success && response.data != null) {
       return ApiResponse(success: true, data: Artist.fromJson(response.data));
     }
