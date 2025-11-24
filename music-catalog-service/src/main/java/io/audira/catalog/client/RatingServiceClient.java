@@ -31,7 +31,7 @@ public class RatingServiceClient {
      */
     public RatingStatsDTO getEntityRatingStats(String entityType, Long entityId) {
         String url = String.format(
-            "%s/api/ratings/stats/%s/%d",
+            "%s/api/ratings/entity/%s/%d/stats",
             communityServiceUrl,
             entityType.toUpperCase(),
             entityId
