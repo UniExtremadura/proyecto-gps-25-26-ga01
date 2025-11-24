@@ -37,7 +37,7 @@ public class DiscoveryService {
     private final UserServiceClient userServiceClient;
     private final RestTemplate restTemplate = new RestTemplate();
 
-    @Value("${community.service.url:http://172.16.0.4:8081}")
+    @Value("${community.service.url:http://172.16.0.4:9001}")
     private String communityServiceUrl;
 
     private static final int RECOMMENDATIONS_PER_CATEGORY = 10;
