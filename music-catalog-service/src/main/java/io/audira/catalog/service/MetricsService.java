@@ -176,23 +176,21 @@ public class MetricsService {
         List<OrderDTO> allOrders = commerceServiceClient.getAllOrders();
         logger.info("📦 Retrieved {} total orders from commerce service", allOrders.size());
 
+        // CRITICAL FIX: Calculate sales BEFORE generating daily metrics
+        Map<String, Object> salesMetrics = calculateArtistSales(artistSongs, allOrders);
+        Long totalSales = (Long) salesMetrics.get("totalSales");
+        BigDecimal totalRevenue = (BigDecimal) salesMetrics.get("totalRevenue");
+
         // Generate daily metrics for chart based on real data
         List<ArtistMetricsDetailed.DailyMetric> dailyMetrics = generateDailyMetricsWithRealData(
                 artistSongs, allOrders, startDate, endDate, totalPlays
         );
 
-        // Calculate period totals
-        Long periodPlays = dailyMetrics.stream()
-                .mapToLong(ArtistMetricsDetailed.DailyMetric::getPlays)
-                .sum();
-
-        Long periodSales = dailyMetrics.stream()
-                .mapToLong(ArtistMetricsDetailed.DailyMetric::getSales)
-                .sum();
-
-        BigDecimal periodRevenue = dailyMetrics.stream()
-                .map(ArtistMetricsDetailed.DailyMetric::getRevenue)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        // CRITICAL FIX: Period totals should be the ACTUAL totals from the database
+        // Not the sum of distributed daily metrics
+        Long periodPlays = totalPlays;  // Use actual total plays from songs database
+        Long periodSales = totalSales;  // Use actual sales from orders
+        BigDecimal periodRevenue = totalRevenue;  // Use actual revenue from orders
 
         Long periodComments = dailyMetrics.stream()
                 .mapToLong(ArtistMetricsDetailed.DailyMetric::getComments)
@@ -414,6 +412,9 @@ public class MetricsService {
             LocalDate endDate,
             Long totalPlays
     ) {
+        logger.info("📈 Generating daily metrics from {} to {}", startDate, endDate);
+        logger.info("   Total plays to distribute: {}", totalPlays);
+
         List<ArtistMetricsDetailed.DailyMetric> metrics = new ArrayList<>();
         LocalDate currentDate = startDate;
         long daysInRange = endDate.toEpochDay() - startDate.toEpochDay() + 1;
@@ -421,6 +422,7 @@ public class MetricsService {
         // Get real sales data
         Map<String, Object> salesMetrics = calculateArtistSales(artistSongs, allOrders);
         Long totalSales = (Long) salesMetrics.get("totalSales");
+        logger.info("   Total sales to distribute: {}", totalSales);
 
         // Get real rating stats
         Set<Long> songIds = artistSongs.stream().map(Song::getId).collect(Collectors.toSet());
@@ -437,15 +439,48 @@ public class MetricsService {
 
         double avgRating = ratingCount > 0 ? totalRatingSum / ratingCount : 0.0;
 
-        // Distribute totals across days with realistic variation
+        // CRITICAL FIX: Distribute totals properly, handling small values
+        // Instead of dividing (which loses data with small numbers), we'll assign all to today
         Random random = new Random(42); // Fixed seed for consistent data
 
-        while (!currentDate.isAfter(endDate)) {
-            // Distribute plays with variation
-            long dailyPlays = (totalPlays / daysInRange) + random.nextInt((int) Math.max(1, totalPlays / daysInRange / 5));
+        // For small numbers, concentrate all activity on the most recent days
+        // For larger numbers, distribute across the period
+        long remainingPlays = totalPlays;
+        long remainingSales = totalSales;
+        long daysToDistribute = Math.min(daysInRange, 7); // Concentrate in last 7 days
 
-            // Distribute sales with variation
-            long dailySales = (totalSales / daysInRange) + random.nextInt((int) Math.max(1, totalSales / daysInRange / 5));
+        while (!currentDate.isAfter(endDate)) {
+            long dailyPlays = 0;
+            long dailySales = 0;
+
+            // If we're in the last 'daysToDistribute' days, assign the metrics
+            boolean isRecentDay = (endDate.toEpochDay() - currentDate.toEpochDay()) < daysToDistribute;
+
+            if (isRecentDay && remainingPlays > 0) {
+                // For small totals (< 10), assign randomly to recent days
+                if (totalPlays < 10) {
+                    dailyPlays = random.nextBoolean() ? remainingPlays : 0;
+                } else {
+                    // For larger totals, distribute more evenly
+                    dailyPlays = remainingPlays / daysToDistribute;
+                }
+                remainingPlays -= dailyPlays;
+            }
+
+            if (isRecentDay && remainingSales > 0) {
+                if (totalSales < 10) {
+                    dailySales = random.nextBoolean() ? remainingSales : 0;
+                } else {
+                    dailySales = remainingSales / daysToDistribute;
+                }
+                remainingSales -= dailySales;
+            }
+
+            // On the last day, assign any remaining metrics
+            if (currentDate.equals(endDate)) {
+                dailyPlays += remainingPlays;
+                dailySales += remainingSales;
+            }
 
             // Calculate revenue based on actual sales (assuming average price of $0.99)
             BigDecimal dailyRevenue = BigDecimal.valueOf(dailySales * 0.99)
@@ -458,6 +493,11 @@ public class MetricsService {
             double dailyRating = avgRating > 0 ? avgRating + (random.nextDouble() * 0.4 - 0.2) : 0.0;
             dailyRating = Math.max(0.0, Math.min(5.0, dailyRating));
 
+            if (dailyPlays > 0 || dailySales > 0) {
+                logger.debug("   Day {}: Plays={}, Sales={}, Revenue=${}",
+                    currentDate, dailyPlays, dailySales, dailyRevenue);
+            }
+
             metrics.add(ArtistMetricsDetailed.DailyMetric.builder()
                     .date(currentDate)
                     .plays(dailyPlays)
@@ -469,6 +509,9 @@ public class MetricsService {
 
             currentDate = currentDate.plusDays(1);
         }
+
+        long totalDistributed = metrics.stream().mapToLong(ArtistMetricsDetailed.DailyMetric::getPlays).sum();
+        logger.info("📈 Daily metrics generated: {} days, {} total plays distributed", metrics.size(), totalDistributed);
 
         return metrics;
     }
