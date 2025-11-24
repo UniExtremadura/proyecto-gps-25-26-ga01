@@ -30,6 +30,14 @@ public class SongService {
             throw new IllegalArgumentException("At least one genre is required");
         }
 
+        // GA01-162: Forzar estado inicial de moderación
+        // Todas las canciones nuevas deben estar en PENDING y ocultas
+        song.setModerationStatus(ModerationStatus.PENDING);
+        song.setPublished(false);
+        song.setModeratedBy(null);
+        song.setModeratedAt(null);
+        song.setRejectionReason(null);
+
         return songRepository.save(song);
     }
 
@@ -66,6 +74,9 @@ public class SongService {
         return songRepository.searchByTitleOrArtist(query);
     }
 
+    /**
+     * GA01-162: Al actualizar una canción, vuelve a estado PENDING
+     */
     @Transactional
     public Song updateSong(Long id, Song songDetails) {
         Song song = songRepository.findById(id)
@@ -130,17 +141,22 @@ public class SongService {
         return songRepository.save(song);
     }
 
+    /**
+     * GA01-152 + GA01-162: Publicar o ocultar una canción
+     * Solo se puede publicar si está aprobada
+     */
     @Transactional
     public Song publishSong(Long id, boolean published) {
         Song song = songRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Song not found with id: " + id));
-        
+
         // GA01-162: Solo se puede publicar si está aprobada
         if (published && song.getModerationStatus() != ModerationStatus.APPROVED) {
             throw new IllegalArgumentException(
                 "No se puede publicar una canción que no está aprobada. Estado actual: " +
                 song.getModerationStatus().getDisplayName());
         }
+
         song.setPublished(published);
         return songRepository.save(song);
     }
