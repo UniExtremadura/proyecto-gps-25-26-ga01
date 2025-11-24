@@ -1,5 +1,3 @@
-// ignore_for_file: use_build_context_synchronously
-
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
@@ -132,6 +130,7 @@ class _CollaborationsScreenState extends State<CollaborationsScreen>
   }
 
   Future<void> _removeCollaboration(Collaborator collaboration) async {
+    final currentContext = context;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -166,7 +165,8 @@ class _CollaborationsScreenState extends State<CollaborationsScreen>
         final response =
             await _collaborationService.deleteCollaboration(collaboration.id);
         if (response.success) {
-          ScaffoldMessenger.of(context).showSnackBar(
+          if(!currentContext.mounted) return;
+          ScaffoldMessenger.of(currentContext).showSnackBar(
             const SnackBar(
               content: Text('Colaboración eliminada exitosamente'),
               backgroundColor: Colors.green,
@@ -177,7 +177,8 @@ class _CollaborationsScreenState extends State<CollaborationsScreen>
           throw Exception(response.error ?? 'Error desconocido');
         }
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        if(!currentContext.mounted) return;
+        ScaffoldMessenger.of(currentContext).showSnackBar(
           SnackBar(
             content: Text('Error: $e'),
             backgroundColor: Colors.red,

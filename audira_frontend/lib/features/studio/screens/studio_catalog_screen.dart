@@ -1,5 +1,3 @@
-// ignore_for_file: use_build_context_synchronously
-
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
@@ -110,6 +108,7 @@ class _StudioCatalogScreenState extends State<StudioCatalogScreen>
 
   // GA01-152 y GA01-162: Toggle publicar/ocultar canción
   Future<void> _toggleSongPublished(Song song) async {
+    final currentContext = context;
     // GA01-162: Verificar estado de moderación antes de publicar
     if (!song.published && song.moderationStatus != 'APPROVED') {
       String message;
@@ -142,7 +141,8 @@ class _StudioCatalogScreenState extends State<StudioCatalogScreen>
     try {
       final response = await _musicService.publishSong(song.id, !song.published);
       if (response.success) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        if(!currentContext.mounted) return;
+        ScaffoldMessenger.of(currentContext).showSnackBar(
           SnackBar(
             content: Text(song.published
                 ? 'Canción ocultada exitosamente'
@@ -151,12 +151,14 @@ class _StudioCatalogScreenState extends State<StudioCatalogScreen>
         );
         _loadCatalog();
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
+        if(!currentContext.mounted) return;
+        ScaffoldMessenger.of(currentContext).showSnackBar(
           SnackBar(content: Text('Error: ${response.error}')),
         );
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      if(!currentContext.mounted) return;
+      ScaffoldMessenger.of(currentContext).showSnackBar(
         SnackBar(content: Text('Error: $e')),
       );
     }
@@ -164,6 +166,7 @@ class _StudioCatalogScreenState extends State<StudioCatalogScreen>
 
   // GA01-152 y GA01-162: Toggle publicar/ocultar álbum
   Future<void> _toggleAlbumPublished(Album album) async {
+    final currentContext = context;
     // GA01-162: Verificar estado de moderación antes de publicar
     if (!album.published && album.moderationStatus != 'APPROVED') {
       String message;
@@ -197,7 +200,8 @@ class _StudioCatalogScreenState extends State<StudioCatalogScreen>
       final response =
           await _musicService.publishAlbum(album.id, !album.published);
       if (response.success) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        if(!currentContext.mounted) return;
+        ScaffoldMessenger.of(currentContext).showSnackBar(
           SnackBar(
             content: Text(album.published
                 ? 'Álbum ocultado exitosamente'
@@ -206,18 +210,21 @@ class _StudioCatalogScreenState extends State<StudioCatalogScreen>
         );
         _loadCatalog();
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
+        if(!currentContext.mounted) return;
+        ScaffoldMessenger.of(currentContext).showSnackBar(
           SnackBar(content: Text('Error: ${response.error}')),
         );
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      if(!currentContext.mounted) return;
+      ScaffoldMessenger.of(currentContext).showSnackBar(
         SnackBar(content: Text('Error: $e')),
       );
     }
   }
 
   Future<void> _deleteSong(int songId) async {
+    final currentContext = context;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -242,13 +249,15 @@ class _StudioCatalogScreenState extends State<StudioCatalogScreen>
       try {
         final response = await _musicService.deleteSong(songId);
         if (response.success) {
-          ScaffoldMessenger.of(context).showSnackBar(
+          if(!currentContext.mounted) return;
+          ScaffoldMessenger.of(currentContext).showSnackBar(
             const SnackBar(content: Text('Canción eliminada exitosamente')),
           );
           _loadCatalog();
         }
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        if(!currentContext.mounted) return;
+        ScaffoldMessenger.of(currentContext).showSnackBar(
           SnackBar(content: Text('Error: $e')),
         );
       }
@@ -256,6 +265,7 @@ class _StudioCatalogScreenState extends State<StudioCatalogScreen>
   }
 
   Future<void> _deleteAlbum(int albumId) async {
+    final currentContext = context;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -280,13 +290,15 @@ class _StudioCatalogScreenState extends State<StudioCatalogScreen>
       try {
         final response = await _musicService.deleteAlbum(albumId);
         if (response.success) {
-          ScaffoldMessenger.of(context).showSnackBar(
+          if(!currentContext.mounted) return;
+          ScaffoldMessenger.of(currentContext).showSnackBar(
             const SnackBar(content: Text('Álbum eliminado exitosamente')),
           );
           _loadCatalog();
         }
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        if(!currentContext.mounted) return;
+        ScaffoldMessenger.of(currentContext).showSnackBar(
           SnackBar(content: Text('Error: $e')),
         );
       }

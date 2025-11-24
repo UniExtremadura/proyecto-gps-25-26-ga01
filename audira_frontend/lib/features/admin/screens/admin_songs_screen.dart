@@ -110,6 +110,7 @@ class _AdminSongsScreenState extends State<AdminSongsScreen> {
 
   // GA01-162: Aprobar canción
   Future<void> _approveSong(Song song) async {
+    final currentContext = context;
     final authProvider = context.read<AuthProvider>();
     final adminId = authProvider.currentUser?.id;
 
@@ -132,7 +133,8 @@ class _AdminSongsScreenState extends State<AdminSongsScreen> {
             await _moderationService.approveSong(song.id, adminId);
 
         if (response.success) {
-          ScaffoldMessenger.of(context).showSnackBar(
+          if(!currentContext.mounted) return;
+          ScaffoldMessenger.of(currentContext).showSnackBar(
             SnackBar(
               content: Text('Canción "${song.name}" aprobada exitosamente'),
               backgroundColor: Colors.green,
@@ -140,7 +142,8 @@ class _AdminSongsScreenState extends State<AdminSongsScreen> {
           );
           _loadSongs();
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
+          if(!currentContext.mounted) return;
+          ScaffoldMessenger.of(currentContext).showSnackBar(
             SnackBar(
               content: Text(response.error ?? 'Error al aprobar la canción'),
               backgroundColor: Colors.red,
@@ -148,7 +151,8 @@ class _AdminSongsScreenState extends State<AdminSongsScreen> {
           );
         }
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        if(!currentContext.mounted) return;
+        ScaffoldMessenger.of(currentContext).showSnackBar(
           SnackBar(
             content: Text('Error: $e'),
             backgroundColor: Colors.red,
@@ -160,6 +164,7 @@ class _AdminSongsScreenState extends State<AdminSongsScreen> {
 
   // GA01-162: Rechazar canción
   Future<void> _rejectSong(Song song) async {
+    final currentContext = context;
     final authProvider = context.read<AuthProvider>();
     final adminId = authProvider.currentUser?.id;
 
@@ -186,7 +191,8 @@ class _AdminSongsScreenState extends State<AdminSongsScreen> {
         );
 
         if (response.success) {
-          ScaffoldMessenger.of(context).showSnackBar(
+          if(!currentContext.mounted) return;
+          ScaffoldMessenger.of(currentContext).showSnackBar(
             SnackBar(
               content: Text('Canción "${song.name}" rechazada'),
               backgroundColor: Colors.orange,
@@ -194,7 +200,8 @@ class _AdminSongsScreenState extends State<AdminSongsScreen> {
           );
           _loadSongs();
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
+          if(!currentContext.mounted) return;
+          ScaffoldMessenger.of(currentContext).showSnackBar(
             SnackBar(
               content: Text(response.error ?? 'Error al rechazar la canción'),
               backgroundColor: Colors.red,
@@ -202,7 +209,8 @@ class _AdminSongsScreenState extends State<AdminSongsScreen> {
           );
         }
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        if(!currentContext.mounted) return;
+        ScaffoldMessenger.of(currentContext).showSnackBar(
           SnackBar(
             content: Text('Error: $e'),
             backgroundColor: Colors.red,
@@ -213,6 +221,7 @@ class _AdminSongsScreenState extends State<AdminSongsScreen> {
   }
 
   Future<void> _deleteSong(int songId) async {
+    final currentContext = context;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -236,19 +245,22 @@ class _AdminSongsScreenState extends State<AdminSongsScreen> {
       try {
         final response = await _musicService.deleteSong(songId);
         if (response.success) {
-          ScaffoldMessenger.of(context).showSnackBar(
+          if(!currentContext.mounted) return;
+          ScaffoldMessenger.of(currentContext).showSnackBar(
             const SnackBar(content: Text('Song deleted successfully')),
           );
           _loadSongs();
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
+          if(!currentContext.mounted) return;
+          ScaffoldMessenger.of(currentContext).showSnackBar(
             SnackBar(
               content: Text(response.error ?? 'Failed to delete song'),
             ),
           );
         }
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        if(!currentContext.mounted) return;
+        ScaffoldMessenger.of(currentContext).showSnackBar(
           SnackBar(content: Text('Error: $e')),
         );
       }
