@@ -24,7 +24,7 @@ class AudioProvider with ChangeNotifier {
   bool _demoFinished = false;
   double _volume = 0.5; // Volume from 0.0 to 1.0
   // -> NUEVA VARIABLE DE ESTADO para controlar la concurrencia en seek
-  bool _isSeekingInternally = false; 
+  bool _isSeekingInternally = false;
 
   Song? get currentSong => _currentSong;
   List<Song> get queue => _queue;
@@ -58,20 +58,20 @@ class AudioProvider with ChangeNotifier {
 
     // Initialize volume to 50%
     await _audioPlayer.setVolume(_volume);
-    
+
     _audioPlayer.positionStream.listen((position) {
       // 1. Ignorar si estamos en un seek manual
       if (_isSeekingInternally) {
-        return; 
+        return;
       }
-      
+
       // 2. MITIGACIÓN CRÍTICA: Ignorar micro-actualizaciones cerca del final (500ms)
-      if (!_isDemoMode && 
+      if (!_isDemoMode &&
           _totalDuration > Duration.zero &&
           position.inMilliseconds >= _totalDuration.inMilliseconds - 500) {
         return;
       }
-      
+
       _currentPosition = position;
 
       // Lógica de modo Demo
@@ -107,9 +107,9 @@ class AudioProvider with ChangeNotifier {
 
       if (state.processingState == ProcessingState.completed) {
         // CORRECCIÓN CRÍTICA: Forzar el reset síncrono del slider a 0
-        _currentPosition = Duration.zero; 
-        notifyListeners(); 
-        
+        _currentPosition = Duration.zero;
+        notifyListeners();
+
         _handleSongCompletion();
       }
 
@@ -157,6 +157,15 @@ class AudioProvider with ChangeNotifier {
           // Start playback
           await _audioPlayer.play();
           debugPrint('   ▶️ Reproducción iniciada');
+
+          // CRITICAL FIX: Increment play count for metrics tracking
+          // This is fire-and-forget, we don't wait for the response
+          _musicService.incrementPlays(song.id).then((_) {
+            debugPrint('   📊 Play count incremented for song: ${song.name}');
+          }).catchError((error) {
+            debugPrint('   ⚠️ Failed to increment play count: $error');
+            // Don't fail playback if metrics fail
+          });
         } catch (e) {
           debugPrint('   ❌ Error cargando/reproduciendo audio: $e');
           rethrow;
@@ -261,7 +270,7 @@ class AudioProvider with ChangeNotifier {
 
       await _audioPlayer.seek(position);
 
-      _currentPosition = position; 
+      _currentPosition = position;
 
       await Future.delayed(const Duration(milliseconds: 100));
 
@@ -280,7 +289,6 @@ class AudioProvider with ChangeNotifier {
     await _audioPlayer.setVolume(_volume);
     notifyListeners();
   }
-
 
   void toggleShuffle() {
     _isShuffleEnabled = !_isShuffleEnabled;

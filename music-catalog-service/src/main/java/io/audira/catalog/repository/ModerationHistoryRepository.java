@@ -2,6 +2,7 @@ package io.audira.catalog.repository;
 
 import io.audira.catalog.model.ModerationHistory;
 import io.audira.catalog.model.ModerationStatus;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
@@ -62,6 +63,7 @@ public interface ModerationHistoryRepository extends JpaRepository<ModerationHis
 
     /**
      * Obtener últimas N moderaciones
+     * Usar Pageable.ofSize(n) para limitar resultados
      */
-    List<ModerationHistory> findTopNByOrderByModeratedAtDesc(int limit);
+    List<ModerationHistory> findAllByOrderByModeratedAtDesc(Pageable pageable);
 }

@@ -272,6 +272,7 @@ public class MetricsService {
 
     /**
      * Calculate sales metrics for an artist from order data
+     * CRITICAL FIX: Only counts orders with DELIVERED status (successfully paid orders)
      */
     private Map<String, Object> calculateArtistSales(List<Song> artistSongs, List<OrderDTO> allOrders) {
         Set<Long> artistSongIds = artistSongs.stream()
@@ -286,6 +287,11 @@ public class MetricsService {
         BigDecimal revenueLast30Days = BigDecimal.ZERO;
 
         for (OrderDTO order : allOrders) {
+            // CRITICAL FIX: Only count DELIVERED orders (successfully paid)
+            if (order.getStatus() == null || !"DELIVERED".equals(order.getStatus())) {
+                continue;
+            }
+
             if (order.getItems() == null) continue;
 
             for (OrderItemDTO item : order.getItems()) {
@@ -315,12 +321,18 @@ public class MetricsService {
 
     /**
      * Calculate sales metrics for a specific song from order data
+     * CRITICAL FIX: Only counts orders with DELIVERED status (successfully paid orders)
      */
     private Map<String, Object> calculateSongSales(Long songId, List<OrderDTO> allOrders) {
         long totalSales = 0;
         BigDecimal totalRevenue = BigDecimal.ZERO;
 
         for (OrderDTO order : allOrders) {
+            // CRITICAL FIX: Only count DELIVERED orders (successfully paid)
+            if (order.getStatus() == null || !"DELIVERED".equals(order.getStatus())) {
+                continue;
+            }
+
             if (order.getItems() == null) continue;
 
             for (OrderItemDTO item : order.getItems()) {
