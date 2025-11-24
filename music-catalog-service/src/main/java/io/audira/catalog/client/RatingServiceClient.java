@@ -1,3 +1,4 @@
+
 package io.audira.catalog.client;
 
 import io.audira.catalog.dto.RatingStatsDTO;
@@ -38,15 +39,15 @@ public class RatingServiceClient {
         );
 
         try {
-            log.debug("Fetching rating stats for {} {} from URL: {}", entityType, entityId, url);
+            log.info("⭐ Fetching rating stats for {} {} from URL: {}", entityType, entityId, url);
             RatingStatsDTO stats = restTemplate.getForObject(url, RatingStatsDTO.class);
 
             if (stats == null) {
-                log.warn("Received null response from rating service for {} {}", entityType, entityId);
+                log.warn("❌ Received null response from rating service for {} {}", entityType, entityId);
                 return createFallbackStats(entityType, entityId);
             }
 
-            log.debug("Rating stats retrieved successfully: {} {} - avg: {}, total: {}",
+            log.info("✅ Rating stats retrieved successfully: {} {} - avg: {}, total: {}",
                     entityType, entityId, stats.getAverageRating(), stats.getTotalRatings());
             return stats;
 

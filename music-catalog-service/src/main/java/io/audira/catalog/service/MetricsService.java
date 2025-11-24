@@ -196,9 +196,35 @@ public class MetricsService {
                 .mapToLong(ArtistMetricsDetailed.DailyMetric::getComments)
                 .sum();
 
-        // Get real rating stats
-        RatingStatsDTO ratingStats = ratingServiceClient.getArtistRatingStats(artistId);
-        Double averageRating = ratingStats.getAverageRating() != null ? ratingStats.getAverageRating() : 0.0;
+        // CRITICAL FIX: Calculate artist's average rating from their songs
+        // Artist rating = average of all song ratings
+        logger.info("⭐ Calculating artist average rating from song ratings...");
+
+        double totalRatingSum = 0.0;
+        int songsWithRatings = 0;
+        Long totalRatingsCount = 0L;
+
+        for (Song song : artistSongs) {
+            RatingStatsDTO songStats = ratingServiceClient.getEntityRatingStats("SONG", song.getId());
+            if (songStats.getAverageRating() != null && songStats.getAverageRating() > 0) {
+                totalRatingSum += songStats.getAverageRating();
+                songsWithRatings++;
+                totalRatingsCount += (songStats.getTotalRatings() != null ? songStats.getTotalRatings() : 0L);
+
+                logger.info("   Song '{}' (ID: {}) - Avg: {}, Total ratings: {}",
+                    song.getTitle(), song.getId(), songStats.getAverageRating(), songStats.getTotalRatings());
+            } else {
+                logger.info("   Song '{}' (ID: {}) - No ratings yet", song.getTitle(), song.getId());
+            }
+        }
+
+        Double averageRating = songsWithRatings > 0 ? totalRatingSum / songsWithRatings : 0.0;
+
+        logger.info("⭐ Artist rating calculation:");
+        logger.info("   Songs with ratings: {} / {}", songsWithRatings, artistSongs.size());
+        logger.info("   Sum of song ratings: {}", totalRatingSum);
+        logger.info("   Average rating: {} / {} = {}", totalRatingSum, songsWithRatings, averageRating);
+        logger.info("   Total individual ratings: {}", totalRatingsCount);
 
         logger.info("📊 FINAL METRICS SUMMARY for artist {}:", artistId);
         logger.info("   Artist: {}", artistName);
