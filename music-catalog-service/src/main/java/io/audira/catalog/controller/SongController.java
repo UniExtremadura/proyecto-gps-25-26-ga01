@@ -3,6 +3,8 @@ package io.audira.catalog.controller;
 import io.audira.catalog.model.Song;
 import io.audira.catalog.service.SongService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -14,6 +16,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/songs")
 @RequiredArgsConstructor
+@Slf4j
 public class SongController {
 
     private final SongService songService;
@@ -102,8 +105,13 @@ public class SongController {
     @PostMapping("/{id}/play")
     public ResponseEntity<Song> incrementPlays(@PathVariable Long id) {
         try {
-            return ResponseEntity.ok(songService.incrementPlays(id));
+            log.info("📊 Incrementing play count for song ID: {}", id);
+            Song updatedSong = songService.incrementPlays(id);
+            log.info("✅ Play count incremented successfully - Song: '{}', New count: {}",
+                    updatedSong.getTitle(), updatedSong.getPlays());
+            return ResponseEntity.ok(updatedSong);
         } catch (IllegalArgumentException e) {
+            log.warn("❌ Failed to increment play count for song ID {}: {}", id, e.getMessage());
             return ResponseEntity.notFound().build();
         }
     }

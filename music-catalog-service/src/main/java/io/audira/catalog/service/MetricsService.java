@@ -161,10 +161,20 @@ public class MetricsService {
 
         // Get artist's songs
         List<Song> artistSongs = songRepository.findByArtistId(artistId);
+        logger.info("📊 Found {} songs for artist {}", artistSongs.size(), artistId);
+
+        // Log individual song play counts
+        artistSongs.forEach(song ->
+            logger.info("   Song: '{}' (ID: {}) - Plays: {}",
+                song.getTitle(), song.getId(), song.getPlays())
+        );
+
         Long totalPlays = artistSongs.stream().mapToLong(Song::getPlays).sum();
+        logger.info("✅ Total plays calculated: {}", totalPlays);
 
         // Get real orders data
         List<OrderDTO> allOrders = commerceServiceClient.getAllOrders();
+        logger.info("📦 Retrieved {} total orders from commerce service", allOrders.size());
 
         // Generate daily metrics for chart based on real data
         List<ArtistMetricsDetailed.DailyMetric> dailyMetrics = generateDailyMetricsWithRealData(
@@ -191,6 +201,16 @@ public class MetricsService {
         // Get real rating stats
         RatingStatsDTO ratingStats = ratingServiceClient.getArtistRatingStats(artistId);
         Double averageRating = ratingStats.getAverageRating() != null ? ratingStats.getAverageRating() : 0.0;
+
+        logger.info("📊 FINAL METRICS SUMMARY for artist {}:", artistId);
+        logger.info("   Artist: {}", artistName);
+        logger.info("   Period: {} to {}", startDate, endDate);
+        logger.info("   Period Plays: {}", periodPlays);
+        logger.info("   Period Sales: {}", periodSales);
+        logger.info("   Period Revenue: ${}", periodRevenue);
+        logger.info("   Period Comments: {}", periodComments);
+        logger.info("   Average Rating: {}", averageRating);
+        logger.info("   Daily Metrics: {} days", dailyMetrics.size());
 
         return ArtistMetricsDetailed.builder()
                 .artistId(artistId)

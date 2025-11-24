@@ -69,33 +69,33 @@ class ArtistMetricsSummary extends Equatable {
 
   factory ArtistMetricsSummary.fromJson(Map<String, dynamic> json) {
     return ArtistMetricsSummary(
-      artistId: json['artistId'] as int,
+      artistId: (json['artistId'] as num).toInt(),
       artistName: json['artistName'] as String,
       generatedAt: DateTime.parse(json['generatedAt'] as String),
-      totalPlays: json['totalPlays'] as int,
-      playsLast30Days: json['playsLast30Days'] as int,
+      totalPlays: (json['totalPlays'] as num).toInt(),
+      playsLast30Days: (json['playsLast30Days'] as num).toInt(),
       playsGrowthPercentage: (json['playsGrowthPercentage'] as num).toDouble(),
       averageRating: (json['averageRating'] as num).toDouble(),
-      totalRatings: json['totalRatings'] as int,
+      totalRatings: (json['totalRatings'] as num).toInt(),
       ratingsGrowthPercentage:
           (json['ratingsGrowthPercentage'] as num).toDouble(),
-      totalSales: json['totalSales'] as int,
+      totalSales: (json['totalSales'] as num).toInt(),
       totalRevenue: (json['totalRevenue'] as num).toDouble(),
-      salesLast30Days: json['salesLast30Days'] as int,
+      salesLast30Days: (json['salesLast30Days'] as num).toInt(),
       revenueLast30Days: (json['revenueLast30Days'] as num).toDouble(),
       salesGrowthPercentage: (json['salesGrowthPercentage'] as num).toDouble(),
       revenueGrowthPercentage:
           (json['revenueGrowthPercentage'] as num).toDouble(),
-      totalComments: json['totalComments'] as int,
-      commentsLast30Days: json['commentsLast30Days'] as int,
+      totalComments: (json['totalComments'] as num).toInt(),
+      commentsLast30Days: (json['commentsLast30Days'] as num).toInt(),
       commentsGrowthPercentage:
           (json['commentsGrowthPercentage'] as num).toDouble(),
-      totalSongs: json['totalSongs'] as int,
-      totalAlbums: json['totalAlbums'] as int,
-      totalCollaborations: json['totalCollaborations'] as int,
-      mostPlayedSongId: json['mostPlayedSongId'] as int?,
+      totalSongs: (json['totalSongs'] as num).toInt(),
+      totalAlbums: (json['totalAlbums'] as num).toInt(),
+      totalCollaborations: (json['totalCollaborations'] as num).toInt(),
+      mostPlayedSongId: json['mostPlayedSongId'] != null ? (json['mostPlayedSongId'] as num).toInt() : null,
       mostPlayedSongName: json['mostPlayedSongName'] as String?,
-      mostPlayedSongPlays: json['mostPlayedSongPlays'] as int?,
+      mostPlayedSongPlays: json['mostPlayedSongPlays'] != null ? (json['mostPlayedSongPlays'] as num).toInt() : null,
     );
   }
 

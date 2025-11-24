@@ -93,31 +93,53 @@ class _HomeScreenState extends State<HomeScreen> {
   /// GA01-117: Load personalized recommendations for the user
   Future<void> _loadRecommendations(int userId) async {
     try {
+      debugPrint('🔍 Loading recommendations for user $userId');
       final response = await _discoveryService.getRecommendations(userId);
 
       if (response.success && response.data != null) {
         final recommendations = response.data!;
+        debugPrint('✅ Recommendations received successfully');
+        debugPrint(
+            '   Total recommendations: ${recommendations.totalRecommendations}');
+        debugPrint(
+            '   By purchased genres: ${recommendations.byPurchasedGenres.length}');
+        debugPrint(
+            '   By purchased artists: ${recommendations.byPurchasedArtists.length}');
+        debugPrint('   By liked songs: ${recommendations.byLikedSongs.length}');
+        debugPrint(
+            '   From followed artists: ${recommendations.fromFollowedArtists.length}');
+        debugPrint('   Trending: ${recommendations.trending.length}');
+        debugPrint('   New releases: ${recommendations.newReleases.length}');
 
-        // Separate recommendations by category
-        _byPurchasedGenres = recommendations.byPurchasedGenres;
-        _byPurchasedArtists = recommendations.byPurchasedArtists;
-        _byLikedSongs = recommendations.byLikedSongs;
-        _fromFollowedArtists = recommendations.fromFollowedArtists;
-        _trending = recommendations.trending;
-        _newReleases = recommendations.newReleases;
+        setState(() {
+          // Separate recommendations by category
+          _byPurchasedGenres = recommendations.byPurchasedGenres;
+          _byPurchasedArtists = recommendations.byPurchasedArtists;
+          _byLikedSongs = recommendations.byLikedSongs;
+          _fromFollowedArtists = recommendations.fromFollowedArtists;
+          _trending = recommendations.trending;
+          _newReleases = recommendations.newReleases;
 
-        _hasRecommendations = _byPurchasedGenres.isNotEmpty ||
-            _byPurchasedArtists.isNotEmpty ||
-            _byLikedSongs.isNotEmpty ||
-            _fromFollowedArtists.isNotEmpty ||
-            _trending.isNotEmpty ||
-            _newReleases.isNotEmpty;
+          _hasRecommendations = _byPurchasedGenres.isNotEmpty ||
+              _byPurchasedArtists.isNotEmpty ||
+              _byLikedSongs.isNotEmpty ||
+              _fromFollowedArtists.isNotEmpty ||
+              _trending.isNotEmpty ||
+              _newReleases.isNotEmpty;
+
+          debugPrint('   _hasRecommendations: $_hasRecommendations');
+        });
       } else {
-        _hasRecommendations = false;
+        debugPrint('❌ Failed to load recommendations: ${response.error}');
+        setState(() {
+          _hasRecommendations = false;
+        });
       }
     } catch (e) {
-      debugPrint('Error loading recommendations: $e');
-      _hasRecommendations = false;
+      debugPrint('❌ Error loading recommendations: $e');
+      setState(() {
+        _hasRecommendations = false;
+      });
     }
   }
 

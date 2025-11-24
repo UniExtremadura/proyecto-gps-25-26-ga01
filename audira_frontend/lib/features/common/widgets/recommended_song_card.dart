@@ -200,17 +200,18 @@ class RecommendedSongCard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 2),
-                  // Show reason for recommendation
-                  Text(
-                    song.reason,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppTheme.primaryBlue,
-                          fontStyle: FontStyle.italic,
-                        ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 2),
+                  // Show reason for recommendation (if available)
+                  if (song.reason != null)
+                    Text(
+                      song.reason!,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: AppTheme.primaryBlue,
+                            fontStyle: FontStyle.italic,
+                          ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  if (song.reason != null) const SizedBox(height: 2),
                   if (song.price != null)
                     Text(
                       '\$${song.price!.toStringAsFixed(2)}',

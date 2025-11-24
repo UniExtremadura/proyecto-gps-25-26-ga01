@@ -42,7 +42,7 @@ class RecommendationsResponse extends Equatable {
 
   factory RecommendationsResponse.fromJson(Map<String, dynamic> json) {
     return RecommendationsResponse(
-      userId: json['userId'] as int,
+      userId: (json['userId'] as num).toInt(),
       generatedAt: DateTime.parse(json['generatedAt'] as String),
       basedOnListeningHistory:
           _parseRecommendedSongs(json['basedOnListeningHistory']),
@@ -55,7 +55,7 @@ class RecommendationsResponse extends Equatable {
       byPurchasedArtists: _parseRecommendedSongs(json['byPurchasedArtists']),
       byLikedSongs: _parseRecommendedSongs(json['byLikedSongs']),
       algorithm: json['algorithm'] as String,
-      totalRecommendations: json['totalRecommendations'] as int,
+      totalRecommendations: (json['totalRecommendations'] as num).toInt(),
     );
   }
 
