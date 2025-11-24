@@ -1,5 +1,3 @@
-// ignore_for_file: use_build_context_synchronously
-
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
@@ -220,7 +218,7 @@ class _SearchScreenState extends State<SearchScreen>
       _artists = [];
     } catch (e) {
       debugPrint('Search error: $e');
-      if (!currentContext.mounted) return;
+      if(!currentContext.mounted) return;
       ScaffoldMessenger.of(currentContext).showSnackBar(
         SnackBar(content: Text('Error searching: $e')),
       );

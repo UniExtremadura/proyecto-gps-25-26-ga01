@@ -1,5 +1,3 @@
-// ignore_for_file: use_build_context_synchronously
-
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
@@ -61,12 +59,14 @@ class _CollaborationInvitationsScreenState
   }
 
   Future<void> _acceptInvitation(Collaborator invitation) async {
+    final currentContext = context;
     try {
       final response =
           await _collaborationService.acceptInvitation(invitation.id);
 
       if (response.success) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        if(!currentContext.mounted) return;
+        ScaffoldMessenger.of(currentContext).showSnackBar(
           const SnackBar(
             content: Text('Invitación aceptada exitosamente'),
             backgroundColor: Colors.green,
@@ -77,7 +77,8 @@ class _CollaborationInvitationsScreenState
         throw Exception(response.error ?? 'Error desconocido');
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      if(!currentContext.mounted) return;
+      ScaffoldMessenger.of(currentContext).showSnackBar(
         SnackBar(
           content: Text('Error: $e'),
           backgroundColor: Colors.red,
@@ -87,6 +88,7 @@ class _CollaborationInvitationsScreenState
   }
 
   Future<void> _rejectInvitation(Collaborator invitation) async {
+    final currentContext = context;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -122,7 +124,8 @@ class _CollaborationInvitationsScreenState
             await _collaborationService.rejectInvitation(invitation.id);
 
         if (response.success) {
-          ScaffoldMessenger.of(context).showSnackBar(
+          if(!currentContext.mounted) return;
+          ScaffoldMessenger.of(currentContext).showSnackBar(
             const SnackBar(
               content: Text('Invitación rechazada'),
               backgroundColor: Colors.orange,
@@ -133,7 +136,8 @@ class _CollaborationInvitationsScreenState
           throw Exception(response.error ?? 'Error desconocido');
         }
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        if(!currentContext.mounted) return;
+        ScaffoldMessenger.of(currentContext).showSnackBar(
           SnackBar(
             content: Text('Error: $e'),
             backgroundColor: Colors.red,
