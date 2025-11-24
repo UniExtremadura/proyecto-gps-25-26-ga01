@@ -8,6 +8,8 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+
 import java.time.LocalDateTime;
 
 /**
@@ -79,7 +81,19 @@ public class FeaturedContent {
      */
     public enum ContentType {
         SONG,
-        ALBUM
+        ALBUM;
+
+        /**
+         * Case-insensitive deserialization for JSON
+         * Converts "song", "Song", "SONG" all to SONG enum value
+         */
+        @JsonCreator
+        public static ContentType fromString(String value) {
+            if (value == null) {
+                return null;
+            }
+            return ContentType.valueOf(value.toUpperCase());
+        }
     }
 
     /**
