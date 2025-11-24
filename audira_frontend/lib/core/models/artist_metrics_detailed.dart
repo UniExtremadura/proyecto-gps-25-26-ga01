@@ -29,17 +29,17 @@ class ArtistMetricsDetailed extends Equatable {
 
   factory ArtistMetricsDetailed.fromJson(Map<String, dynamic> json) {
     return ArtistMetricsDetailed(
-      artistId: json['artistId'] as int,
+      artistId: (json['artistId'] as num).toInt(),
       artistName: json['artistName'] as String,
       startDate: DateTime.parse(json['startDate'] as String),
       endDate: DateTime.parse(json['endDate'] as String),
       dailyMetrics: (json['dailyMetrics'] as List)
           .map((e) => DailyMetric.fromJson(e as Map<String, dynamic>))
           .toList(),
-      totalPlays: json['totalPlays'] as int,
-      totalSales: json['totalSales'] as int,
+      totalPlays: (json['totalPlays'] as num).toInt(),
+      totalSales: (json['totalSales'] as num).toInt(),
       totalRevenue: (json['totalRevenue'] as num).toDouble(),
-      totalComments: json['totalComments'] as int,
+      totalComments: (json['totalComments'] as num).toInt(),
       averageRating: (json['averageRating'] as num).toDouble(),
     );
   }
@@ -80,10 +80,10 @@ class DailyMetric extends Equatable {
   factory DailyMetric.fromJson(Map<String, dynamic> json) {
     return DailyMetric(
       date: DateTime.parse(json['date'] as String),
-      plays: json['plays'] as int,
-      sales: json['sales'] as int,
+      plays: (json['plays'] as num).toInt(),
+      sales: (json['sales'] as num).toInt(),
       revenue: (json['revenue'] as num).toDouble(),
-      comments: json['comments'] as int,
+      comments: (json['comments'] as num).toInt(),
       averageRating: (json['averageRating'] as num).toDouble(),
     );
   }

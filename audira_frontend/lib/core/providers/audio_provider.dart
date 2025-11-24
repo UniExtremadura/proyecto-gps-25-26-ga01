@@ -160,10 +160,17 @@ class AudioProvider with ChangeNotifier {
 
           // CRITICAL FIX: Increment play count for metrics tracking
           // This is fire-and-forget, we don't wait for the response
-          _musicService.incrementPlays(song.id).then((_) {
-            debugPrint('   📊 Play count incremented for song: ${song.name}');
+          debugPrint('   📊 Attempting to increment play count for song ID: ${song.id}');
+          _musicService.incrementPlays(song.id).then((response) {
+            if (response.success && response.data != null) {
+              debugPrint('   ✅ Play count incremented successfully!');
+              debugPrint('      Song: ${song.name}');
+              debugPrint('      New play count: ${response.data!.plays}');
+            } else {
+              debugPrint('   ❌ Failed to increment play count: ${response.error}');
+            }
           }).catchError((error) {
-            debugPrint('   ⚠️ Failed to increment play count: $error');
+            debugPrint('   ⚠️ Error incrementing play count: $error');
             // Don't fail playback if metrics fail
           });
         } catch (e) {

@@ -10,7 +10,7 @@ class RecommendedSong extends Equatable {
   final String? imageUrl;
   final double? price;
   final int plays;
-  final String reason; // Why this song was recommended
+  final String? reason; // Why this song was recommended (can be null)
   final double relevanceScore; // Score from 0.0 to 1.0
 
   const RecommendedSong({
@@ -21,21 +21,21 @@ class RecommendedSong extends Equatable {
     this.imageUrl,
     this.price,
     required this.plays,
-    required this.reason,
+    this.reason,
     required this.relevanceScore,
   });
 
   factory RecommendedSong.fromJson(Map<String, dynamic> json) {
     return RecommendedSong(
-      id: json['id'] as int,
-      title: json['title'] as String,
-      artistId: json['artistId'] as int,
-      artistName: json['artistName'] as String,
+      id: (json['id'] as num).toInt(),
+      title: json['title'] as String? ?? 'Sin título',
+      artistId: (json['artistId'] as num).toInt(),
+      artistName: json['artistName'] as String? ?? 'Artista desconocido',
       imageUrl: json['imageUrl'] as String?,
       price: json['price'] != null ? (json['price'] as num).toDouble() : null,
-      plays: json['plays'] as int,
-      reason: json['reason'] as String,
-      relevanceScore: (json['relevanceScore'] as num).toDouble(),
+      plays: (json['plays'] as num?)?.toInt() ?? 0,
+      reason: json['reason'] as String?,
+      relevanceScore: (json['relevanceScore'] as num?)?.toDouble() ?? 0.5,
     );
   }
 
