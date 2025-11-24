@@ -1,6 +1,5 @@
 package io.audira.commerce.dto;
 
-import io.audira.commerce.model.OrderStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -20,7 +19,7 @@ public class OrderDTO {
     private String orderNumber;
     private List<OrderItemDTO> items;
     private BigDecimal totalAmount;
-    private OrderStatus status;
+    private String status; // Changed from OrderStatus enum to String for better inter-service compatibility
     private String shippingAddress;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
