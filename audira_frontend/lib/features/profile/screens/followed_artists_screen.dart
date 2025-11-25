@@ -64,7 +64,7 @@ class _FollowedArtistsScreenState extends State<FollowedArtistsScreen> {
 
     if (userId == null) return;
 
-    // Mostrar confirmación
+    // 1. Mostrar confirmación
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -85,12 +85,18 @@ class _FollowedArtistsScreenState extends State<FollowedArtistsScreen> {
 
     if (confirm != true) return;
 
+    // 2. Llamada a la API
     final response = await _userService.unfollowUser(userId, artist.id);
 
     if (response.success) {
+      // 3. Actualizar la lista VISUAL de esta pantalla inmediatamente
       setState(() {
         _artists.removeWhere((a) => a.id == artist.id);
       });
+
+      // 4. Actualizar el ESTADO GLOBAL (Para que el Perfil se entere)
+      // Esto recalcula el número de seguidos en segundo plano
+      await authProvider.refreshProfile();
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -162,7 +168,10 @@ class _FollowedArtistsScreenState extends State<FollowedArtistsScreen> {
                           const SizedBox(height: 8),
                           Text(
                             'Explora y sigue a tus artistas favoritos',
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(
                                   color: AppTheme.textGrey,
                                 ),
                           ),
@@ -264,9 +273,10 @@ class _FollowedArtistsScreenState extends State<FollowedArtistsScreen> {
                         const SizedBox(width: 4),
                         Text(
                           '${artist.followerIds.length} seguidores',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: AppTheme.textGrey,
-                              ),
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: AppTheme.textGrey,
+                                  ),
                         ),
                       ],
                     ),
