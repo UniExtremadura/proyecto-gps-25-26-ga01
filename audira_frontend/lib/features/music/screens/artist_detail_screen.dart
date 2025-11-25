@@ -29,7 +29,7 @@ class _ArtistDetailScreenState extends State<ArtistDetailScreen>
   List<Album> _albums = [];
 
   bool _isLoading = true;
-  bool _isFollowing = false;
+  // ELIMINADO: bool _isFollowing = false; // YA NO USAMOS ESTADO LOCAL
   String? _error;
 
   late TabController _tabController;
@@ -48,7 +48,6 @@ class _ArtistDetailScreenState extends State<ArtistDetailScreen>
   }
 
   Future<void> _loadArtistDetails() async {
-    final currentContext = context;
     setState(() {
       _isLoading = true;
       _error = null;
@@ -71,24 +70,21 @@ class _ArtistDetailScreenState extends State<ArtistDetailScreen>
           _albums = albumsResponse.data!;
         }
 
-        if (!currentContext.mounted) return;
-        final authProvider = currentContext.read<AuthProvider>();
-        if (authProvider.isAuthenticated && authProvider.currentUser != null) {
-          // Comprobar si el usuario actual sigue al artista
-          _isFollowing =
-              authProvider.currentUser!.followingIds.contains(widget.artistId);
-        }
+        // ELIMINADO: La lógica de _isFollowing ya no va aquí
       } else {
         _error = artistResponse.error ?? 'Failed to load artist';
       }
     } catch (e) {
       _error = e.toString();
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
   Future<void> _toggleFollow() async {
+    // Usamos read porque aquí no necesitamos escuchar cambios, solo ejecutar acción
     final authProvider = context.read<AuthProvider>();
     final currentContext = context;
 
@@ -103,36 +99,36 @@ class _ArtistDetailScreenState extends State<ArtistDetailScreen>
     final userId = authProvider.currentUser!.id;
     final targetId = widget.artistId;
 
-    // 1. Estado Optimista (UI responde inmediatamente)
-    final bool wasFollowing = _isFollowing;
-    setState(() => _isFollowing = !wasFollowing);
+    // CALCULAMOS EL ESTADO ACTUAL BASADO EN EL PROVIDER (LA VERDAD ABSOLUTA)
+    final isCurrentlyFollowing =
+        authProvider.currentUser!.followingIds.contains(targetId);
 
     try {
-      // 2. Llamada a la API
-      final response = wasFollowing
+      // Llamada a la API
+      final response = isCurrentlyFollowing
           ? await _userService.unfollowUser(userId, targetId)
           : await _userService.followUser(userId, targetId);
 
       if (response.success && response.data != null) {
-        // 3. Éxito: Actualizar el AuthProvider usando updateUser
-        // Esto es crucial para que followingIds se actualice en toda la app
+        // Al actualizar el usuario en el provider, el build() se ejecutará de nuevo automáticamente
+        // y el botón cambiará de color solo.
         authProvider.updateUser(response.data!);
 
         if (!currentContext.mounted) return;
         ScaffoldMessenger.of(currentContext).showSnackBar(
           SnackBar(
             content: Text(
-              _isFollowing
+              !isCurrentlyFollowing // Note la inversión aquí para el mensaje
                   ? '✅ Siguiendo a ${_artist!.artistName ?? _artist!.username}'
                   : '❌ Dejó de seguir a ${_artist!.artistName ?? _artist!.username}',
             ),
             duration: const Duration(seconds: 2),
+            behavior:
+                SnackBarBehavior.floating, // Opcional: queda mejor visualmente
           ),
         );
       } else {
-        // 4. Fallo de API: Revertir el estado local
         if (!currentContext.mounted) return;
-        setState(() => _isFollowing = wasFollowing);
         ScaffoldMessenger.of(currentContext).showSnackBar(
           SnackBar(
             content: Text('Error: ${response.error ?? 'Falló la operación'}'),
@@ -141,9 +137,7 @@ class _ArtistDetailScreenState extends State<ArtistDetailScreen>
         );
       }
     } catch (e) {
-      // Error de red: Revertir el estado local
       if (!currentContext.mounted) return;
-      setState(() => _isFollowing = wasFollowing);
       ScaffoldMessenger.of(currentContext).showSnackBar(
         SnackBar(
           content: Text('Error de conexión: $e'),
@@ -155,6 +149,16 @@ class _ArtistDetailScreenState extends State<ArtistDetailScreen>
 
   @override
   Widget build(BuildContext context) {
+    // VITAL: Usamos watch() aquí.
+    // Esto conecta el interruptor a la corriente real.
+    // Si algo cambia en el AuthProvider (desde cualquier pantalla), este build se ejecuta de nuevo.
+    final authProvider = context.watch<AuthProvider>();
+
+    // Calculamos si lo seguimos en tiempo real
+    final isFollowing =
+        authProvider.currentUser?.followingIds.contains(widget.artistId) ??
+            false;
+
     if (_isLoading) {
       return Scaffold(
         appBar: AppBar(title: const Text('Cargando...')),
@@ -187,6 +191,7 @@ class _ArtistDetailScreenState extends State<ArtistDetailScreen>
       body: CustomScrollView(
         slivers: [
           SliverAppBar(
+            // ... (Tu código del AppBar sigue igual) ...
             expandedHeight: 250,
             pinned: true,
             flexibleSpace: FlexibleSpaceBar(
@@ -196,10 +201,9 @@ class _ArtistDetailScreenState extends State<ArtistDetailScreen>
                   fontWeight: FontWeight.bold,
                   shadows: [
                     Shadow(
-                      blurRadius: 10.0,
-                      color: Colors.black,
-                      offset: Offset(0, 0),
-                    ),
+                        blurRadius: 10.0,
+                        color: Colors.black,
+                        offset: Offset(0, 0)),
                   ],
                 ),
               ),
@@ -210,9 +214,8 @@ class _ArtistDetailScreenState extends State<ArtistDetailScreen>
                     CachedNetworkImage(
                       imageUrl: _artist!.bannerImageUrl!,
                       fit: BoxFit.cover,
-                      errorWidget: (context, url, error) => Container(
-                        color: AppTheme.surfaceBlack,
-                      ),
+                      errorWidget: (context, url, error) =>
+                          Container(color: AppTheme.surfaceBlack),
                     )
                   else
                     Container(
@@ -222,7 +225,7 @@ class _ArtistDetailScreenState extends State<ArtistDetailScreen>
                           end: Alignment.bottomCenter,
                           colors: [
                             AppTheme.primaryBlue,
-                            AppTheme.backgroundBlack,
+                            AppTheme.backgroundBlack
                           ],
                         ),
                       ),
@@ -234,7 +237,7 @@ class _ArtistDetailScreenState extends State<ArtistDetailScreen>
                         end: Alignment.bottomCenter,
                         colors: [
                           Colors.transparent,
-                          Colors.black.withOpacity(0.7),
+                          Colors.black.withOpacity(0.7)
                         ],
                       ),
                     ),
@@ -243,17 +246,15 @@ class _ArtistDetailScreenState extends State<ArtistDetailScreen>
               ),
             ),
             actions: [
-              IconButton(
-                icon: const Icon(Icons.share),
-                onPressed: () {},
-              ),
+              IconButton(icon: const Icon(Icons.share), onPressed: () {}),
             ],
           ),
           SliverToBoxAdapter(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildArtistInfo(),
+                // Pasamos el valor calculado isFollowing al widget hijo
+                _buildArtistInfo(isFollowing),
                 _buildTabs(),
               ],
             ),
@@ -263,20 +264,21 @@ class _ArtistDetailScreenState extends State<ArtistDetailScreen>
     );
   }
 
-  Widget _buildArtistInfo() {
+  // Modificado para aceptar el estado real
+  Widget _buildArtistInfo(bool isFollowing) {
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // ... (Resto de tu código de avatar e info sigue igual) ...
           Row(
             children: [
               if (_artist!.profileImageUrl != null)
                 CircleAvatar(
                   radius: 40,
-                  backgroundImage: CachedNetworkImageProvider(
-                    _artist!.profileImageUrl!,
-                  ),
+                  backgroundImage:
+                      CachedNetworkImageProvider(_artist!.profileImageUrl!),
                 )
               else
                 CircleAvatar(
@@ -297,10 +299,8 @@ class _ArtistDetailScreenState extends State<ArtistDetailScreen>
                         children: const [
                           Icon(Icons.verified, color: Colors.blue, size: 20),
                           SizedBox(width: 4),
-                          Text(
-                            'Verified Artist',
-                            style: TextStyle(color: Colors.blue),
-                          ),
+                          Text('Verified Artist',
+                              style: TextStyle(color: Colors.blue)),
                         ],
                       ),
                     const SizedBox(height: 8),
@@ -308,49 +308,34 @@ class _ArtistDetailScreenState extends State<ArtistDetailScreen>
                       children: [
                         Column(
                           children: [
-                            Text(
-                              '${_artist!.followerIds.length}',
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            Text(
-                              'Followers',
-                              style: TextStyle(color: AppTheme.textSecondary),
-                            ),
+                            Text('${_artist!.followerIds.length}',
+                                style: const TextStyle(
+                                    fontSize: 18, fontWeight: FontWeight.bold)),
+                            Text('Followers',
+                                style:
+                                    TextStyle(color: AppTheme.textSecondary)),
                           ],
                         ),
                         const SizedBox(width: 24),
                         Column(
                           children: [
-                            Text(
-                              '${_songs.length}',
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            Text(
-                              'Songs',
-                              style: TextStyle(color: AppTheme.textSecondary),
-                            ),
+                            Text('${_songs.length}',
+                                style: const TextStyle(
+                                    fontSize: 18, fontWeight: FontWeight.bold)),
+                            Text('Songs',
+                                style:
+                                    TextStyle(color: AppTheme.textSecondary)),
                           ],
                         ),
                         const SizedBox(width: 24),
                         Column(
                           children: [
-                            Text(
-                              '${_albums.length}',
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            Text(
-                              'Albums',
-                              style: TextStyle(color: AppTheme.textSecondary),
-                            ),
+                            Text('${_albums.length}',
+                                style: const TextStyle(
+                                    fontSize: 18, fontWeight: FontWeight.bold)),
+                            Text('Albums',
+                                style:
+                                    TextStyle(color: AppTheme.textSecondary)),
                           ],
                         ),
                       ],
@@ -360,20 +345,23 @@ class _ArtistDetailScreenState extends State<ArtistDetailScreen>
               ),
             ],
           ),
+
           const SizedBox(height: 16),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
               onPressed: _toggleFollow,
-              icon: Icon(_isFollowing ? Icons.check : Icons.add),
-              label: Text(_isFollowing ? 'Following' : 'Follow'),
+              // Usamos la variable que viene del Provider
+              icon: Icon(isFollowing ? Icons.check : Icons.add),
+              label: Text(isFollowing ? 'Following' : 'Follow'),
               style: ElevatedButton.styleFrom(
                 backgroundColor:
-                    _isFollowing ? AppTheme.darkBlue : AppTheme.primaryBlue,
+                    isFollowing ? AppTheme.darkBlue : AppTheme.primaryBlue,
                 padding: const EdgeInsets.symmetric(vertical: 12),
               ),
             ),
           ),
+          // ... (Resto de la bio y label sigue igual) ...
           if (_artist!.artistBio != null && _artist!.artistBio!.isNotEmpty) ...[
             const SizedBox(height: 16),
             Text(
@@ -400,7 +388,9 @@ class _ArtistDetailScreenState extends State<ArtistDetailScreen>
     ).animate().fadeIn(duration: 400.ms);
   }
 
+  // ... (El resto de métodos _buildTabs, _buildOverviewTab, etc. se mantienen igual)
   Widget _buildTabs() {
+    // Copia tus métodos de tabs aquí, no cambian
     return Column(
       children: [
         TabBar(
@@ -429,7 +419,9 @@ class _ArtistDetailScreenState extends State<ArtistDetailScreen>
     );
   }
 
+  // Asegúrate de incluir _buildOverviewTab, _buildSongsTab y _buildAlbumsTab tal cual los tenías
   Widget _buildOverviewTab() {
+    // ... Tu código original ...
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
