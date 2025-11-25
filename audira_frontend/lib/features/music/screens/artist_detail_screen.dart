@@ -1,5 +1,6 @@
 import 'package:audira_frontend/config/theme.dart';
 import 'package:audira_frontend/core/api/services/music_service.dart';
+import 'package:audira_frontend/core/api/services/user_service.dart';
 import 'package:audira_frontend/core/models/album.dart';
 import 'package:audira_frontend/core/models/artist.dart';
 import 'package:audira_frontend/core/models/song.dart';
@@ -21,6 +22,7 @@ class ArtistDetailScreen extends StatefulWidget {
 class _ArtistDetailScreenState extends State<ArtistDetailScreen>
     with SingleTickerProviderStateMixin {
   final MusicService _musicService = MusicService();
+  final UserService _userService = UserService();
 
   Artist? _artist;
   List<Song> _songs = [];
@@ -68,9 +70,11 @@ class _ArtistDetailScreenState extends State<ArtistDetailScreen>
         if (albumsResponse.success && albumsResponse.data != null) {
           _albums = albumsResponse.data!;
         }
-        if(!currentContext.mounted) return;
+
+        if (!currentContext.mounted) return;
         final authProvider = currentContext.read<AuthProvider>();
-        if (authProvider.isAuthenticated) {
+        if (authProvider.isAuthenticated && authProvider.currentUser != null) {
+          // Comprobar si el usuario actual sigue al artista
           _isFollowing =
               authProvider.currentUser!.followingIds.contains(widget.artistId);
         }
@@ -86,27 +90,74 @@ class _ArtistDetailScreenState extends State<ArtistDetailScreen>
 
   Future<void> _toggleFollow() async {
     final authProvider = context.read<AuthProvider>();
-    if (!authProvider.isAuthenticated) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please login to follow artists')),
+    final currentContext = context;
+
+    if (!authProvider.isAuthenticated || authProvider.currentUser == null) {
+      ScaffoldMessenger.of(currentContext).showSnackBar(
+        const SnackBar(
+            content: Text('Por favor, inicia sesión para seguir artistas.')),
       );
       return;
     }
 
-    // Follow/unfollow functionality
-    setState(() => _isFollowing = !_isFollowing);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(_isFollowing ? 'Following artist' : 'Unfollowed artist'),
-      ),
-    );
+    final userId = authProvider.currentUser!.id;
+    final targetId = widget.artistId;
+
+    // 1. Estado Optimista (UI responde inmediatamente)
+    final bool wasFollowing = _isFollowing;
+    setState(() => _isFollowing = !wasFollowing);
+
+    try {
+      // 2. Llamada a la API
+      final response = wasFollowing
+          ? await _userService.unfollowUser(userId, targetId)
+          : await _userService.followUser(userId, targetId);
+
+      if (response.success && response.data != null) {
+        // 3. Éxito: Actualizar el AuthProvider usando updateUser
+        // Esto es crucial para que followingIds se actualice en toda la app
+        authProvider.updateUser(response.data!);
+
+        if (!currentContext.mounted) return;
+        ScaffoldMessenger.of(currentContext).showSnackBar(
+          SnackBar(
+            content: Text(
+              _isFollowing
+                  ? '✅ Siguiendo a ${_artist!.artistName ?? _artist!.username}'
+                  : '❌ Dejó de seguir a ${_artist!.artistName ?? _artist!.username}',
+            ),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      } else {
+        // 4. Fallo de API: Revertir el estado local
+        if (!currentContext.mounted) return;
+        setState(() => _isFollowing = wasFollowing);
+        ScaffoldMessenger.of(currentContext).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${response.error ?? 'Falló la operación'}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      // Error de red: Revertir el estado local
+      if (!currentContext.mounted) return;
+      setState(() => _isFollowing = wasFollowing);
+      ScaffoldMessenger.of(currentContext).showSnackBar(
+        SnackBar(
+          content: Text('Error de conexión: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Loading...')),
+        appBar: AppBar(title: const Text('Cargando...')),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
@@ -120,11 +171,11 @@ class _ArtistDetailScreenState extends State<ArtistDetailScreen>
             children: [
               const Icon(Icons.error_outline, size: 64, color: Colors.red),
               const SizedBox(height: 16),
-              Text(_error ?? 'Artist not found'),
+              Text(_error ?? 'Artista no encontrado'),
               const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('Go Back'),
+                child: const Text('Volver'),
               ),
             ],
           ),
@@ -183,7 +234,7 @@ class _ArtistDetailScreenState extends State<ArtistDetailScreen>
                         end: Alignment.bottomCenter,
                         colors: [
                           Colors.transparent,
-                          Colors.black.withValues(alpha: 0.7),
+                          Colors.black.withOpacity(0.7),
                         ],
                       ),
                     ),
@@ -457,7 +508,7 @@ class _ArtistDetailScreenState extends State<ArtistDetailScreen>
 
   Widget _buildSongsTab() {
     if (_songs.isEmpty) {
-      return const Center(child: Text('No songs available'));
+      return const Center(child: Text('No hay canciones disponibles'));
     }
 
     return ListView.builder(
@@ -498,7 +549,7 @@ class _ArtistDetailScreenState extends State<ArtistDetailScreen>
 
   Widget _buildAlbumsTab() {
     if (_albums.isEmpty) {
-      return const Center(child: Text('No albums available'));
+      return const Center(child: Text('No hay álbumes disponibles'));
     }
 
     return ListView.builder(
