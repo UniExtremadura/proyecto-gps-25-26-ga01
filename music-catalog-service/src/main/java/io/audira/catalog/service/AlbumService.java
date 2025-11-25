@@ -52,6 +52,7 @@ public class AlbumService {
                 .discountPercentage(request.getDiscountPercentage() != null ?
                         request.getDiscountPercentage() : 0.15)
                 .published(false) // Por defecto no publicado
+                .moderationStatus(ModerationStatus.PENDING) // GA01-162: Estado inicial
                 .build();
 
         album = albumRepository.save(album);
@@ -75,6 +76,9 @@ public class AlbumService {
         return AlbumResponse.fromAlbum(album, songCount);
     }
 
+    /**
+     * GA01-162: Al actualizar un álbum, vuelve a estado PENDING
+     */
     @Transactional
     public Optional<AlbumResponse> updateAlbum(Long id, AlbumUpdateRequest request) {
         Optional<Album> albumOpt = albumRepository.findById(id);
@@ -104,6 +108,10 @@ public class AlbumService {
         return Optional.of(AlbumResponse.fromAlbum(album, songCount));
     }
 
+    /**
+     * GA01-162: Publicar o ocultar un álbum
+     * Solo se puede publicar si está aprobado
+     */
     @Transactional
     public Optional<AlbumResponse> publishAlbum(Long id, boolean published) {
         Optional<Album> albumOpt = albumRepository.findById(id);

@@ -37,7 +37,7 @@ class MusicService {
   Future<ApiResponse<Song>> incrementPlays(int id) async {
     try {
       final response = await _apiClient
-          .post('${AppConstants.songsUrl}/$id/plays', requiresAuth: false);
+          .post('${AppConstants.songsUrl}/$id/play', requiresAuth: false);
       if (response.success && response.data != null) {
         return ApiResponse(success: true, data: Song.fromJson(response.data));
       }

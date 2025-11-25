@@ -28,6 +28,14 @@ public class OrderController {
     }
 
     /**
+     * Get all orders (for internal service-to-service communication)
+     */
+    @GetMapping
+    public ResponseEntity<List<OrderDTO>> getAllOrders() {
+        return ResponseEntity.ok(orderService.getAllOrders());
+    }
+
+    /**
      * Get all orders for a specific user
      */
     @GetMapping("/user/{userId}")

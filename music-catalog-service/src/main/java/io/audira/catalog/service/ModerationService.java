@@ -30,6 +30,7 @@ public class ModerationService {
 
     /**
      * GA01-162: Aprobar una canción
+     * Al aprobar, la canción se publica automáticamente
      */
     @Transactional
     public Song approveSong(Long songId, Long adminId, String notes) {
@@ -43,13 +44,15 @@ public class ModerationService {
         song.setModeratedBy(adminId);
         song.setModeratedAt(LocalDateTime.now());
         song.setRejectionReason(null); // Limpiar razón de rechazo si existía
+        song.setPublished(true); // Publicar automáticamente al aprobar
 
         Song savedSong = songRepository.save(song);
 
         // Registrar en historial
-        recordModerationHistory(savedSong, previousStatus, ModerationStatus.APPROVED, adminId, null, notes);
+        recordModerationHistory(savedSong, previousStatus, ModerationStatus.APPROVED,
+                adminId, null, notes);
 
-        log.info("Canción aprobada: {} por admin: {}", songId, adminId);
+        log.info("Canción aprobada y publicada: {} por admin: {}", songId, adminId);
         return savedSong;
     }
 
@@ -77,7 +80,8 @@ public class ModerationService {
         Song savedSong = songRepository.save(song);
 
         // Registrar en historial
-        recordModerationHistory(savedSong, previousStatus, ModerationStatus.REJECTED, adminId, rejectionReason, notes);
+        recordModerationHistory(savedSong, previousStatus, ModerationStatus.REJECTED,
+                adminId, rejectionReason, notes);
 
         log.info("Canción rechazada: {} por admin: {} - Motivo: {}", songId, adminId, rejectionReason);
         return savedSong;
@@ -85,6 +89,7 @@ public class ModerationService {
 
     /**
      * GA01-162: Aprobar un álbum
+     * Al aprobar, el álbum se publica automáticamente
      */
     @Transactional
     public Album approveAlbum(Long albumId, Long adminId, String notes) {
@@ -98,13 +103,15 @@ public class ModerationService {
         album.setModeratedBy(adminId);
         album.setModeratedAt(LocalDateTime.now());
         album.setRejectionReason(null);
+        album.setPublished(true); // Publicar automáticamente al aprobar
 
         Album savedAlbum = albumRepository.save(album);
 
         // Registrar en historial
-        recordModerationHistory(savedAlbum, previousStatus, ModerationStatus.APPROVED, adminId, null, notes);
+        recordModerationHistory(savedAlbum, previousStatus, ModerationStatus.APPROVED,
+                adminId, null, notes);
 
-        log.info("Álbum aprobado: {} por admin: {}", albumId, adminId);
+        log.info("Álbum aprobado y publicado: {} por admin: {}", albumId, adminId);
         return savedAlbum;
     }
 
@@ -132,7 +139,8 @@ public class ModerationService {
         Album savedAlbum = albumRepository.save(album);
 
         // Registrar en historial
-        recordModerationHistory(savedAlbum, previousStatus, ModerationStatus.REJECTED,adminId, rejectionReason, notes);
+        recordModerationHistory(savedAlbum, previousStatus, ModerationStatus.REJECTED,
+                adminId, rejectionReason, notes);
 
         log.info("Álbum rechazado: {} por admin: {} - Motivo: {}", albumId, adminId, rejectionReason);
         return savedAlbum;
@@ -194,12 +202,25 @@ public class ModerationService {
         // Obtener información del artista
         UserDTO artist = userServiceClient.getUserById(product.getArtistId());
 
+        // GA01-163: Determinar el nombre del artista con fallbacks apropiados
+        String artistName = "Desconocido";
+        if (artist != null) {
+            // Prioridad: artistName > username > firstName + lastName
+            if (artist.getArtistName() != null && !artist.getArtistName().trim().isEmpty()) {
+                artistName = artist.getArtistName();
+            } else if (artist.getUsername() != null) {
+                artistName = artist.getUsername();
+            } else if (artist.getFirstName() != null && artist.getLastName() != null) {
+                artistName = artist.getFirstName() + " " + artist.getLastName();
+            }
+        }
+
         ModerationHistory history = ModerationHistory.builder()
                 .productId(product.getId())
                 .productType(product.getProductType())
                 .productTitle(product.getTitle())
                 .artistId(product.getArtistId())
-                .artistName(artist != null ? artist.getArtistName() : "Desconocido")
+                .artistName(artistName)
                 .previousStatus(previousStatus)
                 .newStatus(newStatus)
                 .moderatedBy(moderatedBy)

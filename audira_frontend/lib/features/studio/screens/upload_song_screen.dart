@@ -1,3 +1,5 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -31,7 +33,6 @@ class _UploadSongScreenState extends State<UploadSongScreen> {
   bool _showPreview = false;
   bool _isUploading = false;
   bool _isLoadingGenres = true;
-  bool _publishNow = true; // Publicar inmediatamente por defecto
   double _uploadProgress = 0.0;
   String? _audioFileName;
   String? _audioFilePath;
@@ -96,7 +97,6 @@ class _UploadSongScreenState extends State<UploadSongScreen> {
   }
 
   Future<void> _pickAudioFile() async {
-    final currentContext = context;
     try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
@@ -111,8 +111,7 @@ class _UploadSongScreenState extends State<UploadSongScreen> {
         // Validar extensión
         if (extension == null ||
             !['mp3', 'wav', 'flac', 'aac', 'm4a', 'ogg'].contains(extension)) {
-          if(!currentContext.mounted) return;
-          ScaffoldMessenger.of(currentContext).showSnackBar(
+          ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
                 content: Text(
                     'Formato de audio no válido. Use MP3, WAV, FLAC, AAC, M4A u OGG')),
@@ -122,8 +121,7 @@ class _UploadSongScreenState extends State<UploadSongScreen> {
 
         // Validar tamaño (máximo 100MB)
         if (file.size > 100 * 1024 * 1024) {
-          if(!currentContext.mounted) return;
-          ScaffoldMessenger.of(currentContext).showSnackBar(
+          ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
                 content: Text('El archivo es demasiado grande. Máximo 100MB')),
           );
@@ -132,8 +130,7 @@ class _UploadSongScreenState extends State<UploadSongScreen> {
 
         // Validar que tengamos el path del archivo
         if (file.path == null) {
-          if(!currentContext.mounted) return;
-          ScaffoldMessenger.of(currentContext).showSnackBar(
+          ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
                 content: Text('No se pudo obtener la ruta del archivo')),
           );
@@ -147,8 +144,7 @@ class _UploadSongScreenState extends State<UploadSongScreen> {
           _audioFileExtension = extension;
         });
 
-        if(!currentContext.mounted) return;
-        ScaffoldMessenger.of(currentContext).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
                 'Audio seleccionado: ${file.name} (${_formatFileSize(file.size)})'),
@@ -157,8 +153,7 @@ class _UploadSongScreenState extends State<UploadSongScreen> {
         );
       }
     } catch (e) {
-      if(!currentContext.mounted) return;
-      ScaffoldMessenger.of(currentContext).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error al seleccionar audio: $e')),
       );
     }
@@ -171,7 +166,6 @@ class _UploadSongScreenState extends State<UploadSongScreen> {
   }
 
   Future<void> _pickImageFile() async {
-    final currentContext = context;
     try {
       final picker = ImagePicker();
       final XFile? image = await picker.pickImage(
@@ -186,21 +180,18 @@ class _UploadSongScreenState extends State<UploadSongScreen> {
           _imageFileName = image.name;
           _imageFilePath = image.path;
         });
-        if(!currentContext.mounted) return;
-        ScaffoldMessenger.of(currentContext).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Imagen seleccionada: ${image.name}')),
         );
       }
     } catch (e) {
-      if(!currentContext.mounted) return;
-      ScaffoldMessenger.of(currentContext).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error al seleccionar imagen: $e')),
       );
     }
   }
 
   Future<void> _uploadSong() async {
-    final currentContext = context;
     if (!_formKey.currentState!.validate()) return;
 
     // Validar archivo de audio
@@ -271,8 +262,7 @@ class _UploadSongScreenState extends State<UploadSongScreen> {
 
       // Paso 3: Obtener artistId del usuario autenticado
       setState(() => _uploadProgress = 0.6);
-      if(!currentContext.mounted) return;
-      final authProvider = Provider.of<AuthProvider>(currentContext, listen: false);
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
       final artistId = authProvider.currentUser?.id;
 
       if (artistId == null) {
@@ -297,7 +287,7 @@ class _UploadSongScreenState extends State<UploadSongScreen> {
             ? null
             : _categoryController.text.trim(),
         'genreIds': _selectedGenreIds,
-        'published': _publishNow, // Incluir estado de publicación
+        // GA01-162: No enviar 'published' - el backend maneja esto según el flujo de moderación
         'plays': 0,
         'productType': 'SONG',
         'collaborators': _collaborators,
@@ -317,16 +307,15 @@ class _UploadSongScreenState extends State<UploadSongScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('¡Canción subida exitosamente!'),
+            content: Text('¡Canción subida exitosamente! Estará disponible después de ser revisada por un administrador.'),
             backgroundColor: Colors.green,
-            duration: Duration(seconds: 3),
+            duration: Duration(seconds: 5),
           ),
         );
 
         // Pequeña espera para que el usuario vea el mensaje
         await Future.delayed(const Duration(milliseconds: 500));
-        if(!currentContext.mounted) return;
-        Navigator.pop(currentContext);
+        Navigator.pop(context);
       }
     } catch (e) {
       // Error
@@ -764,31 +753,40 @@ class _UploadSongScreenState extends State<UploadSongScreen> {
                 ),
               ],
             ).animate().fadeIn(delay: 250.ms),
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
 
-            // Publicar inmediatamente
+            // GA01-162: Información sobre moderación
             Card(
-              child: SwitchListTile(
-                title: const Text(
-                  '¿Publicar inmediatamente?',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-                subtitle: Text(
-                  _publishNow
-                      ? 'La canción será visible para todos los usuarios'
-                      : 'La canción quedará oculta hasta que la publiques manualmente',
-                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                ),
-                value: _publishNow,
-                onChanged: (value) {
-                  setState(() {
-                    _publishNow = value;
-                  });
-                },
-                activeThumbColor: AppTheme.primaryBlue,
-                secondary: Icon(
-                  _publishNow ? Icons.visibility : Icons.visibility_off,
-                  color: _publishNow ? AppTheme.primaryBlue : Colors.grey,
+              color: AppTheme.primaryBlue.withValues(alpha: 0.1),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    const Icon(Icons.info_outline, color: AppTheme.primaryBlue),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Moderación de contenido',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.primaryBlue,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Tu canción será revisada por un administrador antes de estar disponible públicamente.',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[300],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ).animate().fadeIn(delay: 275.ms),

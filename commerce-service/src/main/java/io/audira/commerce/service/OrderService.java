@@ -132,7 +132,7 @@ public class OrderService {
                 .orderNumber(order.getOrderNumber())
                 .items(itemDTOs)
                 .totalAmount(order.getTotalAmount())
-                .status(order.getStatus())
+                .status(order.getStatus() != null ? order.getStatus().name() : null) // Convert enum to String
                 .shippingAddress(order.getShippingAddress())
                 .createdAt(order.getCreatedAt())
                 .updatedAt(order.getUpdatedAt())

@@ -35,6 +35,9 @@ class _StudioDetailedStatsScreenState extends State<StudioStatsScreen> {
 
     final authProvider = context.read<AuthProvider>();
     if (authProvider.currentUser != null) {
+      debugPrint('📊 Loading metrics for artist ${authProvider.currentUser!.id}');
+      debugPrint('   Period: $_startDate to $_endDate');
+
       final response = await _metricsService.getArtistMetricsDetailed(
         authProvider.currentUser!.id,
         startDate: _startDate,
@@ -42,14 +45,35 @@ class _StudioDetailedStatsScreenState extends State<StudioStatsScreen> {
       );
 
       if (response.success && response.data != null) {
+        final metrics = response.data!;
+        debugPrint('✅ Metrics loaded successfully:');
+        debugPrint('   Artist: ${metrics.artistName} (ID: ${metrics.artistId})');
+        debugPrint('   Total Plays: ${metrics.totalPlays}');
+        debugPrint('   Total Sales: ${metrics.totalSales}');
+        debugPrint('   Total Revenue: \$${metrics.totalRevenue.toStringAsFixed(2)}');
+        debugPrint('   Total Comments: ${metrics.totalComments}');
+        debugPrint('   Average Rating: ${metrics.averageRating.toStringAsFixed(2)}');
+        debugPrint('   Daily Metrics Count: ${metrics.dailyMetrics.length}');
+
+        if (metrics.dailyMetrics.isNotEmpty) {
+          debugPrint('   Sample Daily Metric:');
+          final sample = metrics.dailyMetrics.first;
+          debugPrint('     Date: ${sample.date}');
+          debugPrint('     Plays: ${sample.plays}');
+          debugPrint('     Sales: ${sample.sales}');
+          debugPrint('     Revenue: \$${sample.revenue.toStringAsFixed(2)}');
+        }
+
         setState(() {
           _metrics = response.data;
           _isLoading = false;
         });
       } else {
+        debugPrint('❌ Failed to load metrics: ${response.error}');
         setState(() => _isLoading = false);
       }
     } else {
+      debugPrint('❌ No user logged in');
       setState(() => _isLoading = false);
     }
   }

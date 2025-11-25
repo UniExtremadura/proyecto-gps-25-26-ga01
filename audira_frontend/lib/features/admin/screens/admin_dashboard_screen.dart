@@ -113,7 +113,7 @@ class AdminDashboardScreen extends StatelessWidget {
               .animate(delay: 800.ms)
               .fadeIn()
               .scale(begin: const Offset(0.8, 0.8)),
-           _buildAdminCard(
+          _buildAdminCard(
             context,
             icon: Icons.admin_panel_settings,
             title: 'Moderation History',
@@ -143,7 +143,7 @@ class AdminDashboardScreen extends StatelessWidget {
         onTap: () => Navigator.pushNamed(context, route),
         borderRadius: BorderRadius.circular(12),
         child: Container(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
             gradient: LinearGradient(
