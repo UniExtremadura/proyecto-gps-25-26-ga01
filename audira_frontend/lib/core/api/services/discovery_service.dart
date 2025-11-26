@@ -1,10 +1,10 @@
 import 'dart:developer' as developer;
 import 'package:audira_frontend/core/api/api_client.dart';
 import 'package:audira_frontend/core/models/album.dart';
+import 'package:audira_frontend/core/models/artist.dart';
 import 'package:audira_frontend/core/models/song.dart';
 import 'package:audira_frontend/core/models/genre.dart';
 import 'package:audira_frontend/core/models/recommendations_response.dart';
-
 
 class DiscoveryService {
   static final DiscoveryService _instance = DiscoveryService._internal();
@@ -13,15 +13,15 @@ class DiscoveryService {
 
   final ApiClient _apiClient = ApiClient();
 
-  /// Search songs 
+  /// Search songs
   Future<ApiResponse<Map<String, dynamic>>> searchSongs(
     String query, {
     int page = 0,
     int size = 20,
     int? genreId,
     String? sortBy,
-    double? minPrice,  // NUEVO
-    double? maxPrice,  // NUEVO
+    double? minPrice, // NUEVO
+    double? maxPrice, // NUEVO
   }) async {
     final Map<String, String> queryParams = {
       'query': query,
@@ -72,15 +72,15 @@ class DiscoveryService {
     }
   }
 
-  /// Search albums 
+  /// Search albums
   Future<ApiResponse<Map<String, dynamic>>> searchAlbums(
     String query, {
     int page = 0,
     int size = 20,
     int? genreId,
     String? sortBy,
-    double? minPrice,  // NUEVO
-    double? maxPrice,  // NUEVO
+    double? minPrice, // NUEVO
+    double? maxPrice, // NUEVO
   }) async {
     final Map<String, String> queryParams = {
       'query': query,
@@ -131,6 +131,39 @@ class DiscoveryService {
     }
   }
 
+  /// Search artists
+  Future<ApiResponse<List<Artist>>> searchArtists(String query) async {
+    try {
+      developer.log(
+        'Searching Artists: query=$query',
+        name: 'DiscoveryService',
+      );
+      final response = await _apiClient.get(
+        '/api/users/search/artists',
+        queryParameters: {'query': query},
+      );
+
+      if (response.success && response.data != null) {
+        final List<dynamic> data = response.data as List;
+        final artists = data.map((json) => Artist.fromJson(json)).toList();
+
+        return ApiResponse(
+          success: true,
+          data: artists,
+          statusCode: response.statusCode,
+        );
+      }
+
+      return ApiResponse(
+        success: false,
+        error: response.error ?? 'Failed to search artists',
+        statusCode: response.statusCode,
+      );
+    } catch (e) {
+      return ApiResponse(success: false, error: e.toString());
+    }
+  }
+
   Future<ApiResponse<List<Genre>>> getGenres() async {
     try {
       final response = await _apiClient.get('/api/genres');
@@ -139,10 +172,7 @@ class DiscoveryService {
         final List<dynamic> data = response.data as List;
         final genres = data.map((json) => Genre.fromJson(json)).toList();
         return ApiResponse(
-          success: true,
-          data: genres,
-          statusCode: response.statusCode
-        );
+            success: true, data: genres, statusCode: response.statusCode);
       }
       return ApiResponse(success: false, error: 'Error fetching genres');
     } catch (e) {

@@ -40,10 +40,10 @@ public class UserService {
     @Transactional
     public AuthResponse registerUser(RegisterRequest request) {
         if (userRepository.existsByEmail(request.getEmail())) {
-            throw new RuntimeException("Email already in use");
+            throw new RuntimeException("Este email ya está registrado. Por favor usa otro email o inicia sesión.");
         }
         if (userRepository.existsByUsername(request.getUsername())) {
-            throw new RuntimeException("Username already in use");
+            throw new RuntimeException("Este nombre de usuario ya está en uso. Por favor elige otro nombre de usuario.");
         }
 
         User user;
@@ -104,7 +104,7 @@ public class UserService {
 
         UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
         User user = userRepository.findById(userPrincipal.getId())
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
 
         return AuthResponse.builder()
                 .token(token)

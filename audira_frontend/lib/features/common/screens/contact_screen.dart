@@ -70,7 +70,7 @@ class _ContactScreenState extends State<ContactScreen> {
         ScaffoldMessenger.of(currentContext).showSnackBar(
           const SnackBar(
             content: Text(
-                'Message sent successfully! We will get back to you soon.'),
+                '¡Mensaje enviado con éxito! Te responderemos pronto.'),
             backgroundColor: Colors.green,
           ),
         );
@@ -86,7 +86,7 @@ class _ContactScreenState extends State<ContactScreen> {
         if(!currentContext.mounted) return;
         ScaffoldMessenger.of(currentContext).showSnackBar(
           SnackBar(
-            content: Text(response.error ?? 'Failed to send message'),
+            content: Text(response.error ?? 'Error al enviar el mensaje'),
             backgroundColor: Colors.red,
           ),
         );
@@ -108,7 +108,7 @@ class _ContactScreenState extends State<ContactScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Contact Us'),
+        title: const Text('Cont\u00e1ctanos'),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -132,12 +132,12 @@ class _ContactScreenState extends State<ContactScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Get in Touch',
+              'Ponte en Contacto',
               style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
             const Text(
-              'Have a question or need support? We\'re here to help!',
+              '¿Tienes alguna pregunta o necesitas soporte? ¡Estamos aquí para ayudarte!',
               style: TextStyle(fontSize: 16),
             ),
             const SizedBox(height: 16),
@@ -206,20 +206,20 @@ class _ContactScreenState extends State<ContactScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const Text(
-                'Send us a Message',
+                'Envíanos un Mensaje',
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _nameController,
                 decoration: const InputDecoration(
-                  labelText: 'Name',
+                  labelText: 'Nombre',
                   border: OutlineInputBorder(),
                   prefixIcon: Icon(Icons.person),
                 ),
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
-                    return 'Please enter your name';
+                    return 'Por favor ingresa tu nombre';
                   }
                   return null;
                 },
@@ -235,11 +235,11 @@ class _ContactScreenState extends State<ContactScreen> {
                 keyboardType: TextInputType.emailAddress,
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
-                    return 'Please enter your email';
+                    return 'Por favor ingresa tu email';
                   }
                   if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
                       .hasMatch(value)) {
-                    return 'Please enter a valid email';
+                    return 'Por favor ingresa un email válido';
                   }
                   return null;
                 },
@@ -248,13 +248,13 @@ class _ContactScreenState extends State<ContactScreen> {
               TextFormField(
                 controller: _subjectController,
                 decoration: const InputDecoration(
-                  labelText: 'Subject',
+                  labelText: 'Asunto',
                   border: OutlineInputBorder(),
                   prefixIcon: Icon(Icons.subject),
                 ),
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
-                    return 'Please enter a subject';
+                    return 'Por favor ingresa un asunto';
                   }
                   return null;
                 },
@@ -263,7 +263,7 @@ class _ContactScreenState extends State<ContactScreen> {
               TextFormField(
                 controller: _messageController,
                 decoration: const InputDecoration(
-                  labelText: 'Message',
+                  labelText: 'Mensaje',
                   border: OutlineInputBorder(),
                   prefixIcon: Icon(Icons.message),
                   alignLabelWithHint: true,
@@ -271,10 +271,10 @@ class _ContactScreenState extends State<ContactScreen> {
                 maxLines: 6,
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
-                    return 'Please enter your message';
+                    return 'Por favor ingresa tu mensaje';
                   }
                   if (value.trim().length < 10) {
-                    return 'Message must be at least 10 characters';
+                    return 'El mensaje debe tener al menos 10 caracteres';
                   }
                   return null;
                 },
@@ -293,7 +293,7 @@ class _ContactScreenState extends State<ContactScreen> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Text(
-                        'Send Message',
+                        'Enviar Mensaje',
                         style: TextStyle(fontSize: 16),
                       ),
               ),

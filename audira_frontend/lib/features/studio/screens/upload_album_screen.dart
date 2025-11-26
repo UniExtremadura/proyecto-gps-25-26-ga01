@@ -4,6 +4,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:just_audio/just_audio.dart';
 import 'package:provider/provider.dart';
 import '../../../config/theme.dart';
 import '../../../core/providers/auth_provider.dart';
@@ -32,6 +34,8 @@ class _UploadAlbumScreenState extends State<UploadAlbumScreen> {
   double _uploadProgress = 0.0;
   String? _coverImagePath;
   List<Song> _selectedSongs = [];
+  final List<PlatformFile> _newAudioFiles =
+      []; // Nuevos archivos de audio para subir
   Album? _createdAlbum;
 
   @override
@@ -41,6 +45,14 @@ class _UploadAlbumScreenState extends State<UploadAlbumScreen> {
     _priceController.dispose();
     _releaseDateController.dispose();
     super.dispose();
+  }
+
+  String _formatFileSize(int bytes) {
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) {
+      return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    }
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
   }
 
   Future<void> _pickCoverImage() async {
@@ -111,9 +123,81 @@ class _UploadAlbumScreenState extends State<UploadAlbumScreen> {
     }
   }
 
+  Future<void> _selectNewAudioFiles() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['mp3', 'wav', 'flac', 'aac', 'm4a', 'ogg'],
+        allowMultiple: true,
+      );
+
+      if (result != null && result.files.isNotEmpty) {
+        final validFiles = <PlatformFile>[];
+
+        for (final file in result.files) {
+          final extension = file.extension?.toLowerCase();
+
+          // Validar extensión
+          if (extension == null ||
+              !['mp3', 'wav', 'flac', 'aac', 'm4a', 'ogg']
+                  .contains(extension)) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                      'Archivo ${file.name} tiene formato no válido y será ignorado'),
+                  backgroundColor: Colors.orange,
+                ),
+              );
+            }
+            continue;
+          }
+
+          // Validar tamaño (máximo 100MB)
+          if (file.size > 100 * 1024 * 1024) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                      'Archivo ${file.name} es demasiado grande (máx 100MB) y será ignorado'),
+                  backgroundColor: Colors.orange,
+                ),
+              );
+            }
+            continue;
+          }
+
+          validFiles.add(file);
+        }
+
+        if (validFiles.isNotEmpty) {
+          setState(() {
+            _newAudioFiles.addAll(validFiles);
+          });
+
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                    '${validFiles.length} archivo(s) de audio seleccionados'),
+                backgroundColor: Colors.green,
+              ),
+            );
+          }
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al seleccionar archivos: $e')),
+        );
+      }
+    }
+  }
+
   Future<void> _uploadAlbum() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_selectedSongs.isEmpty) {
+    if (_selectedSongs.isEmpty && _newAudioFiles.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Por favor agrega al menos una canción')),
       );
@@ -131,17 +215,95 @@ class _UploadAlbumScreenState extends State<UploadAlbumScreen> {
     try {
       final musicService = MusicService();
       final fileService = FileService();
+      final List<int> allSongIds = _selectedSongs.map((s) => s.id).toList();
 
-      // Paso 1: Subir la imagen de portada si existe
+      // Paso 1: Subir nuevos archivos de audio como canciones
+      if (_newAudioFiles.isNotEmpty) {
+        setState(() => _uploadProgress = 0.1);
+        final int totalNewSongs = _newAudioFiles.length;
+
+        for (int i = 0; i < _newAudioFiles.length; i++) {
+          final audioFile = _newAudioFiles[i];
+          final progress = 0.1 + (i / totalNewSongs) * 0.4;
+
+          try {
+            // Subir archivo de audio
+            final audioUploadResponse = await fileService.uploadAudioFile(
+              audioFile.path!,
+              onProgress: (sent, total) {
+                setState(() {
+                  _uploadProgress =
+                      progress + (sent / total) * (0.4 / totalNewSongs);
+                });
+              },
+            );
+
+            if (!audioUploadResponse.success) {
+              throw Exception(
+                  'Error al subir ${audioFile.name}: ${audioUploadResponse.error}');
+            }
+
+            int duration = 180;
+
+            try {
+              final player = AudioPlayer();
+
+              final durationTime = await player.setFilePath(audioFile.path!);
+
+              if (durationTime != null) {
+                duration = durationTime.inSeconds;
+              }
+              await player.dispose();
+            } catch (e) {
+              debugPrint('Error al extraer duración de ${audioFile.name}: $e');
+            }
+
+            // Crear la canción con metadata básica
+            final songName = audioFile.name
+                .replaceAll(RegExp(r'\.\w+$'), ''); // Quitar extensión
+            final songData = {
+              'name': songName,
+              'artistId': authProvider.currentUser!.id,
+              'audioFileUrl': audioUploadResponse.data!.fileUrl,
+              'duration': duration,
+              'price': double.parse(
+                  _priceController.text), // Precio base por canción
+              'fileSize': audioFile.size,
+              'format': audioFile.extension,
+              'genreIds': [],
+            };
+
+            final songCreateResponse = await musicService.createSong(songData);
+
+            if (!songCreateResponse.success ||
+                songCreateResponse.data == null) {
+              throw Exception('Error al crear canción $songName');
+            }
+
+            allSongIds.add(songCreateResponse.data!.id);
+          } catch (e) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Error con ${audioFile.name}: $e'),
+                  backgroundColor: Colors.orange,
+                ),
+              );
+            }
+          }
+        }
+      }
+
+      // Paso 2: Subir la imagen de portada si existe
       String? coverImageUrl;
       if (_coverImagePath != null) {
-        setState(() => _uploadProgress = 0.2);
+        setState(() => _uploadProgress = 0.6);
 
         final imageUploadResponse = await fileService.uploadImageFile(
           _coverImagePath!,
           onProgress: (sent, total) {
             setState(() {
-              _uploadProgress = 0.2 + (sent / total) * 0.3;
+              _uploadProgress = 0.6 + (sent / total) * 0.2;
             });
           },
         );
@@ -154,8 +316,8 @@ class _UploadAlbumScreenState extends State<UploadAlbumScreen> {
         coverImageUrl = imageUploadResponse.data!.fileUrl;
       }
 
-      // Paso 2: Crear el álbum con la URL de la imagen
-      setState(() => _uploadProgress = 0.6);
+      // Paso 3: Crear el álbum con la URL de la imagen y todas las canciones
+      setState(() => _uploadProgress = 0.85);
 
       final albumData = {
         'title': _titleController.text,
@@ -168,7 +330,7 @@ class _UploadAlbumScreenState extends State<UploadAlbumScreen> {
             ? _releaseDateController.text
             : null,
         'discountPercentage': 15.0,
-        'songIds': _selectedSongs.map((s) => s.id).toList(),
+        'songIds': allSongIds,
         'published': _publishNow, // Incluir estado de publicación
       };
 
@@ -185,8 +347,9 @@ class _UploadAlbumScreenState extends State<UploadAlbumScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('¡Álbum creado exitosamente!'),
+          SnackBar(
+            content: Text(
+                '¡Álbum creado exitosamente con ${allSongIds.length} canciones!'),
             backgroundColor: Colors.green,
           ),
         );
@@ -396,9 +559,12 @@ class _UploadAlbumScreenState extends State<UploadAlbumScreen> {
                   child: TextFormField(
                     controller: _priceController,
                     decoration: const InputDecoration(
-                      labelText: 'Precio *',
+                      labelText: 'Precio base por canción *',
                       border: OutlineInputBorder(),
                       prefixIcon: Icon(Icons.attach_money),
+                      helperText:
+                          'El álbum costará la suma de todas las canciones',
+                      helperMaxLines: 2,
                     ),
                     keyboardType: TextInputType.number,
                     validator: (value) =>
@@ -445,18 +611,32 @@ class _UploadAlbumScreenState extends State<UploadAlbumScreen> {
             const SizedBox(height: 16),
 
             Card(
-              child: ListTile(
-                leading:
-                    const Icon(Icons.music_note, color: AppTheme.primaryBlue),
-                title: Text(_selectedSongs.isEmpty
-                    ? 'Agregar Canciones'
-                    : '${_selectedSongs.length} canciones seleccionadas'),
-                trailing: const Icon(Icons.add),
-                onTap: _selectSongs,
+              child: Column(
+                children: [
+                  ListTile(
+                    leading: const Icon(Icons.music_note,
+                        color: AppTheme.primaryBlue),
+                    title: Text(_selectedSongs.isEmpty
+                        ? 'Agregar Canciones Existentes'
+                        : '${_selectedSongs.length} canciones seleccionadas'),
+                    trailing: const Icon(Icons.add),
+                    onTap: _selectSongs,
+                  ),
+                  const Divider(height: 1),
+                  ListTile(
+                    leading: const Icon(Icons.upload_file,
+                        color: AppTheme.primaryBlue),
+                    title: Text(_newAudioFiles.isEmpty
+                        ? 'Subir Nuevas Canciones (Múltiples)'
+                        : '${_newAudioFiles.length} archivos nuevos'),
+                    trailing: const Icon(Icons.add),
+                    onTap: _selectNewAudioFiles,
+                  ),
+                ],
               ),
             ).animate().fadeIn(delay: 200.ms),
 
-            if (_selectedSongs.isNotEmpty) ...[
+            if (_selectedSongs.isNotEmpty || _newAudioFiles.isNotEmpty) ...[
               const SizedBox(height: 16),
               ..._selectedSongs.asMap().entries.map((entry) {
                 final index = entry.key;
@@ -477,6 +657,29 @@ class _UploadAlbumScreenState extends State<UploadAlbumScreen> {
                     ),
                   ),
                 ).animate().fadeIn(delay: (250 + index * 50).ms);
+              }),
+              ..._newAudioFiles.asMap().entries.map((entry) {
+                final index = entry.key;
+                final audioFile = entry.value;
+                final songIndex = _selectedSongs.length + index + 1;
+                return Card(
+                  color: AppTheme.primaryBlue.withValues(alpha: 0.1),
+                  child: ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: AppTheme.primaryBlue,
+                      child: Text('$songIndex'),
+                    ),
+                    title: Text(audioFile.name),
+                    subtitle:
+                        Text('Nuevo - ${_formatFileSize(audioFile.size)}'),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () {
+                        setState(() => _newAudioFiles.removeAt(index));
+                      },
+                    ),
+                  ),
+                ).animate().fadeIn(delay: (250 + songIndex * 50).ms);
               }),
             ],
 

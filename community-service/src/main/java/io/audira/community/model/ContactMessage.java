@@ -1,4 +1,4 @@
-package io.audira.commerce.model;
+package io.audira.community.model;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -6,49 +6,45 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
-import java.util.ArrayList;
-import java.util.List;
 
 @Entity
-@Table(name = "orders")
+@Table(name = "contact_messages")
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class Order {
+public class ContactMessage {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 255)
+    private String name;
+
+    @Column(nullable = false, length = 255)
+    private String email;
+
+    @Column(nullable = false, length = 500)
+    private String subject;
+
+    @Column(nullable = false, columnDefinition = "TEXT")
+    private String message;
+
+    @Column(name = "user_id")
     private Long userId;
 
-    @Column(nullable = false, unique = true)
-    private String orderNumber;
-
-    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
-    @JoinColumn(name = "orderId")
+    @Column(name = "is_read", nullable = false)
     @Builder.Default
-    private List<OrderItem> items = new ArrayList<>();
+    private Boolean isRead = false;
 
-    @Column(nullable = false)
-    private BigDecimal totalAmount;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private OrderStatus status;
-
-    @Column(nullable = false, length = 1000)
-    private String shippingAddress;
-
-    @Column(nullable = false)
+    @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
+    @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
     @PrePersist
@@ -56,9 +52,6 @@ public class Order {
         ZonedDateTime now = ZonedDateTime.now(ZoneId.of("Europe/Madrid"));
         this.createdAt = now.toLocalDateTime();
         this.updatedAt = now.toLocalDateTime();
-        if (this.status == null) {
-            this.status = OrderStatus.PENDING;
-        }
     }
 
     @PreUpdate

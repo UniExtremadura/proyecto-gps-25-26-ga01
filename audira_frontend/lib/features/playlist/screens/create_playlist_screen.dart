@@ -420,24 +420,9 @@ class _CreatePlaylistScreenState extends State<CreatePlaylistScreen> {
 
             const SizedBox(height: 16),
 
-            // Public/Private toggle
-            Card(
-              color: AppTheme.surfaceBlack,
-              child: SwitchListTile(
-                title: const Text('Playlist pública'),
-                subtitle: const Text(
-                    'Otros usuarios pueden ver y escuchar esta playlist'),
-                value: _isPublic,
-                onChanged: (value) {
-                  setState(() => _isPublic = value);
-                },
-                activeThumbColor: AppTheme.primaryBlue,
-                secondary: Icon(
-                  _isPublic ? Icons.public : Icons.lock,
-                  color: _isPublic ? AppTheme.primaryBlue : AppTheme.textGrey,
-                ),
-              ),
-            ).animate().fadeIn(delay: 200.ms, duration: 300.ms),
+            // Public/Private toggle - REMOVED
+            // Las playlists son siempre privadas porque se hacen con canciones compradas
+            // y otros usuarios no pueden escucharlas si no las tienen compradas
 
             const SizedBox(height: 24),
 
@@ -605,21 +590,7 @@ class _CreatePlaylistScreenState extends State<CreatePlaylistScreen> {
                   ),
                 ],
                 const SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      _isPublic ? Icons.public : Icons.lock,
-                      size: 16,
-                      color: Colors.white70,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      _isPublic ? 'Pública' : 'Privada',
-                      style: const TextStyle(color: Colors.white70),
-                    ),
-                  ],
-                ),
+                // Público/Privado indicator REMOVED
               ],
             ),
           )

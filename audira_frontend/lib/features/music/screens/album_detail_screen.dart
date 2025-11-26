@@ -561,53 +561,37 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen>
     final libraryProvider = Provider.of<LibraryProvider>(context);
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final isFavorite = libraryProvider.isAlbumFavorite(_album!.id);
+    final isPurchased = libraryProvider.isAlbumPurchased(_album!.id);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
         children: [
           Expanded(
-            child: ElevatedButton.icon(
-              onPressed: () {
-                if (_album != null && _songs.isNotEmpty) {
-                  audioProvider.playSong(
-                    _songs[0],
-                    isUserAuthenticated: authProvider.isAuthenticated,
-                  );
-
-                  Navigator.pushNamed(context, '/playback');
-                }
-              },
-              icon: const Icon(Icons.play_arrow),
-              label: Text(authProvider.isAuthenticated
-                  ? 'Reproducir álbum'
-                  : 'Vista previa'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryBlue,
-                padding: const EdgeInsets.symmetric(vertical: 12),
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: libraryProvider.isAlbumPurchased(_album!.id)
+            child: isPurchased
                 ? ElevatedButton.icon(
-                    onPressed: null, // Botón deshabilitado
-                    icon: const Icon(Icons.check_circle),
-                    label: const Text('Producto Comprado'),
+                    onPressed: () {
+                      if (_album != null && _songs.isNotEmpty) {
+                        audioProvider.playSong(
+                          _songs[0],
+                          isUserAuthenticated: authProvider.isAuthenticated,
+                        );
+                        Navigator.pushNamed(context, '/playback');
+                      }
+                    },
+                    icon: const Icon(Icons.play_arrow),
+                    label: const Text('Reproducir álbum'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      disabledBackgroundColor: Colors.green.withValues(alpha: 0.7),
-                      disabledForegroundColor: Colors.white,
+                      backgroundColor: AppTheme.primaryBlue,
                       padding: const EdgeInsets.symmetric(vertical: 12),
                     ),
                   )
                 : ElevatedButton.icon(
                     onPressed: _addToCart,
                     icon: const Icon(Icons.shopping_cart),
-                    label: const Text('Add to Cart'),
+                    label: const Text('Añadir al Carrito'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.darkBlue,
+                      backgroundColor: AppTheme.primaryBlue,
                       padding: const EdgeInsets.symmetric(vertical: 12),
                     ),
                   ),
@@ -618,7 +602,7 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen>
               if (!authProvider.isAuthenticated) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('Please login to add favorites'),
+                    content: Text('Por favor inicia sesión para agregar favoritos'),
                   ),
                 );
                 return;
@@ -632,8 +616,8 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen>
                 ScaffoldMessenger.of(currentContext).showSnackBar(
                   SnackBar(
                     content: Text(isFavorite
-                        ? 'Removed from favorites'
-                        : 'Added to favorites'),
+                        ? 'Eliminado de favoritos'
+                        : 'Agregado a favoritos'),
                   ),
                 );
               } catch (e) {
