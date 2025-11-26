@@ -1,3 +1,5 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
@@ -8,7 +10,7 @@ import '../../../core/api/services/moderation_service.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../widgets/moderation_widgets.dart';
 
-/// GA01-162: Pantalla de administración de álbumes con moderación
+/// GA01-162: Pantalla de administración de Albumes con moderación
 class AdminAlbumsScreen extends StatefulWidget {
   const AdminAlbumsScreen({super.key});
 
@@ -103,7 +105,8 @@ class _AdminAlbumsScreenState extends State<AdminAlbumsScreen> {
     _filterAlbums(_searchController.text);
   }
 
-  // GA01-162: Aprobar álbum
+  // GA01-162: Aprobar Album
+  // IMPORTANTE: Primero verifica que todas las canciones del Album estén aprobadas
   Future<void> _approveAlbum(Album album) async {
     final currentContext = context;
     final authProvider = context.read<AuthProvider>();
@@ -116,10 +119,18 @@ class _AdminAlbumsScreenState extends State<AdminAlbumsScreen> {
       return;
     }
 
+    // Primero, mostrar diálogo con información de las canciones del Album
+    final shouldProceed = await _showAlbumSongsDialog(album);
+
+    if (shouldProceed != true) {
+      return;
+    }
+
+    if (!currentContext.mounted) return;
     final result = await showApproveDialog(
-      context: context,
+      context: currentContext,
       itemName: album.name,
-      itemType: 'álbum',
+      itemType: 'Album',
     );
 
     if (result == true) {
@@ -128,25 +139,25 @@ class _AdminAlbumsScreenState extends State<AdminAlbumsScreen> {
             await _moderationService.approveAlbum(album.id, adminId);
 
         if (response.success) {
-          if(!currentContext.mounted) return;
+          if (!currentContext.mounted) return;
           ScaffoldMessenger.of(currentContext).showSnackBar(
             SnackBar(
-              content: Text('Álbum "${album.name}" aprobado exitosamente'),
+              content: Text('Album "${album.name}" aprobado exitosamente'),
               backgroundColor: Colors.green,
             ),
           );
           _loadAlbums();
         } else {
-          if(!currentContext.mounted) return;
+          if (!currentContext.mounted) return;
           ScaffoldMessenger.of(currentContext).showSnackBar(
             SnackBar(
-              content: Text(response.error ?? 'Error al aprobar el álbum'),
+              content: Text(response.error ?? 'Error al aprobar el Album'),
               backgroundColor: Colors.red,
             ),
           );
         }
       } catch (e) {
-        if(!currentContext.mounted) return;
+        if (!currentContext.mounted) return;
         ScaffoldMessenger.of(currentContext).showSnackBar(
           SnackBar(
             content: Text('Error: $e'),
@@ -157,7 +168,156 @@ class _AdminAlbumsScreenState extends State<AdminAlbumsScreen> {
     }
   }
 
-  // GA01-162: Rechazar álbum
+  // Mostrar diálogo con las canciones del Album y su estado de moderación
+  Future<bool?> _showAlbumSongsDialog(Album album) async {
+    // Obtener las canciones del Album
+    final songsResponse = await _musicService.getSongsByAlbum(album.id);
+
+    if (!songsResponse.success || songsResponse.data == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al cargar canciones: ${songsResponse.error}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return false;
+    }
+
+    final songs = songsResponse.data!;
+
+    if (songs.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Este Album no tiene canciones'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+      return false;
+    }
+    final unapprovedSongs =
+        songs.where((song) => song.moderationStatus != 'APPROVED').toList();
+
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Canciones del Album "${album.name}"'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Total de canciones: ${songs.length}',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              if (unapprovedSongs.isNotEmpty) ...[
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withValues(alpha: 0.1),
+                    border: Border.all(color: Colors.orange),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.warning, color: Colors.orange),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Canciones no aprobadas: ${unapprovedSongs.length}',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.orange,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Debes aprobar primero todas las canciones del Album antes de poder aprobar el Album completo.',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
+              const Divider(),
+              const SizedBox(height: 8),
+              Flexible(
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: songs.length,
+                  itemBuilder: (context, index) {
+                    final song = songs[index];
+                    final isApproved = song.moderationStatus == 'APPROVED';
+                    return ListTile(
+                      leading: Icon(
+                        isApproved ? Icons.check_circle : Icons.pending,
+                        color: isApproved ? Colors.green : Colors.orange,
+                      ),
+                      title: Text(song.name),
+                      subtitle: Text(
+                        song.moderationStatus ?? 'PENDING',
+                        style: TextStyle(
+                          color: isApproved ? Colors.green : Colors.orange,
+                          fontSize: 12,
+                        ),
+                      ),
+                      dense: true,
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          if (unapprovedSongs.isEmpty)
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryBlue,
+              ),
+              child: const Text('Continuar'),
+            )
+          else
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context, false);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                        'No se puede aprobar el Album hasta que todas las canciones estén aprobadas'),
+                    backgroundColor: Colors.orange,
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.grey,
+              ),
+              child: const Text('Cerrar'),
+            ),
+        ],
+      ),
+    );
+  }
+
+  // GA01-162: Rechazar Album
   Future<void> _rejectAlbum(Album album) async {
     final currentContext = context;
     final authProvider = context.read<AuthProvider>();
@@ -173,7 +333,7 @@ class _AdminAlbumsScreenState extends State<AdminAlbumsScreen> {
     final result = await showRejectDialog(
       context: context,
       itemName: album.name,
-      itemType: 'álbum',
+      itemType: 'Album',
     );
 
     if (result != null && result['reason'] != null) {
@@ -186,25 +346,25 @@ class _AdminAlbumsScreenState extends State<AdminAlbumsScreen> {
         );
 
         if (response.success) {
-          if(!currentContext.mounted) return;
+          if (!currentContext.mounted) return;
           ScaffoldMessenger.of(currentContext).showSnackBar(
             SnackBar(
-              content: Text('Álbum "${album.name}" rechazado'),
+              content: Text('Album "${album.name}" rechazado'),
               backgroundColor: Colors.orange,
             ),
           );
           _loadAlbums();
         } else {
-          if(!currentContext.mounted) return;
+          if (!currentContext.mounted) return;
           ScaffoldMessenger.of(currentContext).showSnackBar(
             SnackBar(
-              content: Text(response.error ?? 'Error al rechazar el álbum'),
+              content: Text(response.error ?? 'Error al rechazar el Album'),
               backgroundColor: Colors.red,
             ),
           );
         }
       } catch (e) {
-        if(!currentContext.mounted) return;
+        if (!currentContext.mounted) return;
         ScaffoldMessenger.of(currentContext).showSnackBar(
           SnackBar(
             content: Text('Error: $e'),
@@ -225,12 +385,12 @@ class _AdminAlbumsScreenState extends State<AdminAlbumsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: const Text('Cancelar'),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Delete'),
+            child: const Text('Eliminar'),
           ),
         ],
       ),
@@ -240,13 +400,13 @@ class _AdminAlbumsScreenState extends State<AdminAlbumsScreen> {
       try {
         final response = await _musicService.deleteAlbum(albumId);
         if (response.success) {
-          if(!currentContext.mounted) return;
+          if (!currentContext.mounted) return;
           ScaffoldMessenger.of(currentContext).showSnackBar(
             const SnackBar(content: Text('Album deleted successfully')),
           );
           _loadAlbums();
         } else {
-          if(!currentContext.mounted) return;
+          if (!currentContext.mounted) return;
           ScaffoldMessenger.of(currentContext).showSnackBar(
             SnackBar(
               content: Text(response.error ?? 'Failed to delete album'),
@@ -254,7 +414,7 @@ class _AdminAlbumsScreenState extends State<AdminAlbumsScreen> {
           );
         }
       } catch (e) {
-        if(!currentContext.mounted) return;
+        if (!currentContext.mounted) return;
         ScaffoldMessenger.of(currentContext).showSnackBar(
           SnackBar(content: Text('Error: $e')),
         );
@@ -398,13 +558,15 @@ class _AdminAlbumsScreenState extends State<AdminAlbumsScreen> {
                                 child: Padding(
                                   padding: const EdgeInsets.all(12),
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       // Título y badge de estado
                                       Row(
                                         children: [
                                           CircleAvatar(
-                                            backgroundColor: AppTheme.primaryBlue,
+                                            backgroundColor:
+                                                AppTheme.primaryBlue,
                                             child: const Icon(Icons.album,
                                                 color: Colors.white),
                                           ),
@@ -422,7 +584,7 @@ class _AdminAlbumsScreenState extends State<AdminAlbumsScreen> {
                                                   ),
                                                 ),
                                                 Text(
-                                                  'Artist ID: ${album.artistId} • \$${album.price.toStringAsFixed(2)}',
+                                                  'Artista ID: ${album.artistId} • \$${album.price.toStringAsFixed(2)}',
                                                   style: TextStyle(
                                                     color: Colors.grey[600],
                                                     fontSize: 13,
@@ -441,7 +603,8 @@ class _AdminAlbumsScreenState extends State<AdminAlbumsScreen> {
 
                                       // GA01-162: Mostrar razón de rechazo si existe
                                       if (album.rejectionReason != null &&
-                                          album.rejectionReason!.isNotEmpty) ...[
+                                          album
+                                              .rejectionReason!.isNotEmpty) ...[
                                         const SizedBox(height: 12),
                                         RejectionReasonWidget(
                                           reason: album.rejectionReason!,
@@ -455,7 +618,7 @@ class _AdminAlbumsScreenState extends State<AdminAlbumsScreen> {
                                         mainAxisAlignment:
                                             MainAxisAlignment.end,
                                         children: [
-                                          // GA01-162: Botones de moderación para álbumes pendientes
+                                          // GA01-162: Botones de moderación para Albumes pendientes
                                           if (album.moderationStatus ==
                                               'PENDING') ...[
                                             TextButton.icon(
@@ -472,8 +635,8 @@ class _AdminAlbumsScreenState extends State<AdminAlbumsScreen> {
                                             TextButton.icon(
                                               onPressed: () =>
                                                   _rejectAlbum(album),
-                                              icon:
-                                                  const Icon(Icons.close, size: 18),
+                                              icon: const Icon(Icons.close,
+                                                  size: 18),
                                               label: const Text('Rechazar'),
                                               style: TextButton.styleFrom(
                                                 foregroundColor: Colors.red,
@@ -484,12 +647,14 @@ class _AdminAlbumsScreenState extends State<AdminAlbumsScreen> {
                                           IconButton(
                                             icon: const Icon(Icons.edit,
                                                 color: AppTheme.primaryBlue),
-                                            onPressed: () => _showAlbumForm(album),
+                                            onPressed: () =>
+                                                _showAlbumForm(album),
                                           ),
                                           IconButton(
                                             icon: const Icon(Icons.delete,
                                                 color: Colors.red),
-                                            onPressed: () => _deleteAlbum(album.id),
+                                            onPressed: () =>
+                                                _deleteAlbum(album.id),
                                           ),
                                         ],
                                       ),
@@ -514,7 +679,7 @@ class _AdminAlbumsScreenState extends State<AdminAlbumsScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(isEditing ? 'Edit Album' : 'Add New Album'),
+        title: Text(isEditing ? 'Edit Album' : 'Añadir New Album'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -540,7 +705,7 @@ class _AdminAlbumsScreenState extends State<AdminAlbumsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: const Text('Cancelar'),
           ),
           ElevatedButton(
             onPressed: () {
@@ -561,7 +726,7 @@ class _AdminAlbumsScreenState extends State<AdminAlbumsScreen> {
               );
               _loadAlbums();
             },
-            child: Text(isEditing ? 'Update' : 'Create'),
+            child: Text(isEditing ? 'Actualizar' : 'Crear'),
           ),
         ],
       ),
