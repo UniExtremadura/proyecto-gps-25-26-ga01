@@ -14,6 +14,23 @@ import '../../../core/api/services/file_service.dart';
 import '../../../core/models/song.dart';
 import '../../../core/models/album.dart';
 
+// Clase para manejar los datos de las nuevas canciones
+class NewSongData {
+  final PlatformFile file;
+  String title;
+  double price;
+  List<int> genreIds;
+  String description;
+
+  NewSongData({
+    required this.file,
+    required this.title,
+    this.price = 9.99,
+    this.genreIds = const [],
+    this.description = '',
+  });
+}
+
 class UploadAlbumScreen extends StatefulWidget {
   const UploadAlbumScreen({super.key});
 
@@ -25,26 +42,43 @@ class _UploadAlbumScreenState extends State<UploadAlbumScreen> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
-  final _priceController = TextEditingController(text: '19.99');
   final _releaseDateController = TextEditingController();
 
   bool _showPreview = false;
   bool _isUploading = false;
   bool _publishNow = true; // Publicar inmediatamente por defecto
   double _uploadProgress = 0.0;
+  double _discountPercentage = 15.0; // Porcentaje de descuento por defecto
   String? _coverImagePath;
   List<Song> _selectedSongs = [];
-  final List<PlatformFile> _newAudioFiles =
-      []; // Nuevos archivos de audio para subir
+  final List<NewSongData> _newSongsData = []; // Nuevos archivos con sus datos
   Album? _createdAlbum;
 
   @override
   void dispose() {
     _titleController.dispose();
     _descriptionController.dispose();
-    _priceController.dispose();
     _releaseDateController.dispose();
     super.dispose();
+  }
+
+  // Calcular precio base del álbum (suma de todas las canciones)
+  double get _basePrice {
+    double total = 0.0;
+    // Sumar precios de canciones existentes
+    for (var song in _selectedSongs) {
+      total += song.price;
+    }
+    // Sumar precios de canciones nuevas
+    for (var songData in _newSongsData) {
+      total += songData.price;
+    }
+    return total;
+  }
+
+  // Calcular precio final con descuento
+  double get _finalPrice {
+    return _basePrice * (1 - _discountPercentage / 100);
   }
 
   String _formatFileSize(int bytes) {
@@ -139,13 +173,11 @@ class _UploadAlbumScreenState extends State<UploadAlbumScreen> {
 
           // Validar extensión
           if (extension == null ||
-              !['mp3', 'wav', 'flac', 'aac', 'm4a', 'ogg']
-                  .contains(extension)) {
+              !['mp3', 'wav', 'flac', 'aac', 'm4a', 'ogg'].contains(extension)) {
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text(
-                      'Archivo ${file.name} tiene formato no válido y será ignorado'),
+                  content: Text('Archivo ${file.name} tiene formato no válido y será ignorado'),
                   backgroundColor: Colors.orange,
                 ),
               );
@@ -158,8 +190,7 @@ class _UploadAlbumScreenState extends State<UploadAlbumScreen> {
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text(
-                      'Archivo ${file.name} es demasiado grande (máx 100MB) y será ignorado'),
+                  content: Text('Archivo ${file.name} es demasiado grande (máx 100MB) y será ignorado'),
                   backgroundColor: Colors.orange,
                 ),
               );
@@ -171,18 +202,29 @@ class _UploadAlbumScreenState extends State<UploadAlbumScreen> {
         }
 
         if (validFiles.isNotEmpty) {
-          setState(() {
-            _newAudioFiles.addAll(validFiles);
-          });
+          // Mostrar diálogo para cada archivo para configurar sus datos
+          final newSongsData = <NewSongData>[];
 
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                    '${validFiles.length} archivo(s) de audio seleccionados'),
-                backgroundColor: Colors.green,
-              ),
-            );
+          for (final file in validFiles) {
+            final songData = await _showSongDataDialog(file);
+            if (songData != null) {
+              newSongsData.add(songData);
+            }
+          }
+
+          if (newSongsData.isNotEmpty) {
+            setState(() {
+              _newSongsData.addAll(newSongsData);
+            });
+
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('${newSongsData.length} canción(es) configuradas'),
+                  backgroundColor: Colors.green,
+                ),
+              );
+            }
           }
         }
       }
@@ -195,9 +237,97 @@ class _UploadAlbumScreenState extends State<UploadAlbumScreen> {
     }
   }
 
+  Future<NewSongData?> _showSongDataDialog(PlatformFile file) async {
+    final titleController = TextEditingController(
+      text: file.name.replaceAll(RegExp(r'\.\w+$'), ''), // Nombre sin extensión
+    );
+    final priceController = TextEditingController(text: '9.99');
+    final descriptionController = TextEditingController();
+
+    return showDialog<NewSongData>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: Text('Datos de: ${file.name}'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                controller: titleController,
+                decoration: const InputDecoration(
+                  labelText: 'Título de la canción *',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.music_note),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: priceController,
+                decoration: const InputDecoration(
+                  labelText: 'Precio *',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.attach_money),
+                ),
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: descriptionController,
+                decoration: const InputDecoration(
+                  labelText: 'Descripción (opcional)',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.description),
+                ),
+                maxLines: 3,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              titleController.dispose();
+              priceController.dispose();
+              descriptionController.dispose();
+              Navigator.pop(context, null);
+            },
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (titleController.text.isEmpty || priceController.text.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Título y precio son requeridos')),
+                );
+                return;
+              }
+
+              final songData = NewSongData(
+                file: file,
+                title: titleController.text,
+                price: double.tryParse(priceController.text) ?? 9.99,
+                description: descriptionController.text,
+              );
+
+              titleController.dispose();
+              priceController.dispose();
+              descriptionController.dispose();
+              Navigator.pop(context, songData);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryBlue,
+            ),
+            child: const Text('Guardar'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _uploadAlbum() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_selectedSongs.isEmpty && _newAudioFiles.isEmpty) {
+    if (_selectedSongs.isEmpty && _newSongsData.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Por favor agrega al menos una canción')),
       );
@@ -218,12 +348,13 @@ class _UploadAlbumScreenState extends State<UploadAlbumScreen> {
       final List<int> allSongIds = _selectedSongs.map((s) => s.id).toList();
 
       // Paso 1: Subir nuevos archivos de audio como canciones
-      if (_newAudioFiles.isNotEmpty) {
+      if (_newSongsData.isNotEmpty) {
         setState(() => _uploadProgress = 0.1);
-        final int totalNewSongs = _newAudioFiles.length;
+        final int totalNewSongs = _newSongsData.length;
 
-        for (int i = 0; i < _newAudioFiles.length; i++) {
-          final audioFile = _newAudioFiles[i];
+        for (int i = 0; i < _newSongsData.length; i++) {
+          final songData = _newSongsData[i];
+          final audioFile = songData.file;
           final progress = 0.1 + (i / totalNewSongs) * 0.4;
 
           try {
@@ -232,18 +363,16 @@ class _UploadAlbumScreenState extends State<UploadAlbumScreen> {
               audioFile.path!,
               onProgress: (sent, total) {
                 setState(() {
-                  _uploadProgress =
-                      progress + (sent / total) * (0.4 / totalNewSongs);
+                  _uploadProgress = progress + (sent / total) * (0.4 / totalNewSongs);
                 });
               },
             );
 
             if (!audioUploadResponse.success) {
-              throw Exception(
-                  'Error al subir ${audioFile.name}: ${audioUploadResponse.error}');
+              throw Exception('Error al subir ${audioFile.name}: ${audioUploadResponse.error}');
             }
 
-            int duration = 180;
+             int duration = 180;
 
             try {
               final player = AudioPlayer();
@@ -258,26 +387,23 @@ class _UploadAlbumScreenState extends State<UploadAlbumScreen> {
               debugPrint('Error al extraer duración de ${audioFile.name}: $e');
             }
 
-            // Crear la canción con metadata básica
-            final songName = audioFile.name
-                .replaceAll(RegExp(r'\.\w+$'), ''); // Quitar extensión
-            final songData = {
-              'name': songName,
+            // Crear la canción con los datos configurados por el usuario
+            final songCreateData = {
+              'name': songData.title,
               'artistId': authProvider.currentUser!.id,
               'audioFileUrl': audioUploadResponse.data!.fileUrl,
               'duration': duration,
-              'price': double.parse(
-                  _priceController.text), // Precio base por canción
+              'price': songData.price,
               'fileSize': audioFile.size,
               'format': audioFile.extension,
-              'genreIds': [],
+              'genreIds': songData.genreIds,
+              'description': songData.description.isNotEmpty ? songData.description : null,
             };
 
-            final songCreateResponse = await musicService.createSong(songData);
+            final songCreateResponse = await musicService.createSong(songCreateData);
 
-            if (!songCreateResponse.success ||
-                songCreateResponse.data == null) {
-              throw Exception('Error al crear canción $songName');
+            if (!songCreateResponse.success || songCreateResponse.data == null) {
+              throw Exception('Error al crear canción ${songData.title}');
             }
 
             allSongIds.add(songCreateResponse.data!.id);
@@ -323,13 +449,13 @@ class _UploadAlbumScreenState extends State<UploadAlbumScreen> {
         'title': _titleController.text,
         'artistId': authProvider.currentUser!.id,
         'description': _descriptionController.text,
-        'price': double.parse(_priceController.text),
+        // NO enviar precio - se calcula en el backend
         'coverImageUrl': coverImageUrl,
         'genreIds': [],
         'releaseDate': _releaseDateController.text.isNotEmpty
             ? _releaseDateController.text
             : null,
-        'discountPercentage': 15.0,
+        'discountPercentage': _discountPercentage,
         'songIds': allSongIds,
         'published': _publishNow, // Incluir estado de publicación
       };
@@ -349,7 +475,8 @@ class _UploadAlbumScreenState extends State<UploadAlbumScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-                '¡Álbum creado exitosamente con ${allSongIds.length} canciones!'),
+              '¡Álbum creado exitosamente con ${allSongIds.length} canciones!'
+            ),
             backgroundColor: Colors.green,
           ),
         );
@@ -553,51 +680,113 @@ class _UploadAlbumScreenState extends State<UploadAlbumScreen> {
             ).animate().fadeIn(delay: 100.ms),
             const SizedBox(height: 16),
 
-            Row(
-              children: [
-                Expanded(
-                  child: TextFormField(
-                    controller: _priceController,
-                    decoration: const InputDecoration(
-                      labelText: 'Precio base por canción *',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.attach_money),
-                      helperText:
-                          'El álbum costará la suma de todas las canciones',
-                      helperMaxLines: 2,
-                    ),
-                    keyboardType: TextInputType.number,
-                    validator: (value) =>
-                        value?.isEmpty ?? true ? 'Campo requerido' : null,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: TextFormField(
-                    controller: _releaseDateController,
-                    decoration: const InputDecoration(
-                      labelText: 'Fecha de Lanzamiento',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.calendar_today),
-                    ),
-                    readOnly: true,
-                    onTap: () async {
-                      final date = await showDatePicker(
-                        context: context,
-                        initialDate: DateTime.now(),
-                        firstDate: DateTime(2000),
-                        lastDate: DateTime(2100),
-                      );
-                      if (date != null) {
-                        _releaseDateController.text =
-                            '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-                      }
-                    },
-                  ),
-                ),
-              ],
+            TextFormField(
+              controller: _releaseDateController,
+              decoration: const InputDecoration(
+                labelText: 'Fecha de Lanzamiento',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.calendar_today),
+              ),
+              readOnly: true,
+              onTap: () async {
+                final date = await showDatePicker(
+                  context: context,
+                  initialDate: DateTime.now(),
+                  firstDate: DateTime(2000),
+                  lastDate: DateTime(2100),
+                );
+                if (date != null) {
+                  _releaseDateController.text =
+                      '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+                }
+              },
             ).animate().fadeIn(delay: 150.ms),
             const SizedBox(height: 24),
+
+            // Sección de Precios
+            if (_selectedSongs.isNotEmpty || _newSongsData.isNotEmpty) ...[
+              Card(
+                color: AppTheme.primaryBlue.withValues(alpha:0.1),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Precios del Álbum',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.primaryBlue,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('Precio base:'),
+                          Text(
+                            '\$${_basePrice.toStringAsFixed(2)}',
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Descuento: ${_discountPercentage.toStringAsFixed(0)}%',
+                        style: const TextStyle(fontWeight: FontWeight.w500),
+                      ),
+                      Slider(
+                        value: _discountPercentage,
+                        min: 0,
+                        max: 50,
+                        divisions: 50,
+                        label: '${_discountPercentage.toStringAsFixed(0)}%',
+                        activeColor: AppTheme.primaryBlue,
+                        onChanged: (value) {
+                          setState(() => _discountPercentage = value);
+                        },
+                      ),
+                      const SizedBox(height: 8),
+                      const Divider(),
+                      const SizedBox(height: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Precio final:',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            '\$${_finalPrice.toStringAsFixed(2)}',
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.green,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Ahorro: \$${(_basePrice - _finalPrice).toStringAsFixed(2)}',
+                        style: const TextStyle(
+                          color: Colors.green,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ).animate().fadeIn(delay: 175.ms),
+              const SizedBox(height: 24),
+            ],
 
             // Sección: Canciones
             Text(
@@ -614,8 +803,7 @@ class _UploadAlbumScreenState extends State<UploadAlbumScreen> {
               child: Column(
                 children: [
                   ListTile(
-                    leading: const Icon(Icons.music_note,
-                        color: AppTheme.primaryBlue),
+                    leading: const Icon(Icons.music_note, color: AppTheme.primaryBlue),
                     title: Text(_selectedSongs.isEmpty
                         ? 'Agregar Canciones Existentes'
                         : '${_selectedSongs.length} canciones seleccionadas'),
@@ -624,11 +812,10 @@ class _UploadAlbumScreenState extends State<UploadAlbumScreen> {
                   ),
                   const Divider(height: 1),
                   ListTile(
-                    leading: const Icon(Icons.upload_file,
-                        color: AppTheme.primaryBlue),
-                    title: Text(_newAudioFiles.isEmpty
+                    leading: const Icon(Icons.upload_file, color: AppTheme.primaryBlue),
+                    title: Text(_newSongsData.isEmpty
                         ? 'Subir Nuevas Canciones (Múltiples)'
-                        : '${_newAudioFiles.length} archivos nuevos'),
+                        : '${_newSongsData.length} canciones nuevas'),
                     trailing: const Icon(Icons.add),
                     onTap: _selectNewAudioFiles,
                   ),
@@ -636,7 +823,7 @@ class _UploadAlbumScreenState extends State<UploadAlbumScreen> {
               ),
             ).animate().fadeIn(delay: 200.ms),
 
-            if (_selectedSongs.isNotEmpty || _newAudioFiles.isNotEmpty) ...[
+            if (_selectedSongs.isNotEmpty || _newSongsData.isNotEmpty) ...[
               const SizedBox(height: 16),
               ..._selectedSongs.asMap().entries.map((entry) {
                 final index = entry.key;
@@ -648,7 +835,7 @@ class _UploadAlbumScreenState extends State<UploadAlbumScreen> {
                       child: Text('${index + 1}'),
                     ),
                     title: Text(song.name),
-                    subtitle: Text(song.durationFormatted),
+                    subtitle: Text('${song.durationFormatted} - \$${song.price.toStringAsFixed(2)}'),
                     trailing: IconButton(
                       icon: const Icon(Icons.close),
                       onPressed: () {
@@ -658,24 +845,23 @@ class _UploadAlbumScreenState extends State<UploadAlbumScreen> {
                   ),
                 ).animate().fadeIn(delay: (250 + index * 50).ms);
               }),
-              ..._newAudioFiles.asMap().entries.map((entry) {
+              ..._newSongsData.asMap().entries.map((entry) {
                 final index = entry.key;
-                final audioFile = entry.value;
+                final songData = entry.value;
                 final songIndex = _selectedSongs.length + index + 1;
                 return Card(
-                  color: AppTheme.primaryBlue.withValues(alpha: 0.1),
+                  color: AppTheme.primaryBlue.withValues(alpha:0.1),
                   child: ListTile(
                     leading: CircleAvatar(
                       backgroundColor: AppTheme.primaryBlue,
                       child: Text('$songIndex'),
                     ),
-                    title: Text(audioFile.name),
-                    subtitle:
-                        Text('Nuevo - ${_formatFileSize(audioFile.size)}'),
+                    title: Text(songData.title),
+                    subtitle: Text('Nueva - \$${songData.price.toStringAsFixed(2)} - ${_formatFileSize(songData.file.size)}'),
                     trailing: IconButton(
                       icon: const Icon(Icons.close),
                       onPressed: () {
-                        setState(() => _newAudioFiles.removeAt(index));
+                        setState(() => _newSongsData.removeAt(index));
                       },
                     ),
                   ),
@@ -801,37 +987,62 @@ class _UploadAlbumScreenState extends State<UploadAlbumScreen> {
             const SizedBox(height: 16),
           ],
 
-          // Precio
-          Center(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.attach_money,
-                    color: AppTheme.primaryBlue, size: 32),
-                Text(
-                  _priceController.text,
-                  style: const TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.primaryBlue,
+          // Precios
+          if (_selectedSongs.isNotEmpty || _newSongsData.isNotEmpty) ...[
+            Center(
+              child: Column(
+                children: [
+                  Text(
+                    'Precio base: \$${_basePrice.toStringAsFixed(2)}',
+                    style: TextStyle(
+                      fontSize: 18,
+                      color: AppTheme.textGrey,
+                      decoration: _discountPercentage > 0
+                          ? TextDecoration.lineThrough
+                          : TextDecoration.none,
+                    ),
                   ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 8),
-
-          // Precio con descuento
-          Center(
-            child: Text(
-              'Precio con descuento: \$${(double.parse(_priceController.text) * 0.85).toStringAsFixed(2)}',
-              style: const TextStyle(
-                fontSize: 16,
-                color: Colors.green,
+                  const SizedBox(height: 8),
+                  if (_discountPercentage > 0) ...[
+                    Text(
+                      'Descuento: ${_discountPercentage.toStringAsFixed(0)}%',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Colors.orange,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.attach_money,
+                          color: AppTheme.primaryBlue, size: 32),
+                      Text(
+                        _finalPrice.toStringAsFixed(2),
+                        style: const TextStyle(
+                          fontSize: 36,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.green,
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (_discountPercentage > 0)
+                    Text(
+                      'Ahorras: \$${(_basePrice - _finalPrice).toStringAsFixed(2)}',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Colors.green,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                ],
               ),
             ),
-          ),
-          const SizedBox(height: 24),
+            const SizedBox(height: 24),
+          ],
 
           // Lista de canciones
           const Divider(),
@@ -848,7 +1059,7 @@ class _UploadAlbumScreenState extends State<UploadAlbumScreen> {
                 ),
               ),
               Text(
-                '${_selectedSongs.length} canciones',
+                '${_selectedSongs.length + _newSongsData.length} canciones',
                 style: const TextStyle(
                   fontSize: 16,
                   color: AppTheme.textGrey,
@@ -858,7 +1069,7 @@ class _UploadAlbumScreenState extends State<UploadAlbumScreen> {
           ),
           const SizedBox(height: 16),
 
-          if (_selectedSongs.isEmpty)
+          if (_selectedSongs.isEmpty && _newSongsData.isEmpty)
             const Center(
               child: Padding(
                 padding: EdgeInsets.all(32.0),
@@ -868,7 +1079,7 @@ class _UploadAlbumScreenState extends State<UploadAlbumScreen> {
                 ),
               ),
             )
-          else
+          else ...[
             ..._selectedSongs.asMap().entries.map((entry) {
               final index = entry.key;
               final song = entry.value;
@@ -878,13 +1089,31 @@ class _UploadAlbumScreenState extends State<UploadAlbumScreen> {
                   child: Text('${index + 1}'),
                 ),
                 title: Text(song.name),
-                subtitle: Text(song.durationFormatted),
+                subtitle: Text('${song.durationFormatted} - \$${song.price.toStringAsFixed(2)}'),
                 trailing: Icon(
                   Icons.play_circle_outline,
                   color: AppTheme.primaryBlue,
                 ),
               );
             }),
+            ..._newSongsData.asMap().entries.map((entry) {
+              final index = entry.key;
+              final songData = entry.value;
+              final songIndex = _selectedSongs.length + index + 1;
+              return ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: Colors.green,
+                  child: Text('$songIndex'),
+                ),
+                title: Text(songData.title),
+                subtitle: Text('Nueva - \$${songData.price.toStringAsFixed(2)}'),
+                trailing: const Icon(
+                  Icons.fiber_new,
+                  color: Colors.green,
+                ),
+              );
+            }),
+          ],
         ],
       ),
     );

@@ -4,12 +4,14 @@ import 'package:audio_session/audio_session.dart';
 import '../models/song.dart';
 import '../models/album.dart';
 import '../api/services/music_service.dart';
+import '../api/services/library_service.dart';
 
 enum RepeatMode { off, one, all }
 
 class AudioProvider with ChangeNotifier {
   final AudioPlayer _audioPlayer = AudioPlayer();
   final MusicService _musicService = MusicService();
+  final LibraryService _libraryService = LibraryService();
 
   Song? _currentSong;
   List<Song> _queue = [];
@@ -23,8 +25,8 @@ class AudioProvider with ChangeNotifier {
   bool _isDemoMode = false;
   bool _demoFinished = false;
   double _volume = 0.5; // Volume from 0.0 to 1.0
-  // -> NUEVA VARIABLE DE ESTADO para controlar la concurrencia en seek
   bool _isSeekingInternally = false;
+  int? _currentUserId; // Para verificar si la canción está comprada
 
   Song? get currentSong => _currentSong;
   List<Song> get queue => _queue;
@@ -117,26 +119,55 @@ class AudioProvider with ChangeNotifier {
     });
   }
 
+  // Método para establecer el usuario actual (llamado desde la app)
+  void setCurrentUser(int? userId) {
+    _currentUserId = userId;
+  }
+
   Future<void> playSong(Song song,
-      {bool? demo, bool? isUserAuthenticated}) async {
+      {bool? demo, bool? isUserAuthenticated, int? userId}) async {
     _demoFinished = false;
     debugPrint('▶️ Reproduciendo canción - Canción: ${song.name}');
     debugPrint('   demo parameter: $demo');
     debugPrint('   isUserAuthenticated parameter: $isUserAuthenticated');
+    debugPrint('   userId parameter: $userId');
 
     try {
       _currentSong = song;
-      // Auto-enable demo mode if user is not authenticated
+
+      // Usar userId si se proporciona, si no usar el guardado
+      final effectiveUserId = userId ?? _currentUserId;
+
+      // IMPORTANTE: Verificar si la canción está comprada para determinar modo demo
+      bool isPurchased = false;
+      if (effectiveUserId != null && isUserAuthenticated == true) {
+        try {
+          final response = await _libraryService.checkIfPurchased(
+            effectiveUserId,
+            'SONG',
+            song.id,
+          );
+          isPurchased = response.data ?? false;
+          debugPrint('   ✅ Verificación de compra: isPurchased=$isPurchased');
+        } catch (e) {
+          debugPrint('   ⚠️ Error verificando compra: $e');
+          isPurchased = false;
+        }
+      }
+
+      // Determinar modo demo:
+      // - Si NO está autenticado: DEMO
+      // - Si está autenticado pero NO ha comprado la canción: DEMO
+      // - Si está autenticado Y ha comprado la canción: COMPLETO
       if (demo != null) {
         _isDemoMode = demo;
-        debugPrint('   ✅ Demo mode set from demo parameter: $_isDemoMode');
-      } else if (isUserAuthenticated != null) {
-        _isDemoMode = !isUserAuthenticated;
-        debugPrint(
-            '   ✅ Demo mode set from isUserAuthenticated: $_isDemoMode (user auth: $isUserAuthenticated)');
+        debugPrint('   ✅ Demo mode forzado por parámetro: $_isDemoMode');
+      } else if (isUserAuthenticated == false || !isPurchased) {
+        _isDemoMode = true;
+        debugPrint('   ✅ Demo mode activado: user auth=$isUserAuthenticated, purchased=$isPurchased');
       } else {
         _isDemoMode = false;
-        debugPrint('   ❌ No parameters, demo mode: $_isDemoMode');
+        debugPrint('   ✅ Modo completo: usuario autenticado y canción comprada');
       }
 
       debugPrint('   🎯 FINAL isDemoMode: $_isDemoMode');
@@ -187,7 +218,7 @@ class AudioProvider with ChangeNotifier {
     }
   }
 
-  Future<void> playAlbum(Album album, {int startIndex = 0}) async {
+  Future<void> playAlbum(Album album, {int startIndex = 0, bool? isUserAuthenticated, int? userId}) async {
     try {
       _isLoading = true;
       notifyListeners();
@@ -200,7 +231,7 @@ class AudioProvider with ChangeNotifier {
 
         if (_queue.isNotEmpty) {
           _currentIndex = startIndex;
-          await playSong(_queue[_currentIndex]);
+          await playSong(_queue[_currentIndex], isUserAuthenticated: isUserAuthenticated, userId: userId);
         }
       }
 
@@ -213,13 +244,13 @@ class AudioProvider with ChangeNotifier {
     }
   }
 
-  Future<void> playQueue(List<Song> songs, {int startIndex = 0}) async {
+  Future<void> playQueue(List<Song> songs, {int startIndex = 0, bool? isUserAuthenticated, int? userId}) async {
     try {
       if (songs.isEmpty) return;
 
       _queue = List.from(songs);
       _currentIndex = startIndex;
-      await playSong(_queue[_currentIndex]);
+      await playSong(_queue[_currentIndex], isUserAuthenticated: isUserAuthenticated, userId: userId);
     } catch (e) {
       debugPrint('Error reproduciendo la cola: $e');
     }
@@ -246,10 +277,15 @@ class AudioProvider with ChangeNotifier {
 
     if (_currentIndex < _queue.length - 1) {
       _currentIndex++;
-      await playSong(_queue[_currentIndex]);
+      // Mantener el mismo modo (demo o completo) al pasar a la siguiente canción
+      await playSong(_queue[_currentIndex],
+        isUserAuthenticated: _currentUserId != null,
+        userId: _currentUserId);
     } else if (_repeatMode == RepeatMode.all) {
       _currentIndex = 0;
-      await playSong(_queue[_currentIndex]);
+      await playSong(_queue[_currentIndex],
+        isUserAuthenticated: _currentUserId != null,
+        userId: _currentUserId);
     } else {
       await pause();
       await seek(Duration.zero);
@@ -263,10 +299,14 @@ class AudioProvider with ChangeNotifier {
       await seek(Duration.zero);
     } else if (_currentIndex > 0) {
       _currentIndex--;
-      await playSong(_queue[_currentIndex]);
+      await playSong(_queue[_currentIndex],
+        isUserAuthenticated: _currentUserId != null,
+        userId: _currentUserId);
     } else if (_repeatMode == RepeatMode.all) {
       _currentIndex = _queue.length - 1;
-      await playSong(_queue[_currentIndex]);
+      await playSong(_queue[_currentIndex],
+        isUserAuthenticated: _currentUserId != null,
+        userId: _currentUserId);
     }
   }
 
@@ -325,11 +365,22 @@ class AudioProvider with ChangeNotifier {
   void _handleSongCompletion() {
     switch (_repeatMode) {
       case RepeatMode.one:
-        playSong(_queue[_currentIndex]);
+        playSong(_queue[_currentIndex],
+          isUserAuthenticated: _currentUserId != null,
+          userId: _currentUserId);
         break;
       case RepeatMode.all:
+        next(); // Ya está manejando la autenticación correctamente
+        break;
       case RepeatMode.off:
-        next();
+        // Al terminar una canción en modo off, si hay más en la cola, reproducir siguiente
+        if (_currentIndex < _queue.length - 1) {
+          next();
+        } else {
+          // Si era la última, pausar
+          pause();
+          seek(Duration.zero);
+        }
         break;
     }
   }
