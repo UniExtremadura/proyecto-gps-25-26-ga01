@@ -26,7 +26,7 @@ jwt:
 
 file:
   upload-dir: uploads
-  base-url: http://4.233.92.4
+  base-url: http://98.66.232.230
   service:
     url: http://file-service:9005  # URL del file-service para subida de archivos
 
