@@ -20,7 +20,7 @@ public class RatingServiceClient {
 
     private final RestTemplate restTemplate;
 
-    @Value("${services.community.url:http://172.16.0.10:9001}")
+    @Value("${services.community.url:http://172.16.0.4:9001}")
     private String communityServiceUrl;
 
     /**
