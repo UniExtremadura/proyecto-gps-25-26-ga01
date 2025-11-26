@@ -7,7 +7,7 @@ class ContactService {
 
   final ApiClient _apiClient = ApiClient();
 
-  /// Send a contact message
+  /// Send a contact message (no auth required - public access)
   Future<ApiResponse<Map<String, dynamic>>> sendContactMessage({
     required String name,
     required String email,
@@ -25,6 +25,7 @@ class ContactService {
           'message': message,
           if (userId != null) 'userId': userId,
         },
+        requiresAuth: false, // Permitir envío sin autenticación
       );
 
       if (response.success && response.data != null) {
@@ -94,7 +95,10 @@ class ContactService {
   /// Mark contact message as read (admin only)
   Future<ApiResponse<void>> markAsRead(int id) async {
     try {
-      final response = await _apiClient.patch('/api/contact/$id/read');
+      final response = await _apiClient.put(
+        '/api/contact/$id',
+        body: {'isRead': true}
+      );
 
       if (response.success) {
         return ApiResponse(

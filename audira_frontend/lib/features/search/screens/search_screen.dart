@@ -166,6 +166,35 @@ class _SearchScreenState extends State<SearchScreen>
     }
   }
 
+  /// Ejecuta la búsqueda con debouncing para autocompletado
+  void _onSearchChanged(String query) {
+    // Cancelar el timer anterior si existe
+    _debounceTimer?.cancel();
+
+    // Si el query está vacío y no hay filtros, mostrar trending
+    if (query.trim().isEmpty &&
+        _selectedGenreId == null &&
+        _minPrice == null &&
+        _maxPrice == null) {
+      setState(() {
+        _hasSearched = false;
+        _songs = [];
+        _albums = [];
+        _artists = [];
+        _currentQuery = '';
+      });
+      _loadTrendingContent();
+      return;
+    }
+
+    // Crear nuevo timer para debouncing (400ms)
+    _debounceTimer = Timer(const Duration(milliseconds: 400), () {
+      if (query.trim().isNotEmpty) {
+        _performSearch(query);
+      }
+    });
+  }
+
   Future<void> _performSearch(String query) async {
     final currentContext = context;
 
@@ -199,6 +228,7 @@ class _SearchScreenState extends State<SearchScreen>
     });
 
     try {
+      // Buscar canciones
       if (_tabController.index == 0 || _tabController.index == 1) {
         final songResponse = await _discoveryService.searchSongs(
           query,
@@ -210,13 +240,16 @@ class _SearchScreenState extends State<SearchScreen>
         );
         if (songResponse.success && songResponse.data != null) {
           final data = songResponse.data as Map<String, dynamic>;
-          setState(() {
-            _songs = data['songs'] as List<Song>;
-            _hasMoreSongs = data['hasMore'] as bool;
-          });
+          if (mounted) {
+            setState(() {
+              _songs = data['songs'] as List<Song>;
+              _hasMoreSongs = data['hasMore'] as bool;
+            });
+          }
         }
       }
 
+      // Buscar álbumes
       if (_tabController.index == 0 || _tabController.index == 2) {
         final albumResponse = await _discoveryService.searchAlbums(
           query,
@@ -228,30 +261,40 @@ class _SearchScreenState extends State<SearchScreen>
         );
         if (albumResponse.success && albumResponse.data != null) {
           final data = albumResponse.data as Map<String, dynamic>;
-          setState(() {
-            _albums = data['albums'] as List<Album>;
-            _hasMoreAlbums = data['hasMore'] as bool;
-          });
+          if (mounted) {
+            setState(() {
+              _albums = data['albums'] as List<Album>;
+              _hasMoreAlbums = data['hasMore'] as bool;
+            });
+          }
         }
       }
 
-      // Search artists
+      // Buscar artistas
       final artistResponse = await _discoveryService.searchArtists(query);
       if (artistResponse.success && artistResponse.data != null) {
-        setState(() {
-          _artists = artistResponse.data!;
-        });
+        if (mounted) {
+          setState(() {
+            _artists = artistResponse.data!;
+          });
+        }
       } else {
-        _artists = [];
+        if (mounted) {
+          setState(() {
+            _artists = [];
+          });
+        }
       }
     } catch (e) {
-      debugPrint('Search error: $e');
+      debugPrint('Error en búsqueda: $e');
       if (!currentContext.mounted) return;
       ScaffoldMessenger.of(currentContext).showSnackBar(
-        SnackBar(content: Text('Error searching: $e')),
+        SnackBar(content: Text('Error al buscar: $e')),
       );
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -582,7 +625,7 @@ class _SearchScreenState extends State<SearchScreen>
                 autofocus: true,
                 style: const TextStyle(color: Colors.white),
                 decoration: InputDecoration(
-                  hintText: 'Search songs, albums, artists...',
+                  hintText: 'Buscar canciones, álbumes, artistas...',
                   hintStyle: TextStyle(color: Colors.grey[400]),
                   border: InputBorder.none,
                   suffixIcon: _searchController.text.isNotEmpty
@@ -590,12 +633,16 @@ class _SearchScreenState extends State<SearchScreen>
                           icon: const Icon(Icons.clear),
                           onPressed: () {
                             _searchController.clear();
-                            _performSearch('');
+                            setState(() {});
+                            _onSearchChanged('');
                           },
                         )
                       : null,
                 ),
-                onChanged: (value) => setState(() {}),
+                onChanged: (value) {
+                  setState(() {});
+                  _onSearchChanged(value);
+                },
                 onSubmitted: _performSearch,
               ),
             ),
@@ -639,10 +686,10 @@ class _SearchScreenState extends State<SearchScreen>
       unselectedLabelColor: AppTheme.textSecondary,
       indicatorColor: AppTheme.primaryBlue,
       tabs: [
-        Tab(text: 'All (${_songs.length + _albums.length + _artists.length})'),
-        Tab(text: 'Songs (${_songs.length})'),
-        Tab(text: 'Albums (${_albums.length})'),
-        Tab(text: 'Artists (${_artists.length})'),
+        Tab(text: 'Todo (${_songs.length + _albums.length + _artists.length})'),
+        Tab(text: 'Canciones (${_songs.length})'),
+        Tab(text: 'Álbumes (${_albums.length})'),
+        Tab(text: 'Artistas (${_artists.length})'),
       ],
     );
   }
@@ -856,7 +903,7 @@ class _SearchScreenState extends State<SearchScreen>
           ],
 
           if (_songs.isNotEmpty) ...[
-            const Text('Trending Songs',
+            const Text('Canciones Populares',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             ..._songs.map((song) => SongListItem(
@@ -867,7 +914,7 @@ class _SearchScreenState extends State<SearchScreen>
           ],
           if (_albums.isNotEmpty) ...[
             const SizedBox(height: 24),
-            const Text('Trending Albums',
+            const Text('Álbumes Populares',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             ..._albums.map((album) => AlbumListItem(
@@ -888,10 +935,10 @@ class _SearchScreenState extends State<SearchScreen>
         children: [
           const Icon(Icons.search_off, size: 64, color: AppTheme.textGrey),
           const SizedBox(height: 16),
-          const Text('No results found',
+          const Text('No se encontraron resultados',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
-          Text('Try searching with different keywords',
+          Text('Intenta buscar con diferentes palabras clave',
               style: TextStyle(color: AppTheme.textSecondary)),
         ],
       ),
@@ -905,7 +952,7 @@ class _SearchScreenState extends State<SearchScreen>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (_songs.isNotEmpty) ...[
-            const Text('Songs',
+            const Text('Canciones',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             ..._songs.take(5).map((song) => SongListItem(
@@ -916,11 +963,11 @@ class _SearchScreenState extends State<SearchScreen>
             if (_songs.length > 5)
               TextButton(
                   onPressed: () => _tabController.animateTo(1),
-                  child: const Text('View all songs')),
+                  child: const Text('Ver todas las canciones')),
             const SizedBox(height: 16),
           ],
           if (_albums.isNotEmpty) ...[
-            const Text('Albums',
+            const Text('Álbumes',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             ..._albums.take(5).map((album) => AlbumListItem(
@@ -931,11 +978,11 @@ class _SearchScreenState extends State<SearchScreen>
             if (_albums.length > 5)
               TextButton(
                   onPressed: () => _tabController.animateTo(2),
-                  child: const Text('View all albums')),
+                  child: const Text('Ver todos los álbumes')),
             const SizedBox(height: 16),
           ],
           if (_artists.isNotEmpty) ...[
-            const Text('Artists',
+            const Text('Artistas',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             ..._artists.take(5).map((artist) => ListTile(
@@ -947,7 +994,7 @@ class _SearchScreenState extends State<SearchScreen>
             if (_artists.length > 5)
               TextButton(
                   onPressed: () => _tabController.animateTo(3),
-                  child: const Text('View all artists')),
+                  child: const Text('Ver todos los artistas')),
           ],
         ],
       ),

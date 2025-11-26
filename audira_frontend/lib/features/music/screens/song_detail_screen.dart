@@ -584,6 +584,7 @@ class _SongDetailScreenState extends State<SongDetailScreen>
                   audioProvider.playSong(
                     _song!,
                     isUserAuthenticated: authProvider.isAuthenticated,
+                    userId: authProvider.currentUser?.id,
                   );
 
                   Navigator.pushNamed(context, '/playback');

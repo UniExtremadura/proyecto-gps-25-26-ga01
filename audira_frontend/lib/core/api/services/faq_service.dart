@@ -8,10 +8,10 @@ class FaqService {
 
   final ApiClient _apiClient = ApiClient();
 
-  /// Get all FAQs
+  /// Get all FAQs (no auth required - public access)
   Future<ApiResponse<List<FAQ>>> getAllFaqs() async {
     try {
-      final response = await _apiClient.get('/api/faqs');
+      final response = await _apiClient.get('/api/faqs', requiresAuth: false);
 
       if (response.success && response.data != null) {
         final List<dynamic> data = response.data as List;
@@ -33,10 +33,10 @@ class FaqService {
     }
   }
 
-  /// Get active FAQs only
+  /// Get active FAQs only (no auth required - public access)
   Future<ApiResponse<List<FAQ>>> getActiveFaqs() async {
     try {
-      final response = await _apiClient.get('/api/faqs/active');
+      final response = await _apiClient.get('/api/faqs/active', requiresAuth: false);
 
       if (response.success && response.data != null) {
         final List<dynamic> data = response.data as List;
@@ -58,10 +58,10 @@ class FaqService {
     }
   }
 
-  /// Get FAQs by category
+  /// Get FAQs by category (no auth required - public access)
   Future<ApiResponse<List<FAQ>>> getFaqsByCategory(String category) async {
     try {
-      final response = await _apiClient.get('/api/faqs/category/$category');
+      final response = await _apiClient.get('/api/faqs/category/$category', requiresAuth: false);
 
       if (response.success && response.data != null) {
         final List<dynamic> data = response.data as List;
@@ -83,10 +83,10 @@ class FaqService {
     }
   }
 
-  /// Get FAQ by ID
+  /// Get FAQ by ID (no auth required - public access)
   Future<ApiResponse<FAQ>> getFaqById(int id) async {
     try {
-      final response = await _apiClient.get('/api/faqs/$id');
+      final response = await _apiClient.get('/api/faqs/$id', requiresAuth: false);
 
       if (response.success && response.data != null) {
         final faq = FAQ.fromJson(response.data);
@@ -107,10 +107,10 @@ class FaqService {
     }
   }
 
-  /// Increment view count for FAQ
+  /// Increment view count for FAQ (no auth required)
   Future<ApiResponse<void>> incrementViewCount(int id) async {
     try {
-      final response = await _apiClient.post('/api/faqs/$id/view');
+      final response = await _apiClient.post('/api/faqs/$id/view', requiresAuth: false);
 
       if (response.success) {
         return ApiResponse(
@@ -130,10 +130,10 @@ class FaqService {
     }
   }
 
-  /// Mark FAQ as helpful
+  /// Mark FAQ as helpful (no auth required)
   Future<ApiResponse<void>> markAsHelpful(int id) async {
     try {
-      final response = await _apiClient.post('/api/faqs/$id/helpful');
+      final response = await _apiClient.post('/api/faqs/$id/helpful', requiresAuth: false);
 
       if (response.success) {
         return ApiResponse(
@@ -153,10 +153,10 @@ class FaqService {
     }
   }
 
-  /// Mark FAQ as not helpful
+  /// Mark FAQ as not helpful (no auth required)
   Future<ApiResponse<void>> markAsNotHelpful(int id) async {
     try {
-      final response = await _apiClient.post('/api/faqs/$id/not-helpful');
+      final response = await _apiClient.post('/api/faqs/$id/not-helpful', requiresAuth: false);
 
       if (response.success) {
         return ApiResponse(
