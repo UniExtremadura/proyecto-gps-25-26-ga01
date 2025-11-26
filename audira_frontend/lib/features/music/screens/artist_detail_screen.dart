@@ -526,7 +526,7 @@ class _ArtistDetailScreenState extends State<ArtistDetailScreen>
             trailing: Text(
               '\$${song.price.toStringAsFixed(2)}',
               style: const TextStyle(
-                color: AppTheme.primaryBlue,
+                color: Color.fromARGB(255, 33, 150, 243),
                 fontWeight: FontWeight.bold,
               ),
             ),
