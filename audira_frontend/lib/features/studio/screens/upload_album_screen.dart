@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:just_audio/just_audio.dart';
 import 'package:provider/provider.dart';
 import '../../../config/theme.dart';
 import '../../../core/providers/auth_provider.dart';
@@ -13,23 +12,7 @@ import '../../../core/api/services/music_service.dart';
 import '../../../core/api/services/file_service.dart';
 import '../../../core/models/song.dart';
 import '../../../core/models/album.dart';
-
-// Clase para manejar los datos de las nuevas canciones
-class NewSongData {
-  final PlatformFile file;
-  String title;
-  double price;
-  List<int> genreIds;
-  String description;
-
-  NewSongData({
-    required this.file,
-    required this.title,
-    this.price = 9.99,
-    this.genreIds = const [],
-    this.description = '',
-  });
-}
+import 'album_song_upload_screen.dart';
 
 class UploadAlbumScreen extends StatefulWidget {
   const UploadAlbumScreen({super.key});
@@ -46,12 +29,11 @@ class _UploadAlbumScreenState extends State<UploadAlbumScreen> {
 
   bool _showPreview = false;
   bool _isUploading = false;
-  bool _publishNow = true; // Publicar inmediatamente por defecto
   double _uploadProgress = 0.0;
-  double _discountPercentage = 15.0; // Porcentaje de descuento por defecto
+  double _discountPercentage = 15.0;
   String? _coverImagePath;
   List<Song> _selectedSongs = [];
-  final List<NewSongData> _newSongsData = []; // Nuevos archivos con sus datos
+  final List<Map<String, dynamic>> _newSongsData = [];
   Album? _createdAlbum;
 
   @override
@@ -62,21 +44,17 @@ class _UploadAlbumScreenState extends State<UploadAlbumScreen> {
     super.dispose();
   }
 
-  // Calcular precio base del álbum (suma de todas las canciones)
   double get _basePrice {
     double total = 0.0;
-    // Sumar precios de canciones existentes
     for (var song in _selectedSongs) {
       total += song.price;
     }
-    // Sumar precios de canciones nuevas
     for (var songData in _newSongsData) {
-      total += songData.price;
+      total += (songData['price'] as double);
     }
     return total;
   }
 
-  // Calcular precio final con descuento
   double get _finalPrice {
     return _basePrice * (1 - _discountPercentage / 100);
   }
@@ -173,11 +151,13 @@ class _UploadAlbumScreenState extends State<UploadAlbumScreen> {
 
           // Validar extensión
           if (extension == null ||
-              !['mp3', 'wav', 'flac', 'aac', 'm4a', 'ogg'].contains(extension)) {
+              !['mp3', 'wav', 'flac', 'aac', 'm4a', 'ogg']
+                  .contains(extension)) {
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text('Archivo ${file.name} tiene formato no válido y será ignorado'),
+                  content: Text(
+                      'Archivo ${file.name} tiene formato no válido y será ignorado'),
                   backgroundColor: Colors.orange,
                 ),
               );
@@ -190,7 +170,8 @@ class _UploadAlbumScreenState extends State<UploadAlbumScreen> {
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text('Archivo ${file.name} es demasiado grande (máx 100MB) y será ignorado'),
+                  content: Text(
+                      'Archivo ${file.name} es demasiado grande (máx 100MB) y será ignorado'),
                   backgroundColor: Colors.orange,
                 ),
               );
@@ -202,25 +183,25 @@ class _UploadAlbumScreenState extends State<UploadAlbumScreen> {
         }
 
         if (validFiles.isNotEmpty) {
-          // Mostrar diálogo para cada archivo para configurar sus datos
-          final newSongsData = <NewSongData>[];
+          // Navegar a la pantalla de carga de canciones
+          final result = await Navigator.push<List<Map<String, dynamic>>>(
+            context,
+            MaterialPageRoute(
+              builder: (context) => AlbumSongUploadScreen(
+                audioFiles: validFiles,
+              ),
+            ),
+          );
 
-          for (final file in validFiles) {
-            final songData = await _showSongDataDialog(file);
-            if (songData != null) {
-              newSongsData.add(songData);
-            }
-          }
-
-          if (newSongsData.isNotEmpty) {
+          if (result != null && result.isNotEmpty) {
             setState(() {
-              _newSongsData.addAll(newSongsData);
+              _newSongsData.addAll(result);
             });
 
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text('${newSongsData.length} canción(es) configuradas'),
+                  content: Text('${result.length} canción(es) configuradas'),
                   backgroundColor: Colors.green,
                 ),
               );
@@ -235,94 +216,6 @@ class _UploadAlbumScreenState extends State<UploadAlbumScreen> {
         );
       }
     }
-  }
-
-  Future<NewSongData?> _showSongDataDialog(PlatformFile file) async {
-    final titleController = TextEditingController(
-      text: file.name.replaceAll(RegExp(r'\.\w+$'), ''), // Nombre sin extensión
-    );
-    final priceController = TextEditingController(text: '9.99');
-    final descriptionController = TextEditingController();
-
-    return showDialog<NewSongData>(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: Text('Datos de: ${file.name}'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextFormField(
-                controller: titleController,
-                decoration: const InputDecoration(
-                  labelText: 'Título de la canción *',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.music_note),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: priceController,
-                decoration: const InputDecoration(
-                  labelText: 'Precio *',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.attach_money),
-                ),
-                keyboardType: TextInputType.number,
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: descriptionController,
-                decoration: const InputDecoration(
-                  labelText: 'Descripción (opcional)',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.description),
-                ),
-                maxLines: 3,
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              titleController.dispose();
-              priceController.dispose();
-              descriptionController.dispose();
-              Navigator.pop(context, null);
-            },
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              if (titleController.text.isEmpty || priceController.text.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Título y precio son requeridos')),
-                );
-                return;
-              }
-
-              final songData = NewSongData(
-                file: file,
-                title: titleController.text,
-                price: double.tryParse(priceController.text) ?? 9.99,
-                description: descriptionController.text,
-              );
-
-              titleController.dispose();
-              priceController.dispose();
-              descriptionController.dispose();
-              Navigator.pop(context, songData);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryBlue,
-            ),
-            child: const Text('Guardar'),
-          ),
-        ],
-      ),
-    );
   }
 
   Future<void> _uploadAlbum() async {
@@ -354,7 +247,7 @@ class _UploadAlbumScreenState extends State<UploadAlbumScreen> {
 
         for (int i = 0; i < _newSongsData.length; i++) {
           final songData = _newSongsData[i];
-          final audioFile = songData.file;
+          final audioFile = songData['file'] as PlatformFile;
           final progress = 0.1 + (i / totalNewSongs) * 0.4;
 
           try {
@@ -363,47 +256,53 @@ class _UploadAlbumScreenState extends State<UploadAlbumScreen> {
               audioFile.path!,
               onProgress: (sent, total) {
                 setState(() {
-                  _uploadProgress = progress + (sent / total) * (0.4 / totalNewSongs);
+                  _uploadProgress =
+                      progress + (sent / total) * (0.4 / totalNewSongs);
                 });
               },
             );
 
             if (!audioUploadResponse.success) {
-              throw Exception('Error al subir ${audioFile.name}: ${audioUploadResponse.error}');
+              throw Exception(
+                  'Error al subir ${audioFile.name}: ${audioUploadResponse.error}');
             }
 
-             int duration = 180;
+            // Subir imagen de portada de la canción si existe
+            String? coverImageUrl;
+            if (songData['coverImagePath'] != null) {
+              final imageUploadResponse = await fileService.uploadImageFile(
+                songData['coverImagePath'] as String,
+                onProgress: (sent, total) {
+                  // Progreso de imagen dentro del progreso de la canción
+                },
+              );
 
-            try {
-              final player = AudioPlayer();
-
-              final durationTime = await player.setFilePath(audioFile.path!);
-
-              if (durationTime != null) {
-                duration = durationTime.inSeconds;
+              if (imageUploadResponse.success) {
+                coverImageUrl = imageUploadResponse.data!.fileUrl;
               }
-              await player.dispose();
-            } catch (e) {
-              debugPrint('Error al extraer duración de ${audioFile.name}: $e');
             }
 
             // Crear la canción con los datos configurados por el usuario
             final songCreateData = {
-              'name': songData.title,
+              'title': songData['title'],
               'artistId': authProvider.currentUser!.id,
-              'audioFileUrl': audioUploadResponse.data!.fileUrl,
-              'duration': duration,
-              'price': songData.price,
-              'fileSize': audioFile.size,
-              'format': audioFile.extension,
-              'genreIds': songData.genreIds,
-              'description': songData.description.isNotEmpty ? songData.description : null,
+              'audioUrl': audioUploadResponse.data!.fileUrl,
+              'duration': songData['duration'],
+              'price': songData['price'],
+              'genreIds': songData['genreIds'],
+              'description': songData['description'],
+              'category': songData['category'],
+              'lyrics': songData['lyrics'],
+              'collaborators': songData['collaborators'],
+              'coverImageUrl': coverImageUrl,
             };
 
-            final songCreateResponse = await musicService.createSong(songCreateData);
+            final songCreateResponse =
+                await musicService.createSong(songCreateData);
 
-            if (!songCreateResponse.success || songCreateResponse.data == null) {
-              throw Exception('Error al crear canción ${songData.title}');
+            if (!songCreateResponse.success ||
+                songCreateResponse.data == null) {
+              throw Exception('Error al crear canción ${songData['title']}');
             }
 
             allSongIds.add(songCreateResponse.data!.id);
@@ -457,7 +356,6 @@ class _UploadAlbumScreenState extends State<UploadAlbumScreen> {
             : null,
         'discountPercentage': _discountPercentage,
         'songIds': allSongIds,
-        'published': _publishNow, // Incluir estado de publicación
       };
 
       final createResponse = await musicService.createAlbum(albumData);
@@ -475,14 +373,15 @@ class _UploadAlbumScreenState extends State<UploadAlbumScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              '¡Álbum creado exitosamente con ${allSongIds.length} canciones!'
-            ),
+                '¡Álbum creado exitosamente con ${allSongIds.length} canciones! Estará disponible después de ser revisado por un administrador.'),
             backgroundColor: Colors.green,
+            duration: const Duration(seconds: 5),
           ),
         );
 
-        // Mostrar diálogo para publicar
-        _showPublishDialog();
+        // Pequeña espera para que el usuario vea el mensaje
+        await Future.delayed(const Duration(milliseconds: 500));
+        Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {
@@ -492,76 +391,6 @@ class _UploadAlbumScreenState extends State<UploadAlbumScreen> {
       }
     } finally {
       setState(() => _isUploading = false);
-    }
-  }
-
-  Future<void> _showPublishDialog() async {
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('¿Publicar álbum?'),
-        content: const Text(
-          '¿Deseas publicar el álbum ahora para que esté visible para los usuarios?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Publicar después'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryBlue,
-            ),
-            child: const Text('Publicar ahora'),
-          ),
-        ],
-      ),
-    );
-
-    if (result == true && _createdAlbum != null) {
-      await _publishAlbum(true);
-    } else {
-      // Volver a la pantalla anterior
-      if (mounted) Navigator.pop(context);
-    }
-  }
-
-  Future<void> _publishAlbum(bool publish) async {
-    if (_createdAlbum == null) return;
-
-    try {
-      final musicService = MusicService();
-      final response = await musicService.publishAlbum(
-        _createdAlbum!.id,
-        publish,
-      );
-
-      if (response.success) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                publish
-                    ? '¡Álbum publicado exitosamente!'
-                    : 'Álbum despublicado',
-              ),
-              backgroundColor: Colors.green,
-            ),
-          );
-
-          // Volver a la pantalla anterior después de publicar
-          if (publish) {
-            Navigator.pop(context);
-          }
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al publicar: $e')),
-        );
-      }
     }
   }
 
@@ -706,7 +535,7 @@ class _UploadAlbumScreenState extends State<UploadAlbumScreen> {
             // Sección de Precios
             if (_selectedSongs.isNotEmpty || _newSongsData.isNotEmpty) ...[
               Card(
-                color: AppTheme.primaryBlue.withValues(alpha:0.1),
+                color: AppTheme.primaryBlue.withValues(alpha: 0.1),
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: Column(
@@ -803,7 +632,8 @@ class _UploadAlbumScreenState extends State<UploadAlbumScreen> {
               child: Column(
                 children: [
                   ListTile(
-                    leading: const Icon(Icons.music_note, color: AppTheme.primaryBlue),
+                    leading: const Icon(Icons.music_note,
+                        color: AppTheme.primaryBlue),
                     title: Text(_selectedSongs.isEmpty
                         ? 'Agregar Canciones Existentes'
                         : '${_selectedSongs.length} canciones seleccionadas'),
@@ -812,7 +642,8 @@ class _UploadAlbumScreenState extends State<UploadAlbumScreen> {
                   ),
                   const Divider(height: 1),
                   ListTile(
-                    leading: const Icon(Icons.upload_file, color: AppTheme.primaryBlue),
+                    leading: const Icon(Icons.upload_file,
+                        color: AppTheme.primaryBlue),
                     title: Text(_newSongsData.isEmpty
                         ? 'Subir Nuevas Canciones (Múltiples)'
                         : '${_newSongsData.length} canciones nuevas'),
@@ -835,7 +666,8 @@ class _UploadAlbumScreenState extends State<UploadAlbumScreen> {
                       child: Text('${index + 1}'),
                     ),
                     title: Text(song.name),
-                    subtitle: Text('${song.durationFormatted} - \$${song.price.toStringAsFixed(2)}'),
+                    subtitle: Text(
+                        '${song.durationFormatted} - \$${song.price.toStringAsFixed(2)}'),
                     trailing: IconButton(
                       icon: const Icon(Icons.close),
                       onPressed: () {
@@ -849,15 +681,17 @@ class _UploadAlbumScreenState extends State<UploadAlbumScreen> {
                 final index = entry.key;
                 final songData = entry.value;
                 final songIndex = _selectedSongs.length + index + 1;
+                final audioFile = songData['file'] as PlatformFile;
                 return Card(
-                  color: AppTheme.primaryBlue.withValues(alpha:0.1),
+                  color: AppTheme.primaryBlue.withValues(alpha: 0.1),
                   child: ListTile(
                     leading: CircleAvatar(
                       backgroundColor: AppTheme.primaryBlue,
                       child: Text('$songIndex'),
                     ),
-                    title: Text(songData.title),
-                    subtitle: Text('Nueva - \$${songData.price.toStringAsFixed(2)} - ${_formatFileSize(songData.file.size)}'),
+                    title: Text(songData['title'] as String),
+                    subtitle: Text(
+                        'Nueva - \$${(songData['price'] as double).toStringAsFixed(2)} - ${_formatFileSize(audioFile.size)}'),
                     trailing: IconButton(
                       icon: const Icon(Icons.close),
                       onPressed: () {
@@ -870,35 +704,6 @@ class _UploadAlbumScreenState extends State<UploadAlbumScreen> {
             ],
 
             const SizedBox(height: 24),
-
-            // Publicar inmediatamente
-            Card(
-              child: SwitchListTile(
-                title: const Text(
-                  '¿Publicar inmediatamente?',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-                subtitle: Text(
-                  _publishNow
-                      ? 'El álbum será visible para todos los usuarios'
-                      : 'El álbum quedará oculto hasta que lo publiques manualmente',
-                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                ),
-                value: _publishNow,
-                onChanged: (value) {
-                  setState(() {
-                    _publishNow = value;
-                  });
-                },
-                activeThumbColor: AppTheme.primaryBlue,
-                secondary: Icon(
-                  _publishNow ? Icons.visibility : Icons.visibility_off,
-                  color: _publishNow ? AppTheme.primaryBlue : Colors.grey,
-                ),
-              ),
-            ).animate().fadeIn(delay: 275.ms),
-
-            const SizedBox(height: 16),
 
             // Botón de crear álbum
             SizedBox(
@@ -1089,7 +894,8 @@ class _UploadAlbumScreenState extends State<UploadAlbumScreen> {
                   child: Text('${index + 1}'),
                 ),
                 title: Text(song.name),
-                subtitle: Text('${song.durationFormatted} - \$${song.price.toStringAsFixed(2)}'),
+                subtitle: Text(
+                    '${song.durationFormatted} - \$${song.price.toStringAsFixed(2)}'),
                 trailing: Icon(
                   Icons.play_circle_outline,
                   color: AppTheme.primaryBlue,
@@ -1105,8 +911,9 @@ class _UploadAlbumScreenState extends State<UploadAlbumScreen> {
                   backgroundColor: Colors.green,
                   child: Text('$songIndex'),
                 ),
-                title: Text(songData.title),
-                subtitle: Text('Nueva - \$${songData.price.toStringAsFixed(2)}'),
+                title: Text(songData['title'] as String),
+                subtitle: Text(
+                    'Nueva - \$${(songData['price'] as double).toStringAsFixed(2)}'),
                 trailing: const Icon(
                   Icons.fiber_new,
                   color: Colors.green,

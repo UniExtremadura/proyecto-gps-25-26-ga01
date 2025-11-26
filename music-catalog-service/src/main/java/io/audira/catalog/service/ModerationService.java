@@ -90,11 +90,40 @@ public class ModerationService {
     /**
      * GA01-162: Aprobar un álbum
      * Al aprobar, el álbum se publica automáticamente
+     * IMPORTANTE: Solo se puede aprobar si todas las canciones del álbum están aprobadas
      */
     @Transactional
     public Album approveAlbum(Long albumId, Long adminId, String notes) {
         Album album = albumRepository.findById(albumId)
                 .orElseThrow(() -> new IllegalArgumentException("Álbum no encontrado: " + albumId));
+
+        // Validar que todas las canciones del álbum estén aprobadas
+        List<Song> albumSongs = songRepository.findByAlbumId(albumId);
+
+        if (albumSongs.isEmpty()) {
+            throw new IllegalArgumentException("No se puede aprobar un álbum sin canciones");
+        }
+
+        List<Song> unapprovedSongs = albumSongs.stream()
+                .filter(song -> song.getModerationStatus() != ModerationStatus.APPROVED)
+                .toList();
+
+        if (!unapprovedSongs.isEmpty()) {
+            String unapprovedSongNames = unapprovedSongs.stream()
+                    .map(Song::getTitle)
+                    .limit(5)
+                    .reduce((a, b) -> a + ", " + b)
+                    .orElse("");
+
+            String message = String.format(
+                "No se puede aprobar el álbum. Primero deben aprobarse todas las canciones. " +
+                "Canciones pendientes o rechazadas: %s%s",
+                unapprovedSongNames,
+                unapprovedSongs.size() > 5 ? " y " + (unapprovedSongs.size() - 5) + " más" : ""
+            );
+
+            throw new IllegalArgumentException(message);
+        }
 
         ModerationStatus previousStatus = album.getModerationStatus();
 
@@ -111,7 +140,8 @@ public class ModerationService {
         recordModerationHistory(savedAlbum, previousStatus, ModerationStatus.APPROVED,
                 adminId, null, notes);
 
-        log.info("Álbum aprobado y publicado: {} por admin: {}", albumId, adminId);
+        log.info("Álbum aprobado y publicado: {} por admin: {} con {} canciones aprobadas",
+                albumId, adminId, albumSongs.size());
         return savedAlbum;
     }
 

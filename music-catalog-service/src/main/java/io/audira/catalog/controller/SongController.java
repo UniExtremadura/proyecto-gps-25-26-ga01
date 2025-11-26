@@ -35,49 +35,49 @@ public class SongController {
     }
 
     @GetMapping
-    public ResponseEntity<List<Song>> getAllSongs() {
-        return ResponseEntity.ok(songService.getAllSongs());
+    public ResponseEntity<List<SongDTO>> getAllSongs() {
+        return ResponseEntity.ok(songService.getAllSongsWithArtistName());
     }
-
+ 
     @GetMapping("/{id}")
     public ResponseEntity<?> getSongById(@PathVariable Long id) {
         try {
-            return ResponseEntity.ok(songService.getSongById(id));
+            return ResponseEntity.ok(songService.getSongByIdWithArtistName(id));
         } catch (IllegalArgumentException e) {
             Map<String, String> error = new HashMap<>();
             error.put("error", e.getMessage());
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
         }
     }
-
+ 
     @GetMapping("/artist/{artistId}")
     public ResponseEntity<List<SongDTO>> getSongsByArtist(@PathVariable Long artistId) {
         return ResponseEntity.ok(songService.getSongsByArtistWithArtistName(artistId));
     }
-
+ 
     @GetMapping("/album/{albumId}")
-    public ResponseEntity<List<Song>> getSongsByAlbum(@PathVariable Long albumId) {
-        return ResponseEntity.ok(songService.getSongsByAlbum(albumId));
+    public ResponseEntity<List<SongDTO>> getSongsByAlbum(@PathVariable Long albumId) {
+        return ResponseEntity.ok(songService.getSongsByAlbumWithArtistName(albumId));
     }
-
+ 
     @GetMapping("/genre/{genreId}")
-    public ResponseEntity<List<Song>> getSongsByGenre(@PathVariable Long genreId) {
-        return ResponseEntity.ok(songService.getSongsByGenre(genreId));
+    public ResponseEntity<List<SongDTO>> getSongsByGenre(@PathVariable Long genreId) {
+        return ResponseEntity.ok(songService.getSongsByGenreWithArtistName(genreId));
     }
-
+ 
     @GetMapping("/recent")
-    public ResponseEntity<List<Song>> getRecentSongs() {
-        return ResponseEntity.ok(songService.getRecentSongs());
+    public ResponseEntity<List<SongDTO>> getRecentSongs() {
+        return ResponseEntity.ok(songService.getRecentSongsWithArtistName());
     }
-
+ 
     @GetMapping("/top")
-    public ResponseEntity<List<Song>> getTopSongs() {
-        return ResponseEntity.ok(songService.getTopSongsByPlays());
+    public ResponseEntity<List<SongDTO>> getTopSongs() {
+        return ResponseEntity.ok(songService.getTopSongsByPlaysWithArtistName());
     }
-
+ 
     @GetMapping("/search")
-    public ResponseEntity<List<Song>> searchSongs(@RequestParam String query) {
-        return ResponseEntity.ok(songService.searchSongs(query));
+    public ResponseEntity<List<SongDTO>> searchSongs(@RequestParam String query) {
+        return ResponseEntity.ok(songService.searchSongsWithArtistName(query));
     }
 
     @PutMapping("/{id}")
@@ -128,22 +128,22 @@ public class SongController {
 
     // Endpoints públicos que solo retornan contenido publicado
     @GetMapping("/public/recent")
-    public ResponseEntity<List<Song>> getRecentPublishedSongs() {
-        return ResponseEntity.ok(songService.getRecentPublishedSongs());
+    public ResponseEntity<List<SongDTO>> getRecentPublishedSongs() {
+        return ResponseEntity.ok(songService.getRecentPublishedSongsWithArtistName());
     }
-
+ 
     @GetMapping("/public/top")
-    public ResponseEntity<List<Song>> getTopPublishedSongs() {
-        return ResponseEntity.ok(songService.getTopPublishedSongsByPlays());
+    public ResponseEntity<List<SongDTO>> getTopPublishedSongs() {
+        return ResponseEntity.ok(songService.getTopPublishedSongsByPlaysWithArtistName());
     }
-
+ 
     @GetMapping("/public/search")
-    public ResponseEntity<List<Song>> searchPublishedSongs(@RequestParam String query) {
-        return ResponseEntity.ok(songService.searchPublishedSongs(query));
+    public ResponseEntity<List<SongDTO>> searchPublishedSongs(@RequestParam String query) {
+        return ResponseEntity.ok(songService.searchPublishedSongsWithArtistName(query));
     }
-
+ 
     @GetMapping("/public/genre/{genreId}")
-    public ResponseEntity<List<Song>> getPublishedSongsByGenre(@PathVariable Long genreId) {
-        return ResponseEntity.ok(songService.getPublishedSongsByGenre(genreId));
+    public ResponseEntity<List<SongDTO>> getPublishedSongsByGenre(@PathVariable Long genreId) {
+        return ResponseEntity.ok(songService.getPublishedSongsByGenreWithArtistName(genreId));
     }
 }

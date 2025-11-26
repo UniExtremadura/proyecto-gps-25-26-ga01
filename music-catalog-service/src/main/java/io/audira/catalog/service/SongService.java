@@ -197,12 +197,84 @@ public class SongService {
     public List<Song> getTopPublishedSongsByPlays() {
         return songRepository.findTopPublishedByPlays();
     }
-
+    
     public List<Song> searchPublishedSongs(String query) {
         return songRepository.searchPublishedByTitleOrArtist(query);
     }
 
     public List<Song> getPublishedSongsByGenre(Long genreId) {
-        return songRepository.findPublishedByGenreId(genreId);
+       return songRepository.findPublishedByGenreId(genreId);
+    }
+     
+    /**
+     * Helper method to convert a Song to SongDTO with artist name
+     */
+    private SongDTO convertToDTO(Song song) {
+        String artistName;
+        try {
+            artistName = userServiceClient.getUserById(song.getArtistId()).getArtistName();
+            if (artistName == null || artistName.trim().isEmpty()) {
+                artistName = "Artista #" + song.getArtistId();
+            }
+        } catch (Exception e) {
+            log.warn("Failed to fetch artist name for artistId: {}, using fallback", song.getArtistId());
+            artistName = "Artista #" + song.getArtistId();
+        }
+        return SongDTO.fromSong(song, artistName);
+    }
+ 
+    /**
+     * Helper method to convert a list of Songs to SongDTOs with artist names
+     */
+    private List<SongDTO> convertToDTOs(List<Song> songs) {
+        return songs.stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+    }
+ 
+    // DTO versions of methods - these include artist names
+    public List<SongDTO> getAllSongsWithArtistName() {
+        return convertToDTOs(songRepository.findAll());
+    }
+ 
+    public SongDTO getSongByIdWithArtistName(Long id) {
+        Song song = songRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Song not found with id: " + id));
+        return convertToDTO(song);
+    }
+ 
+    public List<SongDTO> getSongsByAlbumWithArtistName(Long albumId) {
+        return convertToDTOs(songRepository.findByAlbumId(albumId));
+    }
+ 
+    public List<SongDTO> getSongsByGenreWithArtistName(Long genreId) {
+        return convertToDTOs(songRepository.findByGenreId(genreId));
+    }
+ 
+    public List<SongDTO> getRecentSongsWithArtistName() {
+        return convertToDTOs(songRepository.findTop20ByOrderByCreatedAtDesc());
+    }
+ 
+    public List<SongDTO> getTopSongsByPlaysWithArtistName() {
+        return convertToDTOs(songRepository.findTopByPlays());
+    }
+
+    public List<SongDTO> searchSongsWithArtistName(String query) {
+        return convertToDTOs(songRepository.searchByTitleOrArtist(query));
+    }
+
+    public List<SongDTO> getRecentPublishedSongsWithArtistName() {
+        return convertToDTOs(songRepository.findTop20ByPublishedTrueOrderByCreatedAtDesc());
+    }
+    public List<SongDTO> getTopPublishedSongsByPlaysWithArtistName() {
+        return convertToDTOs(songRepository.findTopPublishedByPlays());
+    }
+
+    public List<SongDTO> searchPublishedSongsWithArtistName(String query) {
+        return convertToDTOs(songRepository.searchPublishedByTitleOrArtist(query));
+    }
+
+    public List<SongDTO> getPublishedSongsByGenreWithArtistName(Long genreId) {
+        return convertToDTOs(songRepository.findPublishedByGenreId(genreId));
     }
 }
