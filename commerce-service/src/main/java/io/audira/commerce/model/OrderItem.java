@@ -30,6 +30,9 @@ public class OrderItem {
     @Column(nullable = false)
     private Long itemId;
 
+    @Column(name = "artist_id") 
+    private Long artistId; 
+    
     @Column(nullable = false)
     private Integer quantity;
 

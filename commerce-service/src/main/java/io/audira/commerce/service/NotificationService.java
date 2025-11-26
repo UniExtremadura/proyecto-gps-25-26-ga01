@@ -1,264 +1,283 @@
 package io.audira.commerce.service;
 
 import io.audira.commerce.client.NotificationClient;
-import io.audira.commerce.client.UserClient;
-import io.audira.commerce.dto.UserDTO;
+import io.audira.commerce.dto.NotificationDTO;
+import io.audira.commerce.dto.PurchaseNotificationRequest;
 import io.audira.commerce.model.*;
+import io.audira.commerce.repository.NotificationRepository;
 import io.audira.commerce.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
-/**
- * Servicio de notificaciones para Commerce Service
- * Maneja el envío de notificaciones relacionadas con compras, pagos y reembolsos
- */
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class NotificationService {
 
     private final NotificationClient notificationClient;
-    private final UserClient userClient;
     private final OrderRepository orderRepository;
+    private final NotificationRepository notificationRepository;
 
-    /**
-     * Notifica sobre una compra exitosa
-     * - Al comprador: confirmación de compra
-     * - A los artistas: notificación de venta
-     */
-    public void notifySuccessfulPurchase(Order order, Payment payment) {
-        log.info("=== Sending purchase notifications for order: {} ===", order.getOrderNumber());
+    @Transactional
+    public void processPurchaseNotifications(PurchaseNotificationRequest request) {
+        Order order = orderRepository.findById(request.getOrderId())
+                .orElseThrow(() -> new RuntimeException("Order not found: " + request.getOrderId()));
+        
+        Payment payment = new Payment(); 
+        payment.setAmount(request.getTotalAmount());
+        
+        notifySuccessfulPurchase(order, payment);
+    }
 
+    public Page<NotificationDTO> getUserNotifications(Long userId, Pageable pageable) {
+        List<Notification> notifications = notificationRepository.findByUserIdOrderByCreatedAtDesc(userId);
+        
+        int start = (int) pageable.getOffset();
+        int end = Math.min((start + pageable.getPageSize()), notifications.size());
+        
+        List<NotificationDTO> dtos = (start > end) ? Collections.emptyList() : 
+                notifications.subList(start, end).stream()
+                .map(this::mapToDTO)
+                .collect(Collectors.toList());
+
+        return new org.springframework.data.domain.PageImpl<>(dtos, pageable, notifications.size());
+    }
+
+    public List<NotificationDTO> getNotificationsByType(Long userId, String typeStr) {
         try {
-            // 1. Notificar al comprador
-            notifyBuyer(order, payment);
-
-            // 2. Notificar a los artistas
-            notifyArtists(order);
-
-            log.info("=== Purchase notifications completed for order: {} ===", order.getOrderNumber());
-
-        } catch (Exception e) {
-            log.error("Error sending purchase notifications for order {}: {}", 
-                order.getOrderNumber(), e.getMessage(), e);
+            NotificationType type = NotificationType.valueOf(typeStr.toUpperCase());
+            return notificationRepository.findByUserIdAndTypeOrderByCreatedAtDesc(userId, type)
+                    .stream()
+                    .map(this::mapToDTO)
+                    .collect(Collectors.toList());
+        } catch (IllegalArgumentException e) {
+            log.error("Invalid notification type: {}", typeStr);
+            return Collections.emptyList();
         }
     }
 
-    /**
-     * Notifica al comprador sobre su compra exitosa
-     */
+    public Long countUnreadNotifications(Long userId) {
+        return notificationRepository.countByUserIdAndIsRead(userId, false);
+    }
+
+    @Transactional
+    public NotificationDTO markAsRead(Long notificationId) {
+        Notification notification = notificationRepository.findById(notificationId)
+                .orElseThrow(() -> new RuntimeException("Notification not found"));
+        
+        notification.setIsRead(true);
+        notification.setReadAt(LocalDateTime.now());
+        
+        Notification saved = notificationRepository.save(notification);
+        return mapToDTO(saved);
+    }
+
+    @Transactional
+    public void markAllAsRead(Long userId) {
+        List<Notification> unread = notificationRepository.findByUserIdAndIsReadOrderByCreatedAtDesc(userId, false);
+        unread.forEach(n -> {
+            n.setIsRead(true);
+            n.setReadAt(LocalDateTime.now());
+        });
+        notificationRepository.saveAll(unread);
+    }
+
+    @Transactional
+    public void deleteNotification(Long notificationId) {
+        notificationRepository.deleteById(notificationId);
+    }
+
+    public void notifySuccessfulPurchase(Order order, Payment payment) {
+        log.info("=== Sending purchase notifications for order: {} ===", order.getOrderNumber());
+        try {
+            notifyBuyer(order, payment);
+            notifyArtists(order);
+        } catch (Exception e) {
+            log.error("Error sending purchase notifications", e);
+        }
+    }
+
     private void notifyBuyer(Order order, Payment payment) {
         try {
-            log.info("Notifying buyer (user {}) about successful purchase", order.getUserId());
-
-            boolean sent = notificationClient.notifyUserPurchaseSuccess(
-                order.getUserId(),
-                order.getOrderNumber(),
-                payment.getAmount().doubleValue()
+            String title = "¡Compra exitosa! 🎉";
+            String message = String.format("Tu pedido %s por $%s ha sido confirmado.", 
+                order.getOrderNumber(), payment.getAmount());
+            
+            notificationClient.sendNotification(order.getUserId(), title, message, "SUCCESS");
+            
+            saveLocalNotification(
+                order.getUserId(), title, message, 
+                NotificationType.ORDER_CONFIRMATION, order.getId(), "ORDER"
             );
-
-            if (sent) {
-                log.info("Buyer notification sent successfully");
-            } else {
-                log.warn("Failed to send buyer notification");
-            }
-
         } catch (Exception e) {
             log.error("Error notifying buyer: {}", e.getMessage());
         }
     }
 
-    /**
-     * Notifica a los artistas sobre nuevas ventas
-     * Agrupa las compras por artista para enviar una notificación consolidada
-     */
     private void notifyArtists(Order order) {
-        try {
-            // Obtener información del comprador
-            UserDTO buyer = userClient.getUserById(order.getUserId());
-            String buyerName = buyer.getFirstName() + " " + buyer.getLastName();
+        Map<Long, List<OrderItem>> itemsByArtist = order.getItems().stream()
+                .collect(Collectors.groupingBy(item -> item.getArtistId()));
 
-            // Agrupar items por artista
-            Map<Long, List<OrderItem>> itemsByArtist = groupItemsByArtist(order);
-
-            log.info("Notifying {} artist(s) about new sales", itemsByArtist.size());
-
-            // Notificar a cada artista
-            for (Map.Entry<Long, List<OrderItem>> entry : itemsByArtist.entrySet()) {
-                Long artistId = entry.getKey();
-                List<OrderItem> items = entry.getValue();
-
-                notifyArtistAboutSale(artistId, items, buyerName, order.getOrderNumber());
-            }
-
-        } catch (Exception e) {
-            log.error("Error notifying artists: {}", e.getMessage(), e);
-        }
-    }
-
-    /**
-     * Agrupa los items del pedido por artista
-     * Nota: En un sistema real, deberíamos obtener el artistId desde catalog-service
-     * Por ahora, usamos un sistema simplificado
-     */
-    private Map<Long, List<OrderItem>> groupItemsByArtist(Order order) {
-       
-        Map<Long, List<OrderItem>> grouped = new HashMap<>();
-        
-        for (OrderItem item : order.getItems()) {
-            // Simulación: usar itemId como artistId (cambiar cuando se integre catalog-service)
-            Long artistId = item.getItemId(); 
-            grouped.computeIfAbsent(artistId, k -> new ArrayList<>()).add(item);
-        }
-        
-        return grouped;
-    }
-
-    /**
-     * Notifica a un artista específico sobre sus ventas
-     */
-    private void notifyArtistAboutSale(Long artistId, List<OrderItem> items, 
-                                       String buyerName, String orderNumber) {
-        try {
-            log.info("Notifying artist {} about {} item(s) sold", artistId, items.size());
-
-            // Si es un solo item, usar notificación simple
-            if (items.size() == 1) {
-                OrderItem item = items.get(0);
-                notificationClient.notifyArtistPurchase(
-                    artistId,
-                    item.getItemType().toString(),
-                    "Item #" + item.getItemId(), // TODO: obtener título real desde catalog-service
-                    buyerName,
-                    item.getPrice().multiply(java.math.BigDecimal.valueOf(item.getQuantity())).doubleValue(),
-                    orderNumber
+        itemsByArtist.forEach((artistId, items) -> {
+            try {
+                String title = "¡Nueva venta! 💰";
+                String message = String.format("Has vendido %d items en el pedido %s", 
+                    items.size(), order.getOrderNumber());
+                
+                notificationClient.sendNotification(artistId, title, message, "INFO");
+                
+                saveLocalNotification(
+                    artistId, title, message, 
+                    NotificationType.PURCHASE_NOTIFICATION, order.getId(), "SALE"
                 );
-            } else {
-                // Múltiples items: crear notificación consolidada
-                double totalAmount = items.stream()
-                    .mapToDouble(i -> i.getPrice().multiply(
-                        java.math.BigDecimal.valueOf(i.getQuantity())).doubleValue())
-                    .sum();
-
-                String itemsList = items.stream()
-                    .map(i -> i.getItemType() + " #" + i.getItemId())
-                    .collect(Collectors.joining(", "));
-
-                String title = "🎉 Nueva compra realizada";
-                String message = String.format(
-                    "%s ha comprado %d productos tuyos por $%.2f: %s. Pedido: %s",
-                    buyerName,
-                    items.size(),
-                    totalAmount,
-                    itemsList,
-                    orderNumber
-                );
-
-                notificationClient.sendNotification(artistId, title, message, "SUCCESS");
+            } catch (Exception e) {
+                log.error("Error notifying artist {}: {}", artistId, e.getMessage());
             }
-
-            log.info("Artist {} notified successfully", artistId);
-
-        } catch (Exception e) {
-            log.error("Error notifying artist {}: {}", artistId, e.getMessage());
-        }
+        });
     }
 
     /**
-     * Notifica sobre un pago fallido
+     * Notificar fallo en el pago (Soluciona: method notifyFailedPayment is undefined)
      */
-    public void notifyFailedPayment(Order order, String errorMessage) {
-        log.info("=== Sending failed payment notification for order: {} ===", order.getOrderNumber());
-
+    public void notifyFailedPayment(Order order, String reason) {
         try {
-            notificationClient.notifyUserPurchaseFailed(
-                order.getUserId(),
-                order.getOrderNumber(),
-                errorMessage
+            String title = "❌ Error en el pago";
+            String message = String.format("El pago para el pedido %s ha fallado. Motivo: %s", 
+                order.getOrderNumber(), reason);
+            
+            // Enviar notificación
+            notificationClient.sendNotification(order.getUserId(), title, message, "ERROR");
+            
+            // Guardar en historial
+            saveLocalNotification(
+                order.getUserId(), 
+                title, 
+                message, 
+                NotificationType.PAYMENT_FAILED, 
+                order.getId(), 
+                "ORDER"
             );
-
-            log.info("Failed payment notification sent successfully");
-
+            
         } catch (Exception e) {
-            log.error("Error sending failed payment notification: {}", e.getMessage());
+            log.error("Error sending failed payment notification", e);
         }
     }
 
     /**
-     * Notifica sobre un reembolso
-     * - Al comprador: confirmación de reembolso
-     * - A los artistas: aviso de reembolso
+     * Notificar reembolso basado en Objeto Payment (Soluciona: not applicable for arguments (Payment))
      */
     public void notifyRefund(Payment payment) {
-        log.info("=== Sending refund notifications for payment: {} ===", payment.getTransactionId());
-
         try {
-            Order order = orderRepository.findById(payment.getOrderId())
-                .orElseThrow(() -> new RuntimeException("Order not found"));
-
-            // 1. Notificar al comprador
-            notificationClient.notifyUserRefund(
-                order.getUserId(),
-                order.getOrderNumber(),
-                payment.getAmount().doubleValue()
-            );
-
-            // 2. Notificar a los artistas
-            Map<Long, List<OrderItem>> itemsByArtist = groupItemsByArtist(order);
+            String title = "Reembolso procesado 💸";
+            String message = String.format("Se ha procesado un reembolso de $%s", payment.getAmount());
             
-            for (Map.Entry<Long, List<OrderItem>> entry : itemsByArtist.entrySet()) {
-                Long artistId = entry.getKey();
-                List<OrderItem> items = entry.getValue();
-
-                for (OrderItem item : items) {
-                    notificationClient.notifyArtistRefund(
-                        artistId,
-                        item.getItemType() + " #" + item.getItemId(),
-                        order.getOrderNumber()
-                    );
-                }
-            }
-
-            log.info("=== Refund notifications completed ===");
-
+            notificationClient.sendNotification(payment.getUserId(), title, message, "INFO");
+            
+            saveLocalNotification(
+                payment.getUserId(), 
+                title, 
+                message, 
+                NotificationType.SYSTEM_NOTIFICATION, 
+                payment.getId(), 
+                "PAYMENT"
+            );
+            
         } catch (Exception e) {
-            log.error("Error sending refund notifications: {}", e.getMessage(), e);
+            log.error("Error sending refund notification for payment", e);
         }
     }
 
-    /**
-     * Notifica sobre un cambio en el estado del pedido
-     */
-    public void notifyOrderStatusChange(Order order, OrderStatus oldStatus, OrderStatus newStatus) {
-        log.info("Notifying order status change: {} -> {} for order {}", 
-            oldStatus, newStatus, order.getOrderNumber());
+    // Mantengo el método original por si se usa en otro lado (sobrecarga)
+    public void notifyRefund(Order order) {
+        try {
+            String title = "Reembolso procesado 💸";
+            String message = String.format("Se ha procesado el reembolso para el pedido %s", 
+                order.getOrderNumber());
+            
+            notificationClient.sendNotification(order.getUserId(), title, message, "INFO");
+            
+            saveLocalNotification(
+                order.getUserId(), 
+                title, 
+                message, 
+                NotificationType.SYSTEM_NOTIFICATION, 
+                order.getId(), 
+                "REFUND"
+            );
+            
+        } catch (Exception e) {
+            log.error("Error sending refund notification for order", e);
+        }
+    }
 
+    public void notifyOrderStatusChange(Order order, OrderStatus oldStatus, OrderStatus newStatus) {
         try {
             String title = "📦 Estado de pedido actualizado";
             String message = String.format(
                 "Tu pedido %s ha cambiado de estado: %s → %s",
-                order.getOrderNumber(),
-                translateStatus(oldStatus),
-                translateStatus(newStatus)
+                order.getOrderNumber(), translateStatus(oldStatus), translateStatus(newStatus)
             );
 
             notificationClient.sendNotification(order.getUserId(), title, message, "INFO");
-
-            log.info("Order status change notification sent successfully");
-
+            
+            saveLocalNotification(
+                order.getUserId(), title, message, 
+                NotificationType.SYSTEM_NOTIFICATION, order.getId(), "ORDER_STATUS"
+            );
         } catch (Exception e) {
-            log.error("Error sending order status notification: {}", e.getMessage());
+            log.error("Error sending order status notification", e);
         }
     }
 
-    /**
-     * Traduce el estado del pedido a un mensaje amigable
-     */
+    private void saveLocalNotification(Long userId, String title, String message, NotificationType type, Long referenceId, String referenceType) {
+        try {
+            Notification notification = Notification.builder()
+                    .userId(userId)
+                    .title(title)
+                    .message(message)
+                    .type(type)
+                    .referenceId(referenceId)
+                    .referenceType(referenceType)
+                    .isRead(false)
+                    .isSent(true)
+                    .sentAt(LocalDateTime.now())
+                    .createdAt(LocalDateTime.now())
+                    .build();
+            
+            notificationRepository.save(notification);
+        } catch (Exception e) {
+            log.error("Could not save local notification history", e);
+        }
+    }
+
+    private NotificationDTO mapToDTO(Notification notification) {
+        return NotificationDTO.builder()
+                .id(notification.getId())
+                .userId(notification.getUserId())
+                .title(notification.getTitle())
+                .message(notification.getMessage())
+                .type(notification.getType())
+                .isRead(notification.getIsRead())
+                .isSent(notification.getIsSent())
+                .referenceId(notification.getReferenceId())
+                .referenceType(notification.getReferenceType())
+                .sentAt(notification.getSentAt())
+                .readAt(notification.getReadAt())
+                .createdAt(notification.getCreatedAt())
+                .metadata(notification.getMetadata())
+                .build();
+    }
+
     private String translateStatus(OrderStatus status) {
+        if (status == null) return "Desconocido";
         switch (status) {
             case PENDING: return "Pendiente";
             case PROCESSING: return "Procesando";
