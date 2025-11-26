@@ -19,7 +19,7 @@ public class OrderDTO {
     private String orderNumber;
     private List<OrderItemDTO> items;
     private BigDecimal totalAmount;
-    private String status; // Changed from OrderStatus enum to String for better inter-service compatibility
+    private String status;
     private String shippingAddress;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
