@@ -1,11 +1,10 @@
 import 'dart:developer' as developer;
 import 'package:audira_frontend/core/api/api_client.dart';
 import 'package:audira_frontend/core/models/album.dart';
+import 'package:audira_frontend/core/models/artist.dart';
 import 'package:audira_frontend/core/models/song.dart';
 import 'package:audira_frontend/core/models/genre.dart';
-import 'package:audira_frontend/core/models/user.dart';
 import 'package:audira_frontend/core/models/recommendations_response.dart';
-
 
 class DiscoveryService {
   static final DiscoveryService _instance = DiscoveryService._internal();
@@ -14,15 +13,15 @@ class DiscoveryService {
 
   final ApiClient _apiClient = ApiClient();
 
-  /// Search songs 
+  /// Search songs
   Future<ApiResponse<Map<String, dynamic>>> searchSongs(
     String query, {
     int page = 0,
     int size = 20,
     int? genreId,
     String? sortBy,
-    double? minPrice,  // NUEVO
-    double? maxPrice,  // NUEVO
+    double? minPrice, // NUEVO
+    double? maxPrice, // NUEVO
   }) async {
     final Map<String, String> queryParams = {
       'query': query,
@@ -80,8 +79,8 @@ class DiscoveryService {
     int size = 20,
     int? genreId,
     String? sortBy,
-    double? minPrice,  // NUEVO
-    double? maxPrice,  // NUEVO
+    double? minPrice, // NUEVO
+    double? maxPrice, // NUEVO
   }) async {
     final Map<String, String> queryParams = {
       'query': query,
@@ -133,7 +132,7 @@ class DiscoveryService {
   }
 
   /// Search artists
-  Future<ApiResponse<List<User>>> searchArtists(String query) async {
+  Future<ApiResponse<List<Artist>>> searchArtists(String query) async {
     try {
       developer.log(
         'Searching Artists: query=$query',
@@ -146,7 +145,7 @@ class DiscoveryService {
 
       if (response.success && response.data != null) {
         final List<dynamic> data = response.data as List;
-        final artists = data.map((json) => User.fromJson(json)).toList();
+        final artists = data.map((json) => Artist.fromJson(json)).toList();
 
         return ApiResponse(
           success: true,
@@ -173,10 +172,7 @@ class DiscoveryService {
         final List<dynamic> data = response.data as List;
         final genres = data.map((json) => Genre.fromJson(json)).toList();
         return ApiResponse(
-          success: true,
-          data: genres,
-          statusCode: response.statusCode
-        );
+            success: true, data: genres, statusCode: response.statusCode);
       }
       return ApiResponse(success: false, error: 'Error fetching genres');
     } catch (e) {
