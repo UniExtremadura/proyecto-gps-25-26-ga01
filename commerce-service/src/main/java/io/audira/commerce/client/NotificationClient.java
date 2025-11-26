@@ -21,7 +21,7 @@ public class NotificationClient {
 
     private final RestTemplate restTemplate;
 
-    @Value("${services.notification.url:http://172.16.0.4:9001/api/notifications}")
+    @Value("${services.notification.url:http://172.16.0.10:9001/api/notifications}")
     private String notificationServiceUrl;
 
     /**
