@@ -1,5 +1,6 @@
 package io.audira.catalog.controller;
 
+import io.audira.catalog.dto.SongDTO;
 import io.audira.catalog.model.Song;
 import io.audira.catalog.service.SongService;
 import lombok.RequiredArgsConstructor;
@@ -50,8 +51,8 @@ public class SongController {
     }
 
     @GetMapping("/artist/{artistId}")
-    public ResponseEntity<List<Song>> getSongsByArtist(@PathVariable Long artistId) {
-        return ResponseEntity.ok(songService.getSongsByArtist(artistId));
+    public ResponseEntity<List<SongDTO>> getSongsByArtist(@PathVariable Long artistId) {
+        return ResponseEntity.ok(songService.getSongsByArtistWithArtistName(artistId));
     }
 
     @GetMapping("/album/{albumId}")

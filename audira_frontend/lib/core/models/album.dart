@@ -3,6 +3,7 @@ import 'package:equatable/equatable.dart';
 class Album extends Equatable {
   final int id;
   final int artistId;
+  final String artistName; // Nombre del artista
   final String name;
   final String? description;
   final double price;
@@ -25,6 +26,7 @@ class Album extends Equatable {
   const Album({
     required this.id,
     required this.artistId,
+    required this.artistName,
     required this.name,
     this.description,
     required this.price,
@@ -66,6 +68,7 @@ class Album extends Equatable {
     return Album(
       id: json['id'] as int,
       artistId: json['artistId'] as int,
+      artistName: json['artistName'] as String? ?? 'Artista Desconocido',
       name: json['title'] as String,
       description: json['description'] as String?,
       price: (json['price'] as num).toDouble(),
@@ -101,6 +104,7 @@ class Album extends Equatable {
     return {
       'id': id,
       'artistId': artistId,
+      'artistName': artistName,
       'title': name,
       'description': description,
       'price': price,
@@ -124,6 +128,7 @@ class Album extends Equatable {
   Album copyWith({
     int? id,
     int? artistId,
+    String? artistName,
     String? name,
     String? description,
     double? price,
@@ -145,6 +150,7 @@ class Album extends Equatable {
     return Album(
       id: id ?? this.id,
       artistId: artistId ?? this.artistId,
+      artistName: artistName ?? this.artistName,
       name: name ?? this.name,
       description: description ?? this.description,
       price: price ?? this.price,
@@ -169,6 +175,7 @@ class Album extends Equatable {
   List<Object?> get props => [
         id,
         artistId,
+        artistName,
         name,
         description,
         price,

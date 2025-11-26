@@ -235,7 +235,15 @@ class _SearchScreenState extends State<SearchScreen>
         }
       }
 
-      _artists = [];
+      // Search artists
+      final artistResponse = await _discoveryService.searchArtists(searchQuery);
+      if (artistResponse.success && artistResponse.data != null) {
+        setState(() {
+          _artists = artistResponse.data!;
+        });
+      } else {
+        _artists = [];
+      }
     } catch (e) {
       debugPrint('Search error: $e');
       if (!currentContext.mounted) return;

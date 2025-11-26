@@ -1,18 +1,24 @@
 package io.audira.catalog.service;
 
+import io.audira.catalog.client.UserServiceClient;
+import io.audira.catalog.dto.SongDTO;
 import io.audira.catalog.model.ModerationStatus;
 import io.audira.catalog.model.Song;
 import io.audira.catalog.repository.SongRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class SongService {
 
     private final SongRepository songRepository;
+    private final UserServiceClient userServiceClient;
 
     @Transactional
     public Song createSong(Song song) {
@@ -52,6 +58,28 @@ public class SongService {
 
     public List<Song> getSongsByArtist(Long artistId) {
         return songRepository.findByArtistId(artistId);
+    }
+
+    /**
+     * Get songs by artist with artist name included in DTO
+     */
+    public List<SongDTO> getSongsByArtistWithArtistName(Long artistId) {
+        List<Song> songs = songRepository.findByArtistId(artistId);
+
+        // Get artist name once
+        String artistName;
+        try {
+            artistName = userServiceClient.getUserById(artistId).getArtistName();
+        } catch (Exception e) {
+            log.warn("Failed to fetch artist name for artistId: {}, using fallback", artistId);
+            artistName = "Artist #" + artistId;
+        }
+
+        // Convert all songs to DTOs with the artist name
+        final String finalArtistName = artistName;
+        return songs.stream()
+                .map(song -> SongDTO.fromSong(song, finalArtistName))
+                .collect(Collectors.toList());
     }
 
     public List<Song> getSongsByAlbum(Long albumId) {

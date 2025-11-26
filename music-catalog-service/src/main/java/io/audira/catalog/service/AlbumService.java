@@ -1,6 +1,8 @@
 package io.audira.catalog.service;
 
+import io.audira.catalog.client.UserServiceClient;
 import io.audira.catalog.dto.AlbumCreateRequest;
+import io.audira.catalog.dto.AlbumDTO;
 import io.audira.catalog.dto.AlbumResponse;
 import io.audira.catalog.dto.AlbumUpdateRequest;
 import io.audira.catalog.model.Album;
@@ -9,18 +11,23 @@ import io.audira.catalog.model.Song;
 import io.audira.catalog.repository.AlbumRepository;
 import io.audira.catalog.repository.SongRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class AlbumService {
 
     private final AlbumRepository albumRepository;
     private final SongRepository songRepository;
+    private final UserServiceClient userServiceClient;
 
     public List<Album> getRecentAlbums() {
         return albumRepository.findRecentAlbums();
@@ -38,19 +45,70 @@ public class AlbumService {
         return albumRepository.findByArtistId(artistId);
     }
 
+    /**
+     * Get albums by artist with artist name included in DTO
+     */
+    public List<AlbumDTO> getAlbumsByArtistWithArtistName(Long artistId) {
+        List<Album> albums = albumRepository.findByArtistId(artistId);
+
+        // Get artist name once
+        String artistName;
+        try {
+            artistName = userServiceClient.getUserById(artistId).getArtistName();
+        } catch (Exception e) {
+            log.warn("Failed to fetch artist name for artistId: {}, using fallback", artistId);
+            artistName = "Artist #" + artistId;
+        }
+
+        // Convert all albums to DTOs with the artist name
+        final String finalArtistName = artistName;
+        return albums.stream()
+                .map(album -> AlbumDTO.fromAlbum(album, finalArtistName))
+                .collect(Collectors.toList());
+    }
+
     @Transactional
     public AlbumResponse createAlbum(AlbumCreateRequest request) {
+        // Calcular precio basado en las canciones del álbum
+        BigDecimal totalSongPrice = BigDecimal.ZERO;
+
+        if (request.getSongIds() != null && !request.getSongIds().isEmpty()) {
+            for (Long songId : request.getSongIds()) {
+                Optional<Song> songOpt = songRepository.findById(songId);
+                if (songOpt.isPresent() && songOpt.get().getPrice() != null) {
+                    totalSongPrice = totalSongPrice.add(songOpt.get().getPrice());
+                }
+            }
+        }
+
+        // Aplicar descuento al precio total de canciones
+        double discountPercentage = request.getDiscountPercentage() != null ?
+                request.getDiscountPercentage() : 0.15;
+
+        BigDecimal finalPrice = totalSongPrice;
+        if (discountPercentage > 0 && totalSongPrice.compareTo(BigDecimal.ZERO) > 0) {
+            BigDecimal discount = totalSongPrice.multiply(BigDecimal.valueOf(discountPercentage));
+            finalPrice = totalSongPrice.subtract(discount);
+        }
+
+        // Si no se pudo calcular precio de canciones, usar el precio proporcionado
+        if (finalPrice.compareTo(BigDecimal.ZERO) == 0 && request.getPrice() != null) {
+            finalPrice = request.getPrice();
+        }
+
+        log.info("Album price calculation: totalSongPrice={}, discount={}%, finalPrice={}",
+                totalSongPrice, discountPercentage * 100, finalPrice);
+
         // Crear el álbum
         Album album = Album.builder()
                 .title(request.getTitle())
                 .artistId(request.getArtistId())
                 .description(request.getDescription())
-                .price(request.getPrice())
+                .price(finalPrice)
                 .coverImageUrl(request.getCoverImageUrl())
                 .genreIds(request.getGenreIds())
                 .releaseDate(request.getReleaseDate())
-                .discountPercentage(request.getDiscountPercentage() != null ?
-                        request.getDiscountPercentage() : 0.15)
+                .discountPercentage(discountPercentage)
                 .published(false) // Por defecto no publicado
                 .moderationStatus(ModerationStatus.PENDING) // GA01-162: Estado inicial
                 .build();

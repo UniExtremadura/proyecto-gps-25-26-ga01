@@ -1,6 +1,7 @@
 package io.audira.catalog.controller;
 
 import io.audira.catalog.dto.AlbumCreateRequest;
+import io.audira.catalog.dto.AlbumDTO;
 import io.audira.catalog.dto.AlbumResponse;
 import io.audira.catalog.dto.AlbumUpdateRequest;
 import io.audira.catalog.model.Album;
@@ -42,8 +43,8 @@ public class AlbumController {
     }
 
     @GetMapping("/artist/{artistId}")
-    public ResponseEntity<List<Album>> getAlbumsByArtist(@PathVariable Long artistId) {
-        List<Album> albums = albumService.getAlbumsByArtist(artistId);
+    public ResponseEntity<List<AlbumDTO>> getAlbumsByArtist(@PathVariable Long artistId) {
+        List<AlbumDTO> albums = albumService.getAlbumsByArtistWithArtistName(artistId);
         return ResponseEntity.ok(albums);
     }
 
