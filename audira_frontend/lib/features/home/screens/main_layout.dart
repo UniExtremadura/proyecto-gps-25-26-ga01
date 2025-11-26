@@ -135,8 +135,16 @@ class _MainLayoutState extends State<MainLayout> {
           ),
           IconButton(
             icon: const Icon(Icons.help_outline),
+            tooltip: 'Preguntas Frecuentes',
             onPressed: () {
               Navigator.pushNamed(context, '/faq');
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.support_agent),
+            tooltip: 'Contactar Soporte',
+            onPressed: () {
+              Navigator.pushNamed(context, '/contact');
             },
           ),
           Consumer<CartProvider>(

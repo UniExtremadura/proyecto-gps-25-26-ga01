@@ -324,8 +324,7 @@ class _UploadSongScreenState extends State<UploadSongScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text(
-                '¡Canción subida exitosamente! Estará disponible después de ser revisada por un administrador.'),
+            content: Text('¡Canción subida exitosamente! Estará disponible después de ser revisada por un administrador.'),
             backgroundColor: Colors.green,
             duration: Duration(seconds: 5),
           ),
@@ -415,8 +414,7 @@ class _UploadSongScreenState extends State<UploadSongScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                      'Subiendo canción... ${(_uploadProgress * 100).toInt()}%'),
+                  Text('Subiendo canción... ${(_uploadProgress * 100).toInt()}%'),
                   const SizedBox(height: 8),
                   LinearProgressIndicator(value: _uploadProgress),
                 ],
@@ -467,8 +465,7 @@ class _UploadSongScreenState extends State<UploadSongScreen> {
               child: Column(
                 children: [
                   ListTile(
-                    leading:
-                        const Icon(Icons.image, color: AppTheme.primaryBlue),
+                    leading: const Icon(Icons.image, color: AppTheme.primaryBlue),
                     title: Text(_imageFileName ?? 'Seleccionar Portada'),
                     subtitle: const Text('JPG, PNG (Opcional)'),
                     trailing: Icon(
@@ -851,7 +848,7 @@ class _UploadSongScreenState extends State<UploadSongScreen> {
                 borderRadius: BorderRadius.circular(12),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.3),
+                    color: Colors.black.withValues(alpha:0.3),
                     blurRadius: 10,
                     spreadRadius: 2,
                   ),
@@ -958,8 +955,7 @@ class _UploadSongScreenState extends State<UploadSongScreen> {
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 8, vertical: 2),
                             decoration: BoxDecoration(
-                              color:
-                                  AppTheme.primaryBlue.withValues(alpha: 0.2),
+                              color: AppTheme.primaryBlue.withValues(alpha:0.2),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(

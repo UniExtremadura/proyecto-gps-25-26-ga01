@@ -572,9 +572,11 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen>
                 ? ElevatedButton.icon(
                     onPressed: () {
                       if (_album != null && _songs.isNotEmpty) {
-                        audioProvider.playSong(
-                          _songs[0],
+                        audioProvider.playQueue(
+                          _songs,
+                          startIndex: 0,
                           isUserAuthenticated: authProvider.isAuthenticated,
+                          userId: authProvider.currentUser?.id,
                         );
                         Navigator.pushNamed(context, '/playback');
                       }
@@ -691,9 +693,13 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen>
                   onPressed: () {
                     final audioProvider = context.read<AudioProvider>();
                     final authProvider = context.read<AuthProvider>();
-                    audioProvider.playSong(
-                      song,
+                    // Reproducir desde esta canción en adelante en el contexto del álbum
+                    final songIndex = _songs.indexOf(song);
+                    audioProvider.playQueue(
+                      _songs,
+                      startIndex: songIndex >= 0 ? songIndex : 0,
                       isUserAuthenticated: authProvider.isAuthenticated,
+                      userId: authProvider.currentUser?.id,
                     );
 
                     Navigator.pushNamed(context, '/playback');

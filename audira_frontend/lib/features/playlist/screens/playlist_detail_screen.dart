@@ -434,7 +434,12 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
                       if (_songs.isNotEmpty)
                         ElevatedButton.icon(
                           onPressed: () {
-                            audioProvider.playQueue(_songs);
+                            audioProvider.playQueue(
+                              _songs,
+                              startIndex: 0,
+                              isUserAuthenticated: authProvider.isAuthenticated,
+                              userId: authProvider.currentUser?.id,
+                            );
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
                                 content: Text('Reproduciendo playlist...'),
@@ -586,10 +591,13 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
                                 IconButton(
                                   icon: const Icon(Icons.play_circle_outline),
                                   onPressed: () {
-                                    audioProvider.playSong(
-                                      song,
-                                      isUserAuthenticated:
-                                          authProvider.isAuthenticated,
+                                    // Reproducir desde esta canción en la playlist
+                                    final songIndex = _songs.indexOf(song);
+                                    audioProvider.playQueue(
+                                      _songs,
+                                      startIndex: songIndex >= 0 ? songIndex : 0,
+                                      isUserAuthenticated: authProvider.isAuthenticated,
+                                      userId: authProvider.currentUser?.id,
                                     );
                                   },
                                   tooltip: 'Reproducir',
@@ -640,10 +648,13 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
                               ],
                             ),
                             onTap: () {
-                              audioProvider.playSong(
-                                song,
-                                isUserAuthenticated:
-                                    authProvider.isAuthenticated,
+                              // Reproducir desde esta canción en la playlist
+                              final songIndex = _songs.indexOf(song);
+                              audioProvider.playQueue(
+                                _songs,
+                                startIndex: songIndex >= 0 ? songIndex : 0,
+                                isUserAuthenticated: authProvider.isAuthenticated,
+                                userId: authProvider.currentUser?.id,
                               );
                             },
                           ),

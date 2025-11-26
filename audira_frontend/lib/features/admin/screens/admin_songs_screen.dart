@@ -260,7 +260,7 @@ class _AdminSongsScreenState extends State<AdminSongsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Manage Songs'),
+        title: const Text('Administrar Canciones'),
         actions: [
           // GA01-162: Filtro de moderación
           PopupMenuButton<String>(
@@ -352,7 +352,7 @@ class _AdminSongsScreenState extends State<AdminSongsScreen> {
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
-                hintText: 'Search songs...',
+                hintText: 'Buscar canciones...',
                 prefixIcon: const Icon(Icons.search),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),

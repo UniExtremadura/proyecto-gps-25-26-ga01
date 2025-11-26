@@ -6,6 +6,7 @@ import 'package:audira_frontend/core/models/song.dart';
 import 'package:audira_frontend/core/models/genre.dart';
 import 'package:audira_frontend/core/models/recommendations_response.dart';
 
+
 class DiscoveryService {
   static final DiscoveryService _instance = DiscoveryService._internal();
   factory DiscoveryService() => _instance;
@@ -13,15 +14,15 @@ class DiscoveryService {
 
   final ApiClient _apiClient = ApiClient();
 
-  /// Search songs
+  /// Search songs 
   Future<ApiResponse<Map<String, dynamic>>> searchSongs(
     String query, {
     int page = 0,
     int size = 20,
     int? genreId,
     String? sortBy,
-    double? minPrice, // NUEVO
-    double? maxPrice, // NUEVO
+    double? minPrice,  // NUEVO
+    double? maxPrice,  // NUEVO
   }) async {
     final Map<String, String> queryParams = {
       'query': query,
@@ -79,8 +80,8 @@ class DiscoveryService {
     int size = 20,
     int? genreId,
     String? sortBy,
-    double? minPrice, // NUEVO
-    double? maxPrice, // NUEVO
+    double? minPrice,  // NUEVO
+    double? maxPrice,  // NUEVO
   }) async {
     final Map<String, String> queryParams = {
       'query': query,
@@ -172,7 +173,10 @@ class DiscoveryService {
         final List<dynamic> data = response.data as List;
         final genres = data.map((json) => Genre.fromJson(json)).toList();
         return ApiResponse(
-            success: true, data: genres, statusCode: response.statusCode);
+          success: true,
+          data: genres,
+          statusCode: response.statusCode
+        );
       }
       return ApiResponse(success: false, error: 'Error fetching genres');
     } catch (e) {

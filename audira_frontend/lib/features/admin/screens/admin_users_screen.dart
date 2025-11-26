@@ -231,7 +231,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Manage Users'),
+        title: const Text('Administrar Usuarios'),
         actions: [
           PopupMenuButton<String>(
             icon: const Icon(Icons.filter_list),
@@ -240,10 +240,10 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
               _applyFilters();
             },
             itemBuilder: (context) => [
-              const PopupMenuItem(value: 'ALL', child: Text('All Roles')),
-              const PopupMenuItem(value: 'USER', child: Text('Users')),
-              const PopupMenuItem(value: 'ARTIST', child: Text('Artists')),
-              const PopupMenuItem(value: 'ADMIN', child: Text('Admins')),
+              const PopupMenuItem(value: 'ALL', child: Text('Todos los Roles')),
+              const PopupMenuItem(value: 'USER', child: Text('Usuarios')),
+              const PopupMenuItem(value: 'ARTIST', child: Text('Artistas')),
+              const PopupMenuItem(value: 'ADMIN', child: Text('Administradores')),
             ],
           ),
         ],
@@ -255,7 +255,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
-                hintText: 'Search users...',
+                hintText: 'Buscar usuarios...',
                 prefixIcon: const Icon(Icons.search),
                 suffix: Text(
                     _selectedRoleFilter != 'ALL' ? _selectedRoleFilter : ''),

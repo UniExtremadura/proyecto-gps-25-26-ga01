@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import '../../../config/theme.dart';
 
 class AdminDashboardScreen extends StatelessWidget {
   const AdminDashboardScreen({super.key});
@@ -8,7 +9,7 @@ class AdminDashboardScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Admin Panel'),
+        title: const Text('Panel de Administración'),
         centerTitle: true,
       ),
       body: GridView.count(
@@ -20,17 +21,17 @@ class AdminDashboardScreen extends StatelessWidget {
           _buildAdminCard(
             context,
             icon: Icons.music_note,
-            title: 'Manage Songs',
-            subtitle: 'Add, edit, delete songs',
-            color: Colors.purple,
+            title: 'Administrar Canciones',
+            subtitle: 'Agregar, editar, eliminar canciones',
+            color: AppTheme.primaryBlue,
             route: '/admin/songs',
           ).animate(delay: 0.ms).fadeIn().scale(begin: const Offset(0.8, 0.8)),
           _buildAdminCard(
             context,
             icon: Icons.album,
-            title: 'Manage Albums',
-            subtitle: 'Add, edit, delete albums',
-            color: Colors.blue,
+            title: 'Administrar Álbumes',
+            subtitle: 'Agregar, editar, eliminar álbumes',
+            color: AppTheme.darkBlue,
             route: '/admin/albums',
           )
               .animate(delay: 100.ms)
@@ -39,8 +40,8 @@ class AdminDashboardScreen extends StatelessWidget {
           _buildAdminCard(
             context,
             icon: Icons.category,
-            title: 'Manage Genres',
-            subtitle: 'Add, edit, delete genres',
+            title: 'Administrar Géneros',
+            subtitle: 'Agregar, editar, eliminar géneros',
             color: Colors.green,
             route: '/admin/genres',
           )
@@ -50,8 +51,8 @@ class AdminDashboardScreen extends StatelessWidget {
           _buildAdminCard(
             context,
             icon: Icons.people,
-            title: 'Manage Users',
-            subtitle: 'View and manage users',
+            title: 'Administrar Usuarios',
+            subtitle: 'Ver y administrar usuarios',
             color: Colors.orange,
             route: '/admin/users',
           )
@@ -61,9 +62,9 @@ class AdminDashboardScreen extends StatelessWidget {
           _buildAdminCard(
             context,
             icon: Icons.help,
-            title: 'Manage FAQs',
-            subtitle: 'Add, edit, delete FAQs',
-            color: Colors.teal,
+            title: 'Administrar FAQs',
+            subtitle: 'Agregar, editar, eliminar preguntas frecuentes',
+            color: AppTheme.primaryBlue,
             route: '/admin/faqs',
           )
               .animate(delay: 400.ms)
@@ -72,8 +73,8 @@ class AdminDashboardScreen extends StatelessWidget {
           _buildAdminCard(
             context,
             icon: Icons.email,
-            title: 'View Contacts',
-            subtitle: 'See contact messages',
+            title: 'Ver Contactos',
+            subtitle: 'Ver mensajes de contacto',
             color: Colors.pink,
             route: '/admin/contacts',
           )
@@ -83,8 +84,8 @@ class AdminDashboardScreen extends StatelessWidget {
           _buildAdminCard(
             context,
             icon: Icons.shopping_bag,
-            title: 'Manage Orders',
-            subtitle: 'View and manage orders',
+            title: 'Administrar Pedidos',
+            subtitle: 'Ver y administrar pedidos',
             color: Colors.amber,
             route: '/admin/orders',
           )
@@ -94,8 +95,8 @@ class AdminDashboardScreen extends StatelessWidget {
           _buildAdminCard(
             context,
             icon: Icons.bar_chart,
-            title: 'Statistics',
-            subtitle: 'View global statistics',
+            title: 'Estadísticas',
+            subtitle: 'Ver estadísticas globales',
             color: Colors.red,
             route: '/admin/stats',
           )
@@ -105,9 +106,9 @@ class AdminDashboardScreen extends StatelessWidget {
           _buildAdminCard(
             context,
             icon: Icons.star,
-            title: 'Featured Content',
-            subtitle: 'Manage homepage featured content',
-            color: Colors.deepPurple,
+            title: 'Contenido Destacado',
+            subtitle: 'Administrar contenido destacado del inicio',
+            color: AppTheme.darkBlue,
             route: '/admin/featured-content',
           )
               .animate(delay: 800.ms)
@@ -116,8 +117,8 @@ class AdminDashboardScreen extends StatelessWidget {
           _buildAdminCard(
             context,
             icon: Icons.admin_panel_settings,
-            title: 'Moderation History',
-            subtitle: 'Review content moderation history',
+            title: 'Historial de Moderación',
+            subtitle: 'Revisar historial de moderación de contenido',
             color: Colors.indigo,
             route: '/admin/moderation-history',
           )
