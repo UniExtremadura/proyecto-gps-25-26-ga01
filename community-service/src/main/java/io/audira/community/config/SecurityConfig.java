@@ -55,6 +55,8 @@ public class SecurityConfig {
                                 "/api/ratings/entity/{entityType}/{entityId}/with-comments",
                                 "/api/ratings/entity/{entityType}/{entityId}/stats",
                                 "/api/ratings/user/{userId}/entity/{entityType}/{entityId}",
+                                "/api/faqs/**", // FAQs - acceso público para visualización
+                                "/api/contact", // Contact - permitir envío de tickets sin autenticación
                                 "/public/**",
                                 "/actuator/**",
                                 "/error"

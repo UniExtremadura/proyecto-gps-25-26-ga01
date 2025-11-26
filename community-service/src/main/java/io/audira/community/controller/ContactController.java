@@ -69,6 +69,23 @@ public class ContactController {
         }
     }
 
+    @PutMapping("/{id}")
+    public ResponseEntity<?> updateMessage(@PathVariable Long id, @RequestBody Map<String, Object> updates) {
+        try {
+            if (updates.containsKey("isRead") && (Boolean) updates.get("isRead")) {
+                ContactMessage message = contactMessageService.markAsRead(id);
+                return ResponseEntity.ok(message);
+            }
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Invalid update request");
+            return ResponseEntity.badRequest().body(error);
+        } catch (RuntimeException e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", e.getMessage());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+        }
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deletMessage(@PathVariable Long id) {
         try {

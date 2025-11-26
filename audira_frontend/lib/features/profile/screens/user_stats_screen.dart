@@ -4,6 +4,9 @@ import 'package:provider/provider.dart';
 import '../../../config/theme.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/api/services/metrics_service.dart';
+import '../../../core/api/services/playlist_service.dart';
+import '../../../core/api/services/library_service.dart';
+import '../../../core/api/services/order_service.dart';
 
 class UserStatsScreen extends StatefulWidget {
   const UserStatsScreen({super.key});
@@ -14,9 +17,18 @@ class UserStatsScreen extends StatefulWidget {
 
 class _UserStatsScreenState extends State<UserStatsScreen> {
   final MetricsService _metricsService = MetricsService();
+  final PlaylistService _playlistService = PlaylistService();
+  final LibraryService _libraryService = LibraryService();
+  final OrderService _orderService = OrderService();
+
   Map<String, dynamic>? _userMetrics;
   List<dynamic>? _listeningHistory;
+  int _playlistCount = 0;
+  int _purchasedSongsCount = 0;
+  int _purchasedAlbumsCount = 0;
+  double _totalSpent = 0.0;
   bool _isLoading = true;
+  String? _errorMessage;
 
   @override
   void initState() {
@@ -27,28 +39,57 @@ class _UserStatsScreenState extends State<UserStatsScreen> {
   Future<void> _loadMetrics() async {
     setState(() {
       _isLoading = true;
+      _errorMessage = null;
     });
 
-    final authProvider = context.read<AuthProvider>();
-    if (authProvider.currentUser != null) {
-      final metricsResponse =
-          await _metricsService.getUserMetrics(authProvider.currentUser!.id);
-      final historyResponse = await _metricsService.getUserListeningHistory(
-        authProvider.currentUser!.id,
-        limit: 5,
-      );
+    try {
+      final authProvider = context.read<AuthProvider>();
+      if (authProvider.currentUser != null) {
+        final userId = authProvider.currentUser!.id;
 
-      if (metricsResponse.success) {
-        _userMetrics = metricsResponse.data;
+        // Cargar métricas del usuario
+        final metricsResponse = await _metricsService.getUserMetrics(userId);
+        final historyResponse = await _metricsService.getUserListeningHistory(
+          userId,
+          limit: 5,
+        );
+
+        if (metricsResponse.success) {
+          _userMetrics = metricsResponse.data;
+        }
+        if (historyResponse.success) {
+          _listeningHistory = historyResponse.data;
+        }
+
+        // Cargar playlists creadas
+        final playlistsResponse = await _playlistService.getUserPlaylists(userId);
+        if (playlistsResponse.success && playlistsResponse.data != null) {
+          _playlistCount = playlistsResponse.data!.length;
+        }
+
+        // Cargar información de compras desde la librería
+        final libraryResponse = await _libraryService.getUserLibrary(userId);
+        if (libraryResponse.success && libraryResponse.data != null) {
+          _purchasedSongsCount = libraryResponse.data!.songs.length;
+          _purchasedAlbumsCount = libraryResponse.data!.albums.length;
+        }
+
+        // Calcular total gastado desde las órdenes
+        final ordersResponse = await _orderService.getOrdersByUserId(userId);
+        if (ordersResponse.success && ordersResponse.data != null) {
+          _totalSpent = ordersResponse.data!
+              .where((order) => order.status == 'completed')
+              .fold(0.0, (sum, order) => sum + order.totalAmount);
+        }
       }
-      if (historyResponse.success) {
-        _listeningHistory = historyResponse.data;
-      }
+    } catch (e) {
+      _errorMessage = 'Error al cargar estadísticas: $e';
+      debugPrint(_errorMessage);
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
     }
-
-    setState(() {
-      _isLoading = false;
-    });
   }
 
   @override
@@ -58,7 +99,7 @@ class _UserStatsScreenState extends State<UserStatsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('My Statistics'),
+        title: const Text('Mis Estadísticas'),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -68,50 +109,79 @@ class _UserStatsScreenState extends State<UserStatsScreen> {
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('${user?.fullName}',
-                      style: const TextStyle(
-                          fontSize: 20, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 24),
-
-                  // Overview Cards
-                  GridView.count(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
-                    childAspectRatio: 1.5,
+          : _errorMessage != null
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      _buildStatCard(
-                          'Total Plays',
-                          '${_userMetrics?['totalPlays'] ?? 0}',
-                          Icons.play_circle,
-                          AppTheme.primaryBlue),
-                      _buildStatCard(
-                          'Purchased Songs',
-                          '${_userMetrics?['purchasedSongs'] ?? 0}',
-                          Icons.music_note,
-                          Colors.purple),
-                      _buildStatCard(
-                          'Purchased Albums',
-                          '${_userMetrics?['purchasedAlbums'] ?? 0}',
-                          Icons.album,
-                          Colors.orange),
-                      _buildStatCard(
-                          'Total Spent',
-                          '\$${(_userMetrics?['totalSpent'] ?? 0).toStringAsFixed(2)}',
-                          Icons.attach_money,
-                          Colors.green),
+                      const Icon(Icons.error_outline,
+                          size: 64, color: Colors.red),
+                      const SizedBox(height: 16),
+                      Text(_errorMessage!,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(color: Colors.red)),
+                      const SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: _loadMetrics,
+                        child: const Text('Reintentar'),
+                      ),
                     ],
-                  ).animate().fadeIn(),
-                  const SizedBox(height: 24),
+                  ),
+                )
+              : SingleChildScrollView(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('${user?.fullName}',
+                          style: const TextStyle(
+                              fontSize: 20, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 24),
 
-                  const Text('Listening Activity',
+                      // Overview Cards
+                      GridView.count(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        crossAxisCount: 2,
+                        crossAxisSpacing: 12,
+                        mainAxisSpacing: 12,
+                        childAspectRatio: 1.5,
+                        children: [
+                          _buildStatCard(
+                              'Reproducciones',
+                              '${_userMetrics?['totalPlays'] ?? 0}',
+                              Icons.play_circle,
+                              AppTheme.primaryBlue),
+                          _buildStatCard(
+                              'Canciones Compradas',
+                              '$_purchasedSongsCount',
+                              Icons.music_note,
+                              Colors.purple),
+                          _buildStatCard(
+                              'Álbumes Comprados',
+                              '$_purchasedAlbumsCount',
+                              Icons.album,
+                              Colors.orange),
+                          _buildStatCard(
+                              'Total Gastado',
+                              '\$${_totalSpent.toStringAsFixed(2)}',
+                              Icons.attach_money,
+                              Colors.green),
+                          _buildStatCard(
+                              'Playlists Creadas',
+                              '$_playlistCount',
+                              Icons.playlist_play,
+                              Colors.blue),
+                          _buildStatCard(
+                              'Artistas Favoritos',
+                              '${(_userMetrics?['topArtists'] as List?)?.length ?? 0}',
+                              Icons.person,
+                              Colors.pink),
+                        ],
+                      ).animate().fadeIn(),
+                      const SizedBox(height: 24),
+
+                  const Text('Actividad de Escucha',
                       style:
                           TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 16),
@@ -121,23 +191,23 @@ class _UserStatsScreenState extends State<UserStatsScreen> {
                       child: Column(
                         children: [
                           _buildStatRow(
-                              'This Week',
-                              '${_userMetrics?['playsThisWeek'] ?? 0} plays',
+                              'Esta Semana',
+                              '${_userMetrics?['playsThisWeek'] ?? 0} reproducciones',
                               AppTheme.primaryBlue),
                           const Divider(),
                           _buildStatRow(
-                              'This Month',
-                              '${_userMetrics?['playsThisMonth'] ?? 0} plays',
+                              'Este Mes',
+                              '${_userMetrics?['playsThisMonth'] ?? 0} reproducciones',
                               AppTheme.primaryBlue),
                           const Divider(),
                           _buildStatRow(
-                              'Total Listening Time',
+                              'Tiempo Total de Escucha',
                               _formatMinutes(
                                   _userMetrics?['totalListeningTime'] ?? 0),
                               Colors.purple),
                           const Divider(),
                           _buildStatRow(
-                              'Avg. Daily Listening',
+                              'Promedio Diario',
                               _formatMinutes(
                                   _userMetrics?['avgDailyListening'] ?? 0),
                               Colors.orange),
@@ -149,7 +219,7 @@ class _UserStatsScreenState extends State<UserStatsScreen> {
 
                   if (_userMetrics?['topGenres'] != null &&
                       (_userMetrics!['topGenres'] as List).isNotEmpty) ...[
-                    const Text('Top Genres',
+                    const Text('Géneros Favoritos',
                         style: TextStyle(
                             fontSize: 18, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 16),
@@ -164,7 +234,7 @@ class _UserStatsScreenState extends State<UserStatsScreen> {
 
                   if (_listeningHistory != null &&
                       _listeningHistory!.isNotEmpty) ...[
-                    const Text('Recently Played',
+                    const Text('Reproducido Recientemente',
                         style: TextStyle(
                             fontSize: 18, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 16),
@@ -198,7 +268,7 @@ class _UserStatsScreenState extends State<UserStatsScreen> {
 
                   if (_userMetrics?['topArtists'] != null &&
                       (_userMetrics!['topArtists'] as List).isNotEmpty) ...[
-                    const Text('Favorite Artists',
+                    const Text('Artistas Favoritos',
                         style: TextStyle(
                             fontSize: 18, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 16),
