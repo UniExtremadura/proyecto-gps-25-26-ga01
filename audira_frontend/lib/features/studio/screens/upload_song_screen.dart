@@ -2,11 +2,11 @@
 
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:just_audio/just_audio.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:audiotagger/audiotagger.dart';
 import '../../../config/theme.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/api/services/music_service.dart';
@@ -138,21 +138,19 @@ class _UploadSongScreenState extends State<UploadSongScreen> {
           return;
         }
 
-        // Extraer duración del archivo de audio
         try {
-          final tagger = Audiotagger();
-          final tags = await tagger.readTags(path: file.path!);
-          if (tags != null && tags.duration != null) {
-            // Convertir duración de milisegundos a segundos
-            final durationInSeconds = (tags.duration! / 1000).round();
-            _durationController.text = durationInSeconds.toString();
+          final player = AudioPlayer();
+          final duration = await player.setFilePath(file.path!);
+
+          if (duration != null) {
+            _durationController.text = duration.inSeconds.toString();
           } else {
-            // Si no se pudo extraer la duración, usar valor por defecto
             _durationController.text = '180';
           }
+
+          await player.dispose();
         } catch (e) {
           debugPrint('Error al extraer duración: $e');
-          // Si falla la extracción, usar valor por defecto
           _durationController.text = '180';
         }
 
@@ -326,7 +324,8 @@ class _UploadSongScreenState extends State<UploadSongScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('¡Canción subida exitosamente! Estará disponible después de ser revisada por un administrador.'),
+            content: Text(
+                '¡Canción subida exitosamente! Estará disponible después de ser revisada por un administrador.'),
             backgroundColor: Colors.green,
             duration: Duration(seconds: 5),
           ),
@@ -416,7 +415,8 @@ class _UploadSongScreenState extends State<UploadSongScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text('Subiendo canción... ${(_uploadProgress * 100).toInt()}%'),
+                  Text(
+                      'Subiendo canción... ${(_uploadProgress * 100).toInt()}%'),
                   const SizedBox(height: 8),
                   LinearProgressIndicator(value: _uploadProgress),
                 ],
@@ -467,7 +467,8 @@ class _UploadSongScreenState extends State<UploadSongScreen> {
               child: Column(
                 children: [
                   ListTile(
-                    leading: const Icon(Icons.image, color: AppTheme.primaryBlue),
+                    leading:
+                        const Icon(Icons.image, color: AppTheme.primaryBlue),
                     title: Text(_imageFileName ?? 'Seleccionar Portada'),
                     subtitle: const Text('JPG, PNG (Opcional)'),
                     trailing: Icon(
@@ -850,7 +851,7 @@ class _UploadSongScreenState extends State<UploadSongScreen> {
                 borderRadius: BorderRadius.circular(12),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha:0.3),
+                    color: Colors.black.withValues(alpha: 0.3),
                     blurRadius: 10,
                     spreadRadius: 2,
                   ),
@@ -957,7 +958,8 @@ class _UploadSongScreenState extends State<UploadSongScreen> {
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 8, vertical: 2),
                             decoration: BoxDecoration(
-                              color: AppTheme.primaryBlue.withValues(alpha:0.2),
+                              color:
+                                  AppTheme.primaryBlue.withValues(alpha: 0.2),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(

@@ -236,7 +236,7 @@ class _SearchScreenState extends State<SearchScreen>
       }
 
       // Search artists
-      final artistResponse = await _discoveryService.searchArtists(searchQuery);
+      final artistResponse = await _discoveryService.searchArtists(query);
       if (artistResponse.success && artistResponse.data != null) {
         setState(() {
           _artists = artistResponse.data!;
