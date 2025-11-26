@@ -83,11 +83,12 @@ public class AlbumService {
 
         // Aplicar descuento al precio total de canciones
         double discountPercentage = request.getDiscountPercentage() != null ?
-                request.getDiscountPercentage() : 0.15;
+                request.getDiscountPercentage() : 15.0;
 
         BigDecimal finalPrice = totalSongPrice;
         if (discountPercentage > 0 && totalSongPrice.compareTo(BigDecimal.ZERO) > 0) {
-            BigDecimal discount = totalSongPrice.multiply(BigDecimal.valueOf(discountPercentage));
+            BigDecimal discountFactor = BigDecimal.valueOf(discountPercentage).divide(BigDecimal.valueOf(100));
+            BigDecimal discount = totalSongPrice.multiply(discountFactor);
             finalPrice = totalSongPrice.subtract(discount);
         }
 
@@ -97,7 +98,7 @@ public class AlbumService {
         }
 
         log.info("Album price calculation: totalSongPrice={}, discount={}%, finalPrice={}",
-                totalSongPrice, discountPercentage * 100, finalPrice);
+                totalSongPrice, discountPercentage, finalPrice);
 
         // Crear el álbum
         Album album = Album.builder()
