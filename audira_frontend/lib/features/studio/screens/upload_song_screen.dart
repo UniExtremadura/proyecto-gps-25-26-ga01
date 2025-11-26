@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:audiotagger/audiotagger.dart';
 import '../../../config/theme.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/api/services/music_service.dart';
@@ -135,6 +136,24 @@ class _UploadSongScreenState extends State<UploadSongScreen> {
                 content: Text('No se pudo obtener la ruta del archivo')),
           );
           return;
+        }
+
+        // Extraer duración del archivo de audio
+        try {
+          final tagger = Audiotagger();
+          final tags = await tagger.readTags(path: file.path!);
+          if (tags != null && tags.duration != null) {
+            // Convertir duración de milisegundos a segundos
+            final durationInSeconds = (tags.duration! / 1000).round();
+            _durationController.text = durationInSeconds.toString();
+          } else {
+            // Si no se pudo extraer la duración, usar valor por defecto
+            _durationController.text = '180';
+          }
+        } catch (e) {
+          debugPrint('Error al extraer duración: $e');
+          // Si falla la extracción, usar valor por defecto
+          _durationController.text = '180';
         }
 
         setState(() {

@@ -3,6 +3,7 @@ import 'package:audira_frontend/core/api/api_client.dart';
 import 'package:audira_frontend/core/models/album.dart';
 import 'package:audira_frontend/core/models/song.dart';
 import 'package:audira_frontend/core/models/genre.dart';
+import 'package:audira_frontend/core/models/user.dart';
 import 'package:audira_frontend/core/models/recommendations_response.dart';
 
 
@@ -72,7 +73,7 @@ class DiscoveryService {
     }
   }
 
-  /// Search albums 
+  /// Search albums
   Future<ApiResponse<Map<String, dynamic>>> searchAlbums(
     String query, {
     int page = 0,
@@ -124,6 +125,39 @@ class DiscoveryService {
       return ApiResponse(
         success: false,
         error: response.error ?? 'Failed to search albums',
+        statusCode: response.statusCode,
+      );
+    } catch (e) {
+      return ApiResponse(success: false, error: e.toString());
+    }
+  }
+
+  /// Search artists
+  Future<ApiResponse<List<User>>> searchArtists(String query) async {
+    try {
+      developer.log(
+        'Searching Artists: query=$query',
+        name: 'DiscoveryService',
+      );
+      final response = await _apiClient.get(
+        '/api/users/search/artists',
+        queryParameters: {'query': query},
+      );
+
+      if (response.success && response.data != null) {
+        final List<dynamic> data = response.data as List;
+        final artists = data.map((json) => User.fromJson(json)).toList();
+
+        return ApiResponse(
+          success: true,
+          data: artists,
+          statusCode: response.statusCode,
+        );
+      }
+
+      return ApiResponse(
+        success: false,
+        error: response.error ?? 'Failed to search artists',
         statusCode: response.statusCode,
       );
     } catch (e) {

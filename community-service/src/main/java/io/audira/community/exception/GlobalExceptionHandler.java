@@ -33,8 +33,8 @@ public class GlobalExceptionHandler {
         ErrorResponse errorResponse = ErrorResponse.builder()
                 .timestamp(LocalDateTime.now())
                 .status(HttpStatus.BAD_REQUEST.value())
-                .error("Validation Failed")
-                .message("Invalid request parameters")
+                .error("Error de validación")
+                .message("Los datos proporcionados no son válidos. Por favor revisa los campos marcados.")
                 .errors(errors)
                 .build();
 
@@ -48,8 +48,8 @@ public class GlobalExceptionHandler {
         ErrorResponse errorResponse = ErrorResponse.builder()
                 .timestamp(LocalDateTime.now())
                 .status(HttpStatus.UNAUTHORIZED.value())
-                .error("Authentication Failed")
-                .message("Invalid email/username or password")
+                .error("Error de autenticación")
+                .message("El email/usuario o la contraseña son incorrectos. Por favor verifica tus credenciales e intenta de nuevo.")
                 .build();
 
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorResponse);
@@ -62,7 +62,7 @@ public class GlobalExceptionHandler {
         ErrorResponse errorResponse = ErrorResponse.builder()
                 .timestamp(LocalDateTime.now())
                 .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
-                .error("Internal Server Error")
+                .error("Error del servidor")
                 .message(ex.getMessage())
                 .build();
 
@@ -76,8 +76,8 @@ public class GlobalExceptionHandler {
         ErrorResponse errorResponse = ErrorResponse.builder()
                 .timestamp(LocalDateTime.now())
                 .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
-                .error("Internal Server Error")
-                .message("An unexpected error occurred")
+                .error("Error inesperado")
+                .message("Ha ocurrido un error inesperado. Por favor intenta de nuevo más tarde.")
                 .build();
 
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
