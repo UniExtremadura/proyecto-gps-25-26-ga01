@@ -64,6 +64,7 @@ public class Payment {
         ZonedDateTime now = ZonedDateTime.now(ZoneId.of("Europe/Madrid"));
         this.createdAt = now.toLocalDateTime();
         this.updatedAt = now.toLocalDateTime();
+        this.completedAt = now.toLocalDateTime();
         if (this.status == null) {
             this.status = PaymentStatus.PENDING;
         }
