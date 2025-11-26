@@ -23,36 +23,46 @@ class _FollowedArtistsScreenState extends State<FollowedArtistsScreen> {
   @override
   void initState() {
     super.initState();
-    _loadFollowedArtists();
+    // Uso de addPostFrameCallback para asegurar que el contexto (Provider) sea accesible.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadFollowedArtists();
+    });
   }
 
   Future<void> _loadFollowedArtists() async {
+    // 1. Establecer estado de carga
     setState(() {
       _isLoading = true;
       _error = null;
     });
 
+    // 2. Obtener el ID del usuario actual de manera segura
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final userId = authProvider.currentUser?.id;
 
     if (userId == null) {
       setState(() {
-        _error = 'Usuario no identificado';
+        _error = 'Usuario no identificado. Por favor, inicia sesión.';
         _isLoading = false;
       });
       return;
     }
 
+    // 3. Llamar a la API
     final response = await _userService.getFollowedArtists(userId);
 
+    // 4. Procesar la respuesta
     if (response.success && response.data != null) {
       setState(() {
-        _artists = response.data!;
+        // Mapeamos y casteamos explícitamente a List<User>
+        _artists =
+            (response.data as List<dynamic>).map((e) => e as User).toList();
         _isLoading = false;
       });
     } else {
       setState(() {
-        _error = response.error ?? 'Error al cargar artistas';
+        _error =
+            response.error ?? 'Error al cargar artistas. Vuelve a intentarlo.';
         _isLoading = false;
       });
     }
@@ -64,7 +74,7 @@ class _FollowedArtistsScreenState extends State<FollowedArtistsScreen> {
 
     if (userId == null) return;
 
-    // Mostrar confirmación
+    // 1. Mostrar confirmación
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -85,12 +95,17 @@ class _FollowedArtistsScreenState extends State<FollowedArtistsScreen> {
 
     if (confirm != true) return;
 
+    // 2. Llamada a la API de unfollow
     final response = await _userService.unfollowUser(userId, artist.id);
 
     if (response.success) {
+      // 3. Actualizar la lista VISUAL local (optimista)
       setState(() {
         _artists.removeWhere((a) => a.id == artist.id);
       });
+
+      // 4. Actualizar el ESTADO GLOBAL
+      await authProvider.refreshProfile();
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -118,68 +133,80 @@ class _FollowedArtistsScreenState extends State<FollowedArtistsScreen> {
       appBar: AppBar(
         title: const Text('Artistas Seguidos'),
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _error != null
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.error_outline,
-                        size: 64,
-                        color: AppTheme.errorRed,
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        _error!,
-                        style: Theme.of(context).textTheme.bodyLarge,
-                      ),
-                      const SizedBox(height: 16),
-                      ElevatedButton.icon(
-                        onPressed: _loadFollowedArtists,
-                        icon: const Icon(Icons.refresh),
-                        label: const Text('Reintentar'),
-                      ),
-                    ],
+      body: _buildBody(),
+    );
+  }
+
+  Widget _buildBody() {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_error != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.error_outline,
+              size: 64,
+              color: AppTheme.errorRed,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              _error!,
+              style: Theme.of(context).textTheme.bodyLarge,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: _loadFollowedArtists,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Reintentar'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_artists.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.people_outline,
+              size: 64,
+              color: AppTheme.textGrey,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'No sigues a ningún artista',
+              style: Theme.of(context).textTheme.bodyLarge,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Explora y sigue a tus artistas favoritos',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppTheme.textGrey,
                   ),
-                )
-              : _artists.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.people_outline,
-                            size: 64,
-                            color: AppTheme.textGrey,
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'No sigues a ningún artista',
-                            style: Theme.of(context).textTheme.bodyLarge,
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Explora y sigue a tus artistas favoritos',
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                  color: AppTheme.textGrey,
-                                ),
-                          ),
-                        ],
-                      ),
-                    )
-                  : RefreshIndicator(
-                      onRefresh: _loadFollowedArtists,
-                      child: ListView.builder(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: _artists.length,
-                        itemBuilder: (context, index) {
-                          final artist = _artists[index];
-                          return _buildArtistCard(artist, index);
-                        },
-                      ),
-                    ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Lista de artistas
+    return RefreshIndicator(
+      onRefresh: _loadFollowedArtists,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: _artists.length,
+        itemBuilder: (context, index) {
+          final artist = _artists[index];
+          return _buildArtistCard(artist, index);
+        },
+      ),
     );
   }
 
@@ -203,7 +230,7 @@ class _FollowedArtistsScreenState extends State<FollowedArtistsScreen> {
               // Artist Avatar
               CircleAvatar(
                 radius: 30,
-                backgroundColor: AppTheme.primaryBlue.withValues(alpha: 0.2),
+                backgroundColor: AppTheme.primaryBlue.withOpacity(0.2),
                 backgroundImage: artist.profileImageUrl != null
                     ? NetworkImage(artist.profileImageUrl!)
                     : null,
@@ -264,9 +291,10 @@ class _FollowedArtistsScreenState extends State<FollowedArtistsScreen> {
                         const SizedBox(width: 4),
                         Text(
                           '${artist.followerIds.length} seguidores',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: AppTheme.textGrey,
-                              ),
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: AppTheme.textGrey,
+                                  ),
                         ),
                       ],
                     ),
