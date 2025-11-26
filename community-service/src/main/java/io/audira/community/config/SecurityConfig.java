@@ -49,14 +49,15 @@ public class SecurityConfig {
                                 "/api/users/{userId}/following",
                                 "/api/users/{userId}/following/artists",
                                 "/api/users/{userId}/follow/{targetUserId}",
-                                "/api/files/**",
+                                "/api/files/**", 
                                 "/api/ratings/user/{userId}",
                                 "/api/ratings/entity/{entityType}/{entityId}",
                                 "/api/ratings/entity/{entityType}/{entityId}/with-comments",
                                 "/api/ratings/entity/{entityType}/{entityId}/stats",
                                 "/api/ratings/user/{userId}/entity/{entityType}/{entityId}",
                                 "/api/faqs/**", // FAQs - acceso público para visualización
-                                "/api/contact", // Contact - permitir envío de tickets sin autenticación
+                                "/api/contact/**", // Contact - permitir envío de tickets sin autenticación
+                                "/api/notifications/**",
                                 "/public/**",
                                 "/actuator/**",
                                 "/error"
