@@ -411,6 +411,8 @@ class _PaymentSuccessScreenState extends State<PaymentSuccessScreen> {
   }
 
   String _formatDate(DateTime date) {
-    return '${date.day}/${date.month}/${date.year} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+    // Asegurar que la fecha esté en la zona horaria local
+    final localDate = date.toLocal();
+    return '${localDate.day}/${localDate.month}/${localDate.year} ${localDate.hour.toString().padLeft(2, '0')}:${localDate.minute.toString().padLeft(2, '0')}';
   }
 }

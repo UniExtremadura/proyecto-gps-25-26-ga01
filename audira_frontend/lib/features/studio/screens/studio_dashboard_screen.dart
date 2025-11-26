@@ -9,7 +9,7 @@ class StudioDashboardScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Artist Studio'),
+        title: const Text('Estudio de Artista'),
         centerTitle: true,
       ),
       body: ListView(
@@ -30,7 +30,7 @@ class StudioDashboardScreen extends StatelessWidget {
                 const Icon(Icons.mic, size: 64, color: Colors.white),
                 const SizedBox(height: 16),
                 const Text(
-                  'Welcome to Your Studio',
+                  'Bienvenido a Tu Estudio',
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
@@ -40,7 +40,7 @@ class StudioDashboardScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 const Text(
-                  'Manage your music and track your success',
+                  'Administra tu música y rastrea tu éxito',
                   style: TextStyle(color: Colors.white70),
                   textAlign: TextAlign.center,
                 ),
@@ -54,26 +54,26 @@ class StudioDashboardScreen extends StatelessWidget {
           _buildStudioCard(
             context,
             icon: Icons.upload_file,
-            title: 'Upload Song',
-            subtitle: 'Add a new song to your catalog',
-            color: Colors.purple,
+            title: 'Subir Canción',
+            subtitle: 'Agregar una nueva canción a tu catálogo',
+            color: AppTheme.primaryBlue,
             route: '/studio/upload-song',
           ).animate(delay: 100.ms).fadeIn().slideX(begin: -0.2),
           const SizedBox(height: 12),
           _buildStudioCard(
             context,
             icon: Icons.album,
-            title: 'Upload Album',
-            subtitle: 'Create and publish a new album',
-            color: Colors.blue,
+            title: 'Subir Álbum',
+            subtitle: 'Crear y publicar un nuevo álbum',
+            color: AppTheme.darkBlue,
             route: '/studio/upload-album',
           ).animate(delay: 200.ms).fadeIn().slideX(begin: -0.2),
           const SizedBox(height: 12),
           _buildStudioCard(
             context,
             icon: Icons.bar_chart,
-            title: 'View Statistics',
-            subtitle: 'Track your plays, followers, and earnings',
+            title: 'Ver Estadísticas',
+            subtitle: 'Rastrea tus reproducciones, seguidores y ganancias',
             color: Colors.green,
             route: '/studio/stats',
           ).animate(delay: 300.ms).fadeIn().slideX(begin: -0.2),
@@ -81,8 +81,8 @@ class StudioDashboardScreen extends StatelessWidget {
           _buildStudioCard(
             context,
             icon: Icons.library_music,
-            title: 'My Catalog',
-            subtitle: 'View and manage your songs and albums',
+            title: 'Mi Catálogo',
+            subtitle: 'Ver y administrar tus canciones y álbumes',
             color: Colors.orange,
             route: '/studio/catalog',
           ).animate(delay: 400.ms).fadeIn().slideX(begin: -0.2),
@@ -90,16 +90,16 @@ class StudioDashboardScreen extends StatelessWidget {
           _buildStudioCard(
             context,
             icon: Icons.file_upload,
-            title: '🧪 Test File Upload',
-            subtitle: 'Test audio/image upload and compression',
-            color: Colors.teal,
+            title: '🧪 Prueba de Subida',
+            subtitle: 'Probar subida y compresión de audio/imagen',
+            color: AppTheme.primaryBlue,
             route: '/studio/file-demo',
           ).animate(delay: 500.ms).fadeIn().slideX(begin: -0.2),
           _buildStudioCard(
             context,
             icon: Icons.people,
-            title: 'Collaborations',
-            subtitle: 'Manage collaborators and revenue sharing',
+            title: 'Colaboraciones',
+            subtitle: 'Administrar colaboradores y reparto de ingresos',
             color: Colors.pink,
             route: '/studio/collaborations',
           ).animate(delay: 500.ms).fadeIn().slideX(begin: -0.2),
