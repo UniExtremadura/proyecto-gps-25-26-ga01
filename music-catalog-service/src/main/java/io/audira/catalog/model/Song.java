@@ -24,6 +24,9 @@ public class Song extends Product {
     @Column(name = "album_id")
     private Long albumId;
 
+    @Transient
+    private String artistName;
+
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "song_genres", joinColumns = @JoinColumn(name = "song_id"))
     @Column(name = "genre_id")
