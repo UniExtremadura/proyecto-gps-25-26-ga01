@@ -29,6 +29,7 @@ class AlbumSongUploadScreen extends StatefulWidget {
 }
 
 class _AlbumSongUploadScreenState extends State<AlbumSongUploadScreen> {
+  final _scrollController = ScrollController();
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _descriptionController = TextEditingController();
@@ -169,10 +170,30 @@ class _AlbumSongUploadScreenState extends State<AlbumSongUploadScreen> {
     }
   }
 
+  void _resetFormForNextSong() {
+    _nameController.clear();
+    _descriptionController.clear();
+    _lyricsController.clear();
+    _categoryController.clear();
+    _collaboratorNameController.clear();
+    _collaboratorRoleController.clear();
+
+    setState(() {
+      _imageFileName = null;
+      _imageFilePath = null;
+      _selectedGenreIds.clear();
+      _collaborators.clear();
+    });
+
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(0,
+          duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
+    }
+  }
+
   Future<void> _saveAndContinue() async {
     if (!_formKey.currentState!.validate()) return;
 
-    // Validar géneros seleccionados
     if (_selectedGenreIds.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -183,7 +204,6 @@ class _AlbumSongUploadScreenState extends State<AlbumSongUploadScreen> {
       return;
     }
 
-    // Guardar datos de la canción actual
     final currentFile = widget.audioFiles[_currentFileIndex];
     final songData = {
       'file': currentFile,
@@ -204,20 +224,25 @@ class _AlbumSongUploadScreenState extends State<AlbumSongUploadScreen> {
 
     _completedSongsData.add(songData);
 
-    // Si hay más canciones, pasar a la siguiente
     if (_currentFileIndex < widget.audioFiles.length - 1) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => AlbumSongUploadScreen(
-            audioFiles: widget.audioFiles,
-            currentIndex: _currentFileIndex + 1,
-            completedSongs: _completedSongsData,
-          ),
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content:
+              Text('Canción "${_nameController.text}" guardada. Siguiente...'),
+          duration: const Duration(milliseconds: 800),
+          backgroundColor: AppTheme.primaryBlue,
         ),
       );
+
+      _resetFormForNextSong();
+
+      setState(() {
+        _currentFileIndex++;
+        _showPreview = false;
+      });
+
+      _initializeCurrentSong();
     } else {
-      // Ya terminamos todas las canciones, regresar a crear álbum
       Navigator.pop(context, _completedSongsData);
     }
   }
@@ -298,6 +323,7 @@ class _AlbumSongUploadScreenState extends State<AlbumSongUploadScreen> {
 
   Widget _buildForm(PlatformFile currentFile) {
     return SingleChildScrollView(
+      controller: _scrollController,
       padding: const EdgeInsets.all(16),
       child: Form(
         key: _formKey,
