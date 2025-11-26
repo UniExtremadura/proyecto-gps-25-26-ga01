@@ -25,7 +25,7 @@ public class MusicCatalogClient {
 
     private final RestTemplate restTemplate;
 
-    @Value("${services.catalog.url:http://172.16.0.10:9002/api}")
+    @Value("${services.catalog.url:http://172.16.0.4:9002/api}")
     private String catalogServiceUrl;
 
     /**
