@@ -230,7 +230,7 @@ class _FollowedArtistsScreenState extends State<FollowedArtistsScreen> {
               // Artist Avatar
               CircleAvatar(
                 radius: 30,
-                backgroundColor: AppTheme.primaryBlue.withOpacity(0.2),
+                backgroundColor: AppTheme.primaryBlue.withValues(alpha: 0.2),
                 backgroundImage: artist.profileImageUrl != null
                     ? NetworkImage(artist.profileImageUrl!)
                     : null,
