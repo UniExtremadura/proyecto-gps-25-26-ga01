@@ -79,7 +79,7 @@ class UserService {
     final response = await _apiClient.get(
       '/api/users/search/artists',
       queryParameters: {'query': query},
-      requiresAuth: false,
+      requiresAuth: true,
     );
 
     if (response.success && response.data != null) {
