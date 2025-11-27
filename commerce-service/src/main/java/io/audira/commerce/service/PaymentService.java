@@ -25,7 +25,6 @@ public class PaymentService {
     private final PaymentRepository paymentRepository;
     private final OrderRepository orderRepository;
     private final LibraryService libraryService;
-    private final NotificationService notificationService;
     private final CartService cartService;
     private final Random random = new Random();
 
@@ -88,14 +87,6 @@ public class PaymentService {
                     // Don't fail the payment if cart clearing fails
                 }
 
-                try {
-                    notificationService.notifySuccessfulPurchase(order, payment);
-                    log.info("✅ Purchase notifications sent successfully");
-                } catch (Exception e) {
-                    log.error("❌ Failed to send purchase notifications: {}", e.getMessage(), e);
-                    // No fallar el pago si las notificaciones fallan
-                }
-
                 // Flush again to ensure all changes are written to DB
                 entityManager.flush();
 
@@ -122,14 +113,6 @@ public class PaymentService {
 
                 log.warn("Payment failed for order: {}", request.getOrderId());
 
-                try {
-                    Order order = orderRepository.findById(request.getOrderId())
-                        .orElseThrow(() -> new RuntimeException("Order not found"));
-                    notificationService.notifyFailedPayment(order, "Payment declined by gateway");
-                } catch (Exception e) {
-                    log.error("Failed to send payment failure notification: {}", e.getMessage());
-                }
-
                 return PaymentResponse.builder()
                         .success(false)
                         .transactionId(transactionId)
@@ -141,15 +124,6 @@ public class PaymentService {
 
         } catch (Exception e) {
             log.error("Error processing payment for order: {}", request.getOrderId(), e);
-            
-            try {
-                Order order = orderRepository.findById(request.getOrderId())
-                    .orElseThrow(() -> new RuntimeException("Order not found"));
-                notificationService.notifyFailedPayment(order, "Technical error: " + e.getMessage());
-            } catch (Exception notifError) {
-                log.error("Failed to send error notification: {}", notifError.getMessage());
-            }
-            
             return PaymentResponse.builder()
                     .success(false)
                     .status(PaymentStatus.FAILED)
@@ -222,13 +196,6 @@ public class PaymentService {
         // Update order status
         updateOrderStatus(payment.getOrderId(), OrderStatus.CANCELLED);
 
-        try {
-            notificationService.notifyRefund(payment);
-            log.info("✅ Refund notifications sent successfully");
-        } catch (Exception e) {
-            log.error("❌ Failed to send refund notifications: {}", e.getMessage(), e);
-        }
-
         return PaymentResponse.builder()
                 .success(true)
                 .transactionId(payment.getTransactionId())
@@ -265,21 +232,6 @@ public class PaymentService {
             order.setStatus(status);
             orderRepository.save(order);
         });
-
-        Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new RuntimeException("Order not found"));
-        
-        OrderStatus oldStatus = order.getStatus();
-        order.setStatus(status);
-        order = orderRepository.save(order);
-
-        if (oldStatus != status) {
-            try {
-                notificationService.notifyOrderStatusChange(order, oldStatus, status);
-            } catch (Exception e) {
-                log.error("Failed to send order status notification: {}", e.getMessage());
-            }
-        }
     }
 
     private PaymentDTO mapToDTO(Payment payment) {
