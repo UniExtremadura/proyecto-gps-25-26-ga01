@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import '../../../config/theme.dart';
 import '../../../core/models/payment.dart';
 import '../../../core/models/order.dart';
@@ -40,22 +41,20 @@ class _PaymentSuccessScreenState extends State<PaymentSuccessScreen> {
   }
 
   Future<void> _initializePaymentSuccess() async {
-    // Add content to library and clear cart
     await _addPurchasedContentToLibrary();
   }
 
+  // --- Lógica de Negocio (Intacta) ---
   Future<void> _addPurchasedContentToLibrary() async {
     try {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      final libraryProvider = Provider.of<LibraryProvider>(context, listen: false);
+      final libraryProvider =
+          Provider.of<LibraryProvider>(context, listen: false);
       final cartProvider = Provider.of<CartProvider>(context, listen: false);
 
       debugPrint('=== PaymentSuccessScreen: Starting library sync ===');
-      debugPrint('User ID: ${authProvider.currentUser?.id}');
-      debugPrint('Order ID: ${widget.order.id}');
-      debugPrint('Payment ID: ${widget.payment.id}');
 
-      // Fetch all purchased items details for display
+      // Fetch all purchased items details
       for (final item in widget.order.items) {
         if (item.itemType == 'SONG') {
           final response = await _musicService.getSongById(item.itemId);
@@ -70,42 +69,21 @@ class _PaymentSuccessScreenState extends State<PaymentSuccessScreen> {
         }
       }
 
-      // The backend has already added items to the library when payment was completed
-      // Just reload the library to sync with the server
+      // Sync Library
       if (authProvider.currentUser != null) {
-        debugPrint('=== Calling libraryProvider.loadLibrary() ===');
         await libraryProvider.loadLibrary(authProvider.currentUser!.id);
-        debugPrint('=== Library loaded successfully ===');
-        debugPrint('Songs in library: ${libraryProvider.purchasedSongs.length}');
-        debugPrint('Albums in library: ${libraryProvider.purchasedAlbums.length}');
-      } else {
-        debugPrint('ERROR: No current user found!');
       }
 
-      // Clear cart
+      // Clear Cart
       if (authProvider.currentUser != null) {
-        debugPrint('=== Clearing cart for user ${authProvider.currentUser!.id} ===');
-        debugPrint('Cart before clear - items: ${cartProvider.cart?.items.length ?? 0}');
-
-        // Clear cart on server and locally
         await cartProvider.clearCart(authProvider.currentUser!.id);
-        debugPrint('Cart cleared, now reloading from server to verify...');
-
-        // Force reload from server to ensure cart is empty
         await cartProvider.loadCart(authProvider.currentUser!.id);
-        debugPrint('Cart after clear and reload - items: ${cartProvider.cart?.items.length ?? 0}');
-        debugPrint('=== Cart clearing completed ===');
-      } else {
-        debugPrint('ERROR: Cannot clear cart - no current user');
       }
 
       setState(() {
         _isAddingToLibrary = false;
       });
-
-      debugPrint('=== PaymentSuccessScreen: Library sync completed ===');
     } catch (e, stackTrace) {
-      debugPrint('=== ERROR in _addPurchasedContentToLibrary ===');
       debugPrint('Error: $e');
       debugPrint('Stack trace: $stackTrace');
 
@@ -114,16 +92,13 @@ class _PaymentSuccessScreenState extends State<PaymentSuccessScreen> {
         _errorMessage = 'Error al sincronizar la biblioteca: $e';
       });
 
-      // Show error and navigate to home
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(_errorMessage!),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 4),
+            backgroundColor: AppTheme.errorRed,
           ),
         );
-
         await Future.delayed(const Duration(seconds: 2));
         if (mounted) {
           Navigator.of(context).popUntil((route) => route.isFirst);
@@ -135,274 +110,311 @@ class _PaymentSuccessScreenState extends State<PaymentSuccessScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('¡Compra exitosa!'),
-        centerTitle: true,
-        automaticallyImplyLeading: false,
-      ),
+      backgroundColor: AppTheme.backgroundBlack,
       body: _isAddingToLibrary
-          ? const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircularProgressIndicator(),
-                  SizedBox(height: 16),
-                  Text('Agregando contenido a tu biblioteca...'),
-                ],
-              ),
-            )
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(24.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  // Success icon
-                  Container(
-                    width: 100,
-                    height: 100,
-                    decoration: BoxDecoration(
-                      color: Colors.green.withValues(alpha: 0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.check_circle,
-                      color: Colors.green,
-                      size: 60,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
+          ? _buildLoadingState()
+          : SafeArea(
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    const SizedBox(height: 40),
 
-                  // Success message
-                  const Text(
-                    '¡Pago completado!',
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Gracias por tu compra',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.grey,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 32),
+                    // 1. Success Animation
+                    _buildSuccessHeader(),
 
-                  // Payment details card
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Detalles del pago',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          _buildDetailRow(
-                            'ID de transacción:',
-                            widget.payment.transactionId,
-                          ),
-                          const Divider(),
-                          _buildDetailRow(
-                            'Número de orden:',
-                            widget.order.orderNumber,
-                          ),
-                          const Divider(),
-                          _buildDetailRow(
-                            'Monto:',
-                            '\$${widget.payment.amount.toStringAsFixed(2)}',
-                            valueColor: AppTheme.primaryBlue,
-                          ),
-                          const Divider(),
-                          _buildDetailRow(
-                            'Método de pago:',
-                            widget.payment.paymentMethod.displayName,
-                          ),
-                          const Divider(),
-                          _buildDetailRow(
-                            'Fecha:',
-                            _formatDate(widget.payment.completedAt ?? widget.payment.createdAt),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
+                    const SizedBox(height: 40),
 
-                  // Purchased content
-                  if (_purchasedSongs.isNotEmpty || _purchasedAlbums.isNotEmpty) ...[
-                    Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                const Icon(
-                                  Icons.library_music,
-                                  color: AppTheme.primaryBlue,
-                                ),
-                                const SizedBox(width: 8),
-                                const Text(
-                                  'Contenido disponible',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 12),
-                            const Text(
-                              'El siguiente contenido ha sido agregado a tu biblioteca:',
-                              style: TextStyle(color: Colors.grey),
-                            ),
-                            const SizedBox(height: 16),
-                            if (_purchasedSongs.isNotEmpty) ...[
-                              const Text(
-                                'Canciones:',
-                                style: TextStyle(fontWeight: FontWeight.bold),
-                              ),
-                              const SizedBox(height: 8),
-                              ..._purchasedSongs.map((song) => Padding(
-                                    padding: const EdgeInsets.only(bottom: 8.0),
-                                    child: Row(
-                                      children: [
-                                        const Icon(Icons.music_note, size: 20),
-                                        const SizedBox(width: 8),
-                                        Expanded(
-                                          child: Text(song.name),
-                                        ),
-                                      ],
-                                    ),
-                                  )),
-                              const SizedBox(height: 16),
-                            ],
-                            if (_purchasedAlbums.isNotEmpty) ...[
-                              const Text(
-                                'Álbumes:',
-                                style: TextStyle(fontWeight: FontWeight.bold),
-                              ),
-                              const SizedBox(height: 8),
-                              ..._purchasedAlbums.map((album) => Padding(
-                                    padding: const EdgeInsets.only(bottom: 8.0),
-                                    child: Row(
-                                      children: [
-                                        const Icon(Icons.album, size: 20),
-                                        const SizedBox(width: 8),
-                                        Expanded(
-                                          child: Text(album.name),
-                                        ),
-                                      ],
-                                    ),
-                                  )),
-                            ],
-                          ],
-                        ),
-                      ),
-                    ),
+                    // 2. Payment Details Card
+                    _buildDetailsCard(),
+
                     const SizedBox(height: 24),
-                  ],
 
-                  // Error message if any
-                  if (_errorMessage != null) ...[
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.orange.shade50,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.orange.shade200),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.warning, color: Colors.orange.shade700),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              _errorMessage!,
-                              style: TextStyle(color: Colors.orange.shade700),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                  ],
+                    // 3. Purchased Content List (if any)
+                    if (_purchasedSongs.isNotEmpty ||
+                        _purchasedAlbums.isNotEmpty)
+                      _buildContentList(),
 
-                  // Action buttons
-                  SizedBox(
-                    width: double.infinity,
-                    height: 50,
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (context) => ReceiptScreen(payment: widget.payment),
-                          ),
-                        );
-                      },
-                      icon: const Icon(Icons.receipt),
-                      label: const Text('Ver recibo'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.primaryBlue,
-                        foregroundColor: Colors.white,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 50,
-                    child: OutlinedButton.icon(
-                      onPressed: () {
-                        // Navigate to MainLayout (will start at Home tab)
-                        Navigator.of(context).pushAndRemoveUntil(
-                          MaterialPageRoute(
-                            builder: (context) => const MainLayout(),
-                          ),
-                          (route) => false,
-                        );
-                      },
-                      icon: const Icon(Icons.home),
-                      label: const Text('Ir al inicio'),
-                    ),
-                  ),
-                ],
+                    // 4. Error Message (if any)
+                    if (_errorMessage != null) _buildErrorMessage(),
+
+                    const SizedBox(height: 40),
+
+                    // 5. Action Buttons
+                    _buildActionButtons(),
+
+                    const SizedBox(height: 20),
+                  ],
+                ),
               ),
             ),
     );
   }
 
-  Widget _buildDetailRow(String label, String value, {Color? valueColor}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  // --- Widgets Modulares ---
+
+  Widget _buildLoadingState() {
+    return const Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
+          CircularProgressIndicator(color: AppTheme.successGreen),
+          SizedBox(height: 24),
           Text(
-            label,
-            style: const TextStyle(
-              color: Colors.grey,
+            'Finalizando tu compra...',
+            style: TextStyle(color: Colors.white, fontSize: 16),
+          ),
+          SizedBox(height: 8),
+          Text(
+            'Sincronizando biblioteca',
+            style: TextStyle(color: AppTheme.textGrey, fontSize: 14),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSuccessHeader() {
+    return Column(
+      children: [
+        Container(
+          width: 120,
+          height: 120,
+          decoration: BoxDecoration(
+            color: AppTheme.successGreen.withValues(alpha: 0.1),
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: AppTheme.successGreen.withValues(alpha: 0.2),
+                blurRadius: 30,
+                spreadRadius: 5,
+              )
+            ],
+          ),
+          child: const Icon(
+            Icons.check_rounded,
+            color: AppTheme.successGreen,
+            size: 80,
+          ),
+        ).animate().scale(duration: 600.ms, curve: Curves.elasticOut),
+        const SizedBox(height: 24),
+        const Text(
+          '¡PAGO COMPLETADO!',
+          style: TextStyle(
+            fontFamily: 'Poppins',
+            fontSize: 24,
+            fontWeight: FontWeight.w900,
+            color: Colors.white,
+            letterSpacing: 1,
+          ),
+          textAlign: TextAlign.center,
+        ).animate().fadeIn(delay: 200.ms).slideY(begin: 0.2, end: 0),
+        const SizedBox(height: 8),
+        const Text(
+          'Gracias por tu compra. Tu música está lista.',
+          style: TextStyle(
+            fontSize: 16,
+            color: AppTheme.textGrey,
+          ),
+          textAlign: TextAlign.center,
+        ).animate().fadeIn(delay: 300.ms),
+      ],
+    );
+  }
+
+  Widget _buildDetailsCard() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppTheme.cardBlack,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'RESUMEN DE TRANSACCIÓN',
+            style: TextStyle(
+              color: AppTheme.textGrey,
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1.2,
             ),
           ),
-          Flexible(
-            child: Text(
-              value,
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: valueColor,
+          const SizedBox(height: 16),
+          _buildDetailRow('Transacción ID', widget.payment.transactionId,
+              isCopyable: true),
+          const Divider(color: Colors.white10, height: 24),
+          _buildDetailRow('Orden #', widget.order.orderNumber),
+          const Divider(color: Colors.white10, height: 24),
+          _buildDetailRow(
+            'Monto Total',
+            '\$${widget.payment.amount.toStringAsFixed(2)}',
+            isHighlight: true,
+          ),
+          const Divider(color: Colors.white10, height: 24),
+          _buildDetailRow('Método', widget.payment.paymentMethod.displayName),
+          const Divider(color: Colors.white10, height: 24),
+          _buildDetailRow(
+            'Fecha',
+            _formatDate(widget.payment.completedAt ?? widget.payment.createdAt),
+          ),
+        ],
+      ),
+    ).animate().fadeIn(delay: 400.ms).slideY(begin: 0.1, end: 0);
+  }
+
+  Widget _buildContentList() {
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: AppTheme.cardBlack,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.library_music_rounded,
+                      color: AppTheme.primaryBlue.withValues(alpha: 0.8),
+                      size: 20),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'AGREGADO A TU BIBLIOTECA',
+                    style: TextStyle(
+                      color: AppTheme.textGrey,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+                ],
               ),
-              textAlign: TextAlign.end,
+              const SizedBox(height: 16),
+              if (_purchasedSongs.isNotEmpty) ...[
+                const Text('Canciones',
+                    style: TextStyle(
+                        color: Colors.white, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                ..._purchasedSongs
+                    .map((song) => _buildItemTile(song.name, Icons.music_note)),
+                const SizedBox(height: 16),
+              ],
+              if (_purchasedAlbums.isNotEmpty) ...[
+                const Text('Álbumes',
+                    style: TextStyle(
+                        color: Colors.white, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                ..._purchasedAlbums
+                    .map((album) => _buildItemTile(album.name, Icons.album)),
+              ],
+            ],
+          ),
+        ),
+      ],
+    ).animate().fadeIn(delay: 500.ms).slideY(begin: 0.1, end: 0);
+  }
+
+  Widget _buildItemTile(String name, IconData icon) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8.0),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: AppTheme.surfaceBlack,
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Icon(icon, size: 16, color: AppTheme.textGrey),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              name,
+              style: const TextStyle(color: Colors.white70),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const Icon(Icons.check, size: 16, color: AppTheme.successGreen),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDetailRow(String label, String value,
+      {bool isHighlight = false, bool isCopyable = false}) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(color: AppTheme.textGrey),
+          overflow: TextOverflow.ellipsis,
+        ),
+        const SizedBox(width: 8),
+        Flexible(
+          child: isCopyable
+              ? InkWell(
+                  onTap: () {},
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          value,
+                          style: const TextStyle(
+                              color: Colors.white, fontWeight: FontWeight.w500),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      const Icon(Icons.copy,
+                          size: 12, color: AppTheme.textGrey),
+                    ],
+                  ),
+                )
+              : Text(
+                  value,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: isHighlight ? AppTheme.successGreen : Colors.white,
+                    fontSize: isHighlight ? 16 : 14,
+                  ),
+                  textAlign: TextAlign.end,
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildErrorMessage() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppTheme.errorRed.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppTheme.errorRed.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.warning_amber_rounded, color: AppTheme.errorRed),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              _errorMessage!,
+              style: const TextStyle(color: AppTheme.errorRed),
             ),
           ),
         ],
@@ -410,9 +422,67 @@ class _PaymentSuccessScreenState extends State<PaymentSuccessScreen> {
     );
   }
 
+  Widget _buildActionButtons() {
+    return Column(
+      children: [
+        SizedBox(
+          width: double.infinity,
+          height: 56,
+          child: ElevatedButton.icon(
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => ReceiptScreen(payment: widget.payment),
+                ),
+              );
+            },
+            icon: const Icon(Icons.receipt_long_rounded),
+            label: const Text(
+              'VER RECIBO OFICIAL',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1,
+              ),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryBlue,
+              foregroundColor: Colors.white,
+              elevation: 4,
+              shadowColor: AppTheme.primaryBlue.withValues(alpha: 0.4),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16)),
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        SizedBox(
+          width: double.infinity,
+          height: 56,
+          child: OutlinedButton.icon(
+            onPressed: () {
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(
+                  builder: (context) => const MainLayout(),
+                ),
+                (route) => false,
+              );
+            },
+            icon: const Icon(Icons.home_rounded),
+            label: const Text('VOLVER AL INICIO'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.white,
+              side: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16)),
+            ),
+          ),
+        ),
+      ],
+    ).animate().fadeIn(delay: 600.ms).slideY(begin: 0.2, end: 0);
+  }
+
   String _formatDate(DateTime date) {
-    // Asegurar que la fecha esté en la zona horaria local
     final localDate = date.toLocal();
-    return '${localDate.day}/${localDate.month}/${localDate.year} ${localDate.hour.toString().padLeft(2, '0')}:${localDate.minute.toString().padLeft(2, '0')}';
+    return '${localDate.day}/${localDate.month}/${localDate.year} • ${localDate.hour.toString().padLeft(2, '0')}:${localDate.minute.toString().padLeft(2, '0')}';
   }
 }
