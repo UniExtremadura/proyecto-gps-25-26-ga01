@@ -412,7 +412,7 @@ class _AddCollaboratorDialogState extends State<AddCollaboratorDialog> {
                 CircleAvatar(
                   backgroundColor: AppTheme.primaryBlue,
                   child: Text(
-                    _selectedArtist!.firstName!.substring(0, 1).toUpperCase(),
+                    (_selectedArtist!.displayName).substring(0, 1).toUpperCase(),
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
@@ -425,7 +425,7 @@ class _AddCollaboratorDialogState extends State<AddCollaboratorDialog> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        _selectedArtist!.firstName!,
+                        _selectedArtist!.displayName,
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 16,
@@ -468,14 +468,14 @@ class _AddCollaboratorDialogState extends State<AddCollaboratorDialog> {
                   leading: CircleAvatar(
                     backgroundColor: AppTheme.primaryBlue,
                     child: Text(
-                      artist.firstName!.substring(0, 1).toUpperCase(),
+                      artist.displayName.substring(0, 1).toUpperCase(),
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
                       ),
                     ),
                   ),
-                  title: Text(artist.firstName!),
+                  title: Text(artist.displayName),
                   subtitle: Text(
                     '@${artist.username}',
                     style: const TextStyle(color: AppTheme.textGrey),
@@ -484,7 +484,7 @@ class _AddCollaboratorDialogState extends State<AddCollaboratorDialog> {
                   onTap: () {
                     setState(() {
                       _selectedArtist = artist;
-                      _searchController.text = artist.firstName!;
+                      _searchController.text = artist.displayName;
                       _searchResults = [];
                     });
                   },

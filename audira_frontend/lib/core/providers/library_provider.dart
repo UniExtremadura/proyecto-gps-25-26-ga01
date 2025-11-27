@@ -4,17 +4,20 @@ import 'dart:convert';
 import '../api/services/playlist_service.dart';
 import '../api/services/library_service.dart';
 import '../api/services/music_service.dart';
+import '../api/services/favorite_service.dart';
 import '../models/song.dart';
 import '../models/album.dart';
 import '../models/playlist.dart';
+import '../../../config/constants.dart';
 
 class LibraryProvider with ChangeNotifier {
   final PlaylistService _playlistService = PlaylistService();
   final LibraryService _libraryService = LibraryService();
   final MusicService _musicService = MusicService();
+  final FavoriteService _favoriteService = FavoriteService();
 
-  List<Song> _favoriteSongs = [];
-  List<Album> _favoriteAlbums = [];
+  final List<Song> _favoriteSongs = [];
+  final List<Album> _favoriteAlbums = [];
   bool _isFavoritesLoading = false;
 
   List<Playlist> _playlists = [];
@@ -38,9 +41,63 @@ class LibraryProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      // Using empty lists for now
-      _favoriteSongs = [];
-      _favoriteAlbums = [];
+      debugPrint('Loading favorites from server for user: $userId');
+      final response = await _favoriteService.getUserFavorites(userId);
+
+      if (response.success && response.data != null) {
+        final favorites = response.data!;
+        debugPrint(
+            'Favorites loaded from server: ${favorites.totalFavorites} items');
+
+        // Clear current lists
+        _favoriteSongs.clear();
+        _favoriteAlbums.clear();
+
+        // Load full song details for each favorite song
+        for (var favoriteItem in favorites.songs) {
+          final songResponse =
+              await _musicService.getSongById(favoriteItem.itemId);
+          if (songResponse.success && songResponse.data != null) {
+            var song = songResponse.data!;
+
+            // Cargar el nombre del artista
+            final artistResponse =
+                await _musicService.getArtistById(song.artistId);
+            if (artistResponse.success && artistResponse.data != null) {
+              song = song.copyWith(
+                  artistName: artistResponse.data!.artistName ??
+                      artistResponse.data!.username);
+            }
+
+            _favoriteSongs.add(song);
+          }
+        }
+
+        // Load full album details for each favorite album
+        for (var favoriteItem in favorites.albums) {
+          final albumResponse =
+              await _musicService.getAlbumById(favoriteItem.itemId);
+          if (albumResponse.success && albumResponse.data != null) {
+            var album = albumResponse.data!;
+
+            // Cargar el nombre del artista
+            final artistResponse =
+                await _musicService.getArtistById(album.artistId);
+            if (artistResponse.success && artistResponse.data != null) {
+              album = album.copyWith(
+                  artistName: artistResponse.data!.artistName ??
+                      artistResponse.data!.username);
+            }
+
+            _favoriteAlbums.add(album);
+          }
+        }
+
+        debugPrint(
+            'Favorites loaded: ${_favoriteSongs.length} songs, ${_favoriteAlbums.length} albums');
+      } else {
+        debugPrint('Failed to load favorites from server: ${response.error}');
+      }
     } catch (e) {
       debugPrint('Error loading favorites: $e');
     } finally {
@@ -59,15 +116,34 @@ class LibraryProvider with ChangeNotifier {
 
   Future<void> toggleSongFavorite(int userId, Song song) async {
     try {
-      final isFavorite = isSongFavorite(song.id);
+      // Call the API to toggle favorite
+      final response = await _favoriteService.toggleFavorite(
+        userId,
+        AppConstants.itemTypeSong,
+        song.id,
+      );
 
-      if (isFavorite) {
-        _favoriteSongs.removeWhere((s) => s.id == song.id);
-      } else {
-        _favoriteSongs.add(song);
+      if (response.success && response.data != null) {
+        final isFavorite = response.data!;
+
+        if (isFavorite) {
+          // Added to favorites
+          // Cargar el nombre del artista antes de agregar
+          final artistResponse =
+              await _musicService.getArtistById(song.artistId);
+          if (artistResponse.success && artistResponse.data != null) {
+            song = song.copyWith(
+                artistName: artistResponse.data!.artistName ??
+                    artistResponse.data!.username);
+          }
+          _favoriteSongs.add(song);
+        } else {
+          // Removed from favorites
+          _favoriteSongs.removeWhere((s) => s.id == song.id);
+        }
+
+        notifyListeners();
       }
-
-      notifyListeners();
     } catch (e) {
       debugPrint('Error toggling song favorite: $e');
       rethrow;
@@ -76,15 +152,34 @@ class LibraryProvider with ChangeNotifier {
 
   Future<void> toggleAlbumFavorite(int userId, Album album) async {
     try {
-      final isFavorite = isAlbumFavorite(album.id);
+      // Call the API to toggle favorite
+      final response = await _favoriteService.toggleFavorite(
+        userId,
+        AppConstants.itemTypeAlbum,
+        album.id,
+      );
 
-      if (isFavorite) {
-        _favoriteAlbums.removeWhere((a) => a.id == album.id);
-      } else {
-        _favoriteAlbums.add(album);
+      if (response.success && response.data != null) {
+        final isFavorite = response.data!;
+
+        if (isFavorite) {
+          // Added to favorites
+          // Cargar el nombre del artista antes de agregar
+          final artistResponse =
+              await _musicService.getArtistById(album.artistId);
+          if (artistResponse.success && artistResponse.data != null) {
+            album = album.copyWith(
+                artistName: artistResponse.data!.artistName ??
+                    artistResponse.data!.username);
+          }
+          _favoriteAlbums.add(album);
+        } else {
+          // Removed from favorites
+          _favoriteAlbums.removeWhere((a) => a.id == album.id);
+        }
+
+        notifyListeners();
       }
-
-      notifyListeners();
     } catch (e) {
       debugPrint('Error toggling album favorite: $e');
       rethrow;
@@ -304,14 +399,36 @@ class LibraryProvider with ChangeNotifier {
         for (var item in library.songs) {
           final songResponse = await _musicService.getSongById(item.itemId);
           if (songResponse.success && songResponse.data != null) {
-            _purchasedSongs.add(songResponse.data!);
+            var song = songResponse.data!;
+
+            // Cargar el nombre del artista
+            final artistResponse =
+                await _musicService.getArtistById(song.artistId);
+            if (artistResponse.success && artistResponse.data != null) {
+              song = song.copyWith(
+                  artistName: artistResponse.data!.artistName ??
+                      artistResponse.data!.username);
+            }
+
+            _purchasedSongs.add(song);
           }
         }
 
         for (var item in library.albums) {
           final albumResponse = await _musicService.getAlbumById(item.itemId);
           if (albumResponse.success && albumResponse.data != null) {
-            _purchasedAlbums.add(albumResponse.data!);
+            var album = albumResponse.data!;
+
+            // Cargar el nombre del artista
+            final artistResponse =
+                await _musicService.getArtistById(album.artistId);
+            if (artistResponse.success && artistResponse.data != null) {
+              album = album.copyWith(
+                  artistName: artistResponse.data!.artistName ??
+                      artistResponse.data!.username);
+            }
+
+            _purchasedAlbums.add(album);
           }
         }
 
@@ -335,6 +452,13 @@ class LibraryProvider with ChangeNotifier {
 
   Future<void> addPurchasedSong(Song song, {int? userId}) async {
     if (!_purchasedSongs.any((s) => s.id == song.id)) {
+      // Cargar el nombre del artista
+      final artistResponse = await _musicService.getArtistById(song.artistId);
+      if (artistResponse.success && artistResponse.data != null) {
+        song = song.copyWith(
+            artistName: artistResponse.data!.artistName ??
+                artistResponse.data!.username);
+      }
       _purchasedSongs.add(song);
       if (userId != null) {
         await _savePurchasedContentToLocal(userId);
@@ -345,6 +469,14 @@ class LibraryProvider with ChangeNotifier {
 
   Future<void> addPurchasedAlbum(Album album, {int? userId}) async {
     if (!_purchasedAlbums.any((a) => a.id == album.id)) {
+      // Cargar el nombre del artista
+      final artistResponse = await _musicService.getArtistById(album.artistId);
+      if (artistResponse.success && artistResponse.data != null) {
+        album = album.copyWith(
+            artistName: artistResponse.data!.artistName ??
+                artistResponse.data!.username);
+      }
+
       _purchasedAlbums.add(album);
       if (userId != null) {
         await _savePurchasedContentToLocal(userId);

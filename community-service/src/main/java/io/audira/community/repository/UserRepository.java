@@ -22,15 +22,17 @@ public interface UserRepository extends JpaRepository<User, Long> {
     List<User> findByRole(UserRole role);
     List<User> findByIsActive(Boolean isActive);
 
-    @Query("SELECT a FROM Artist a WHERE " +
-           "LOWER(a.artistName) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
-           "LOWER(a.firstName) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
-           "LOWER(a.lastName) LIKE LOWER(CONCAT('%', :query, '%'))")
+    @Query("SELECT a FROM Artist a WHERE a.isActive = true AND (" +
+           "LOWER(COALESCE(a.artistName, '')) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
+           "LOWER(COALESCE(a.firstName, '')) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
+           "LOWER(COALESCE(a.lastName, '')) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
+           "LOWER(CONCAT(COALESCE(a.firstName, ''), ' ', COALESCE(a.lastName, ''))) LIKE LOWER(CONCAT('%', :query, '%')))")
     List<Artist> searchArtistsByName(@Param("query") String query);
 
-    @Query("SELECT a.id FROM Artist a WHERE " +
-           "LOWER(a.artistName) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
-           "LOWER(a.firstName) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
-           "LOWER(a.lastName) LIKE LOWER(CONCAT('%', :query, '%'))")
+    @Query("SELECT a.id FROM Artist a WHERE a.isActive = true AND (" +
+           "LOWER(COALESCE(a.artistName, '')) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
+           "LOWER(COALESCE(a.firstName, '')) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
+           "LOWER(COALESCE(a.lastName, '')) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
+           "LOWER(CONCAT(COALESCE(a.firstName, ''), ' ', COALESCE(a.lastName, ''))) LIKE LOWER(CONCAT('%', :query, '%')))")
     List<Long> searchArtistIdsByName(@Param("query") String query);
 }

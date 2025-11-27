@@ -33,6 +33,9 @@ class AppConstants {
   // Library endpoints
   static const String libraryUrl = '/api/library';
 
+  // Favorites endpoints
+  static const String favoritesUrl = '/api/favorites';
+
   // Playback endpoints
   static const String playbackUrl = '/api/playback';
 
