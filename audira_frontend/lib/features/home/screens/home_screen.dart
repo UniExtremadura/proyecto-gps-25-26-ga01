@@ -24,6 +24,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  // --- MANTENEMOS TODA LA LÓGICA Y VARIABLES ORIGINALES ---
   final MusicService _musicService = MusicService();
   final FeaturedContentService _featuredService = FeaturedContentService();
   final DiscoveryService _discoveryService = DiscoveryService();
@@ -53,13 +54,11 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _loadData() async {
     setState(() {
       _isLoading = true;
-      // Limpiar listas antes de recargar para evitar duplicación
       _featuredSongs = [];
       _featuredAlbums = [];
       _genres = [];
     });
 
-    // GA01-156, GA01-157: Cargar contenido destacado programado
     final featuredResponse = await _featuredService.getActiveFeaturedContent();
 
     if (featuredResponse.success &&
@@ -68,18 +67,15 @@ class _HomeScreenState extends State<HomeScreen> {
       _hasFeaturedContent = true;
       await _loadFeaturedContent(featuredResponse.data!);
     } else {
-      // Fallback: Si no hay contenido destacado, mostrar contenido por defecto
       _hasFeaturedContent = false;
       await _loadDefaultContent();
     }
 
-    // Cargar géneros
     final genresResponse = await _musicService.getAllGenres();
     if (genresResponse.success && genresResponse.data != null) {
       _genres = genresResponse.data!;
     }
 
-    // GA01-117: Cargar recomendaciones personalizadas si el usuario está autenticado
     if (mounted) {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       if (authProvider.isAuthenticated && authProvider.currentUser != null) {
@@ -90,29 +86,12 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() => _isLoading = false);
   }
 
-  /// GA01-117: Load personalized recommendations for the user
   Future<void> _loadRecommendations(int userId) async {
     try {
-      debugPrint('🔍 Loading recommendations for user $userId');
       final response = await _discoveryService.getRecommendations(userId);
-
       if (response.success && response.data != null) {
         final recommendations = response.data!;
-        debugPrint('✅ Recommendations received successfully');
-        debugPrint(
-            '   Total recommendations: ${recommendations.totalRecommendations}');
-        debugPrint(
-            '   By purchased genres: ${recommendations.byPurchasedGenres.length}');
-        debugPrint(
-            '   By purchased artists: ${recommendations.byPurchasedArtists.length}');
-        debugPrint('   By liked songs: ${recommendations.byLikedSongs.length}');
-        debugPrint(
-            '   From followed artists: ${recommendations.fromFollowedArtists.length}');
-        debugPrint('   Trending: ${recommendations.trending.length}');
-        debugPrint('   New releases: ${recommendations.newReleases.length}');
-
         setState(() {
-          // Separate recommendations by category
           _byPurchasedGenres = recommendations.byPurchasedGenres;
           _byPurchasedArtists = recommendations.byPurchasedArtists;
           _byLikedSongs = recommendations.byLikedSongs;
@@ -126,20 +105,12 @@ class _HomeScreenState extends State<HomeScreen> {
               _fromFollowedArtists.isNotEmpty ||
               _trending.isNotEmpty ||
               _newReleases.isNotEmpty;
-
-          debugPrint('   _hasRecommendations: $_hasRecommendations');
         });
       } else {
-        debugPrint('❌ Failed to load recommendations: ${response.error}');
-        setState(() {
-          _hasRecommendations = false;
-        });
+        setState(() => _hasRecommendations = false);
       }
     } catch (e) {
-      debugPrint('❌ Error loading recommendations: $e');
-      setState(() {
-        _hasRecommendations = false;
-      });
+      setState(() => _hasRecommendations = false);
     }
   }
 
@@ -155,7 +126,6 @@ class _HomeScreenState extends State<HomeScreen> {
         .map((item) => item.contentId)
         .toList();
 
-    // Cargar canciones destacadas
     for (final songId in songIds) {
       final response = await _musicService.getSongById(songId);
       if (response.success && response.data != null) {
@@ -163,7 +133,6 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     }
 
-    // Cargar álbumes destacados
     for (final albumId in albumIds) {
       final response = await _musicService.getAlbumById(albumId);
       if (response.success && response.data != null) {
@@ -173,7 +142,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadDefaultContent() async {
-    // Solo mostrar contenido publicado en la pantalla de inicio
     final songsResponse = await _musicService.getTopPublishedSongs();
     final albumsResponse = await _musicService.getRecentPublishedAlbums();
 
@@ -186,275 +154,324 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  // --- NUEVA UI: DISEÑO EPIC DARK ---
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      // Cargando minimalista en fondo negro
+      return const Scaffold(
+        backgroundColor: AppTheme.backgroundBlack,
+        body: Center(
+            child: CircularProgressIndicator(color: AppTheme.primaryBlue)),
+      );
     }
 
-    return RefreshIndicator(
-      onRefresh: _loadData,
-      child: ListView(
-        padding: const EdgeInsets.all(16),
+    return Scaffold(
+      backgroundColor: AppTheme.backgroundBlack,
+      body: RefreshIndicator(
+        onRefresh: _loadData,
+        color: AppTheme.primaryBlue,
+        backgroundColor: AppTheme.surfaceBlack,
+        child: CustomScrollView(
+          physics: const BouncingScrollPhysics(),
+          slivers: [
+            SliverToBoxAdapter(
+              child: _buildHeroSection(),
+            ),
+
+            // 3. Géneros (Chips)
+            if (_genres.isNotEmpty)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        "EXPLORAR GÉNEROS",
+                        style: TextStyle(
+                          color: AppTheme.textDarkGrey,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.5,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        height: 40,
+                        child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: _genres.length,
+                          itemBuilder: (context, index) {
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: GenreChip(genre: _genres[index]),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+            // 4. Secciones de Recomendaciones (Renderizado Dinámico)
+            if (_hasRecommendations) ...[
+              if (_byPurchasedGenres.isNotEmpty)
+                _buildSectionSliver(
+                  title: 'Basado en tus Gustos',
+                  subtitle: 'Porque te gusta este estilo',
+                  icon: Icons.graphic_eq,
+                  items: _byPurchasedGenres,
+                ),
+              if (_byPurchasedArtists.isNotEmpty)
+                _buildSectionSliver(
+                  title: 'Artistas Relacionados',
+                  subtitle: 'Basado en tus compras recientes',
+                  icon: Icons.person_outline,
+                  items: _byPurchasedArtists,
+                ),
+              if (_byLikedSongs.isNotEmpty)
+                _buildSectionSliver(
+                  title: 'Tu Vibe Actual',
+                  subtitle: 'Canciones similares a tus favoritos',
+                  icon: Icons.favorite_border,
+                  items: _byLikedSongs,
+                  accentColor: Colors.pinkAccent,
+                ),
+              if (_fromFollowedArtists.isNotEmpty)
+                _buildSectionSliver(
+                  title: 'De Quienes Sigues',
+                  subtitle: 'Novedades de tu red',
+                  icon: Icons.people_outline,
+                  items: _fromFollowedArtists,
+                ),
+              if (_trending.isNotEmpty)
+                _buildSectionSliver(
+                  title: 'Tendencias Globales',
+                  subtitle: 'Lo que está sonando ahora',
+                  icon: Icons.trending_up,
+                  items: _trending,
+                  accentColor: AppTheme.warningOrange,
+                ),
+              if (_newReleases.isNotEmpty)
+                _buildSectionSliver(
+                  title: 'Recién Salido',
+                  subtitle: 'Nuevos lanzamientos esta semana',
+                  icon: Icons.new_releases_outlined,
+                  items: _newReleases,
+                  accentColor: AppTheme.successGreen,
+                ),
+            ],
+
+            // 5. Destacados Generales (Fallback o Adicional)
+            if (_featuredSongs.isNotEmpty)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 32),
+                  child: Column(
+                    children: [
+                      _buildSectionHeader(
+                          'Selección Audira',
+                          'Canciones curadas para ti',
+                          Icons.star_border,
+                          AppTheme.primaryBlue),
+                      SizedBox(
+                        height: 200,
+                        child: ListView.builder(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          scrollDirection: Axis.horizontal,
+                          itemCount: _featuredSongs.length,
+                          itemBuilder: (context, index) {
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 12),
+                              child: SongCard(song: _featuredSongs[index]),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+            if (_featuredAlbums.isNotEmpty)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 100), // Espacio final
+                  child: Column(
+                    children: [
+                      _buildSectionHeader(
+                          'Álbumes Esenciales',
+                          'Producciones completas destacadas',
+                          Icons.album_outlined,
+                          AppTheme.accentBlue),
+                      SizedBox(
+                        height: 220,
+                        child: ListView.builder(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          scrollDirection: Axis.horizontal,
+                          itemCount: _featuredAlbums.length,
+                          itemBuilder: (context, index) {
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 12),
+                              child: AlbumCard(album: _featuredAlbums[index]),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // --- WIDGETS AUXILIARES DE DISEÑO ---
+
+  Widget _buildHeroSection() {
+    return Container(
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [AppTheme.primaryBlue, AppTheme.darkBlue],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.primaryBlue.withValues(alpha: 0.3),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Welcome Section
+          Row(
+            children: [
+              const Icon(Icons.auto_awesome, color: Colors.white, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                "DESCUBRIMIENTO SEMANAL",
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.8),
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1.5,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
           Text(
             _hasFeaturedContent
-                ? 'Contenido destacado'
-                : 'Descubre nueva música',
-            style: Theme.of(context).textTheme.displaySmall,
-          ).animate().fadeIn().slideY(),
-
+                ? 'Sonidos que\nDefinen el Momento'
+                : 'Explora el\nUniverso Sonoro',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 26,
+              height: 1.1,
+              fontWeight: FontWeight.w900,
+              fontFamily: 'Poppins',
+            ),
+          ),
           const SizedBox(height: 8),
-
           Text(
-            _hasFeaturedContent
-                ? 'Contenido seleccionado especialmente para ti'
-                : 'Explora canciones y álbumes destacados',
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+            'Actualizado diariamente para inspirarte.',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.7),
+              fontSize: 14,
+            ),
+          ),
+        ],
+      ),
+    ).animate().fadeIn().slideY(begin: 0.1);
+  }
+
+  Widget _buildSectionSliver({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required List<dynamic> items,
+    Color accentColor = AppTheme.primaryBlue,
+  }) {
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 32),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildSectionHeader(title, subtitle, icon, accentColor),
+            SizedBox(
+              height: 240,
+              child: ListView.builder(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                scrollDirection: Axis.horizontal,
+                itemCount: items.length,
+                itemBuilder: (context, index) {
+                  final item = items[index];
+                  if (item is RecommendedSong) {
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 12),
+                      child: RecommendedSongCard(song: item),
+                    );
+                  }
+                  return const SizedBox.shrink();
+                },
+              ),
+            ),
+          ],
+        ),
+      ).animate(delay: 200.ms).fadeIn(),
+    );
+  }
+
+  // Header reutilizable para secciones
+  Widget _buildSectionHeader(
+      String title, String subtitle, IconData icon, Color color) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: color, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  color: AppTheme.textWhite,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: 'Poppins',
+                ),
+              ),
+              Text(
+                subtitle,
+                style: const TextStyle(
                   color: AppTheme.textGrey,
-                ),
-          ).animate().fadeIn(delay: 100.ms),
-
-          const SizedBox(height: 24),
-
-          // Genres
-          if (_genres.isNotEmpty) ...[
-            Text(
-              'Géneros',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              height: 40,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                itemCount: _genres.length,
-                itemBuilder: (context, index) {
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: GenreChip(genre: _genres[index]),
-                  );
-                },
-              ),
-            ),
-            const SizedBox(height: 32),
-          ],
-
-          // GA01-117: Personalized Recommendations - Multiple Sections
-          if (_hasRecommendations) ...[
-            // Section: By Purchased Genres
-            if (_byPurchasedGenres.isNotEmpty) ...[
-              Row(
-                children: [
-                  Icon(Icons.music_note, color: AppTheme.primaryBlue, size: 24),
-                  const SizedBox(width: 8),
-                  Text('De géneros que te gustan',
-                      style: Theme.of(context).textTheme.headlineMedium),
-                ],
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                height: 240,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: _byPurchasedGenres.length,
-                  itemBuilder: (context, index) {
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 12),
-                      child:
-                          RecommendedSongCard(song: _byPurchasedGenres[index]),
-                    );
-                  },
+                  fontSize: 12,
                 ),
               ),
-              const SizedBox(height: 32),
             ],
-
-            // Section: By Purchased Artists
-            if (_byPurchasedArtists.isNotEmpty) ...[
-              Row(
-                children: [
-                  Icon(Icons.person, color: AppTheme.primaryBlue, size: 24),
-                  const SizedBox(width: 8),
-                  Text('Más de artistas que compraste',
-                      style: Theme.of(context).textTheme.headlineMedium),
-                ],
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                height: 240,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: _byPurchasedArtists.length,
-                  itemBuilder: (context, index) {
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 12),
-                      child:
-                          RecommendedSongCard(song: _byPurchasedArtists[index]),
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(height: 32),
-            ],
-
-            // Section: By Liked Songs
-            if (_byLikedSongs.isNotEmpty) ...[
-              Row(
-                children: [
-                  Icon(Icons.favorite, color: AppTheme.primaryBlue, size: 24),
-                  const SizedBox(width: 8),
-                  Text('Basado en tus favoritas',
-                      style: Theme.of(context).textTheme.headlineMedium),
-                ],
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                height: 240,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: _byLikedSongs.length,
-                  itemBuilder: (context, index) {
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 12),
-                      child: RecommendedSongCard(song: _byLikedSongs[index]),
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(height: 32),
-            ],
-
-            // Section: From Followed Artists
-            if (_fromFollowedArtists.isNotEmpty) ...[
-              Row(
-                children: [
-                  Icon(Icons.people, color: AppTheme.primaryBlue, size: 24),
-                  const SizedBox(width: 8),
-                  Text('De artistas que sigues',
-                      style: Theme.of(context).textTheme.headlineMedium),
-                ],
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                height: 240,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: _fromFollowedArtists.length,
-                  itemBuilder: (context, index) {
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 12),
-                      child: RecommendedSongCard(
-                          song: _fromFollowedArtists[index]),
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(height: 32),
-            ],
-
-            // Section: Trending
-            if (_trending.isNotEmpty) ...[
-              Row(
-                children: [
-                  Icon(Icons.trending_up,
-                      color: AppTheme.primaryBlue, size: 24),
-                  const SizedBox(width: 8),
-                  Text('Tendencias',
-                      style: Theme.of(context).textTheme.headlineMedium),
-                ],
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                height: 240,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: _trending.length,
-                  itemBuilder: (context, index) {
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 12),
-                      child: RecommendedSongCard(song: _trending[index]),
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(height: 32),
-            ],
-
-            // Section: New Releases
-            if (_newReleases.isNotEmpty) ...[
-              Row(
-                children: [
-                  Icon(Icons.new_releases,
-                      color: AppTheme.primaryBlue, size: 24),
-                  const SizedBox(width: 8),
-                  Text('Nuevos lanzamientos',
-                      style: Theme.of(context).textTheme.headlineMedium),
-                ],
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                height: 240,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: _newReleases.length,
-                  itemBuilder: (context, index) {
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 12),
-                      child: RecommendedSongCard(song: _newReleases[index]),
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(height: 32),
-            ],
-          ],
-
-          // Featured Songs
-          if (_featuredSongs.isNotEmpty) ...[
-            Text(
-              'Canciones destacadas',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              height: 200,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                itemCount: _featuredSongs.length,
-                itemBuilder: (context, index) {
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 12),
-                    child: SongCard(song: _featuredSongs[index]),
-                  );
-                },
-              ),
-            ),
-            const SizedBox(height: 32),
-          ],
-
-          // Featured Albums
-          if (_featuredAlbums.isNotEmpty) ...[
-            Text(
-              'Últimos Lanzamientos',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              height: 220,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                itemCount: _featuredAlbums.length,
-                itemBuilder: (context, index) {
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 12),
-                    child: AlbumCard(album: _featuredAlbums[index]),
-                  );
-                },
-              ),
-            ),
-          ],
+          ),
         ],
       ),
     );
