@@ -26,6 +26,7 @@ public class PaymentService {
     private final OrderRepository orderRepository;
     private final LibraryService libraryService;
     private final CartService cartService;
+    private final NotificationService notificationService;
     private final Random random = new Random();
 
     @PersistenceContext
@@ -93,6 +94,15 @@ public class PaymentService {
                 // Refresh payment from database to ensure we have the latest state
                 payment = paymentRepository.findById(payment.getId())
                         .orElseThrow(() -> new RuntimeException("Payment not found after save"));
+
+                // Send notifications for successful purchase
+                try {
+                    notificationService.notifySuccessfulPurchase(order, payment);
+                    log.info("Purchase notifications sent for order: {}", order.getOrderNumber());
+                } catch (Exception e) {
+                    log.error("Failed to send purchase notifications for order: {}", order.getOrderNumber(), e);
+                    // Don't fail the payment if notification fails
+                }
 
                 log.info("Payment completed successfully: {}, final status: {}", transactionId, payment.getStatus());
 

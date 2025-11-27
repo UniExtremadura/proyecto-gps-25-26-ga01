@@ -17,6 +17,7 @@ public class ContactResponseService {
 
     private final ContactResponseRepository contactResponseRepository;
     private final ContactMessageRepository contactMessageRepository;
+    private final io.audira.community.client.NotificationClient notificationClient;
 
     @Transactional
     public ContactResponse createResponse(Long contactMessageId, Long adminId, String adminName, String responseText) {
@@ -40,6 +41,15 @@ public class ContactResponseService {
         }
         message.setIsRead(true);
         contactMessageRepository.save(message);
+
+        // Notificar al usuario que recibió una respuesta
+        try {
+            if (message.getUserId() != null) {
+                notificationClient.notifyUserTicketResponse(message.getUserId(), message.getSubject());
+            }
+        } catch (Exception e) {
+            // Log error but don't fail the response creation
+        }
 
         return savedResponse;
     }

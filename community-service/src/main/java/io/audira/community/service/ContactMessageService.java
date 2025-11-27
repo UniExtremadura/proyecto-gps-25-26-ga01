@@ -16,6 +16,7 @@ import java.util.List;
 public class ContactMessageService {
 
     private final ContactMessageRepository contactMessageRepository;
+    private final io.audira.community.client.NotificationClient notificationClient;
 
     public List<ContactMessage> getAllMessages() {
         return contactMessageRepository.findAllByOrderByCreatedAtDesc();
@@ -65,7 +66,17 @@ public class ContactMessageService {
         }
 
         log.info("Creando mensaje de contacto de: {}", message.getEmail());
-        return contactMessageRepository.save(message);
+        ContactMessage savedMessage = contactMessageRepository.save(message);
+
+        // Notificar a administradores (usando un ID genérico o lista de admins)
+        // Por ahora notificamos a admin con ID 1
+        try {
+            notificationClient.notifyAdminNewTicket(1L, message.getName(), message.getSubject());
+        } catch (Exception e) {
+            log.error("Failed to send ticket notification to admin", e);
+        }
+
+        return savedMessage;
     }
 
     @Transactional
@@ -79,9 +90,23 @@ public class ContactMessageService {
     @Transactional
     public ContactMessage updateStatus(Long id, ContactStatus status) {
         ContactMessage message = getMessageById(id);
+        ContactStatus previousStatus = message.getStatus();
         message.setStatus(status);
         log.info("Actualizando estado del mensaje {} a {}", id, status);
-        return contactMessageRepository.save(message);
+        ContactMessage updatedMessage = contactMessageRepository.save(message);
+
+        // Notificar al usuario si el ticket fue resuelto
+        if (status == ContactStatus.RESOLVED && previousStatus != ContactStatus.RESOLVED) {
+            try {
+                if (message.getUserId() != null) {
+                    notificationClient.notifyUserTicketResolved(message.getUserId(), message.getSubject());
+                }
+            } catch (Exception e) {
+                log.error("Failed to send ticket resolved notification to user {}", message.getUserId(), e);
+            }
+        }
+
+        return updatedMessage;
     }
 
     @Transactional

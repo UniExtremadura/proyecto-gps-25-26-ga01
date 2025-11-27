@@ -26,6 +26,35 @@ public class NotificationController {
     private final NotificationService notificationService;
 
     /**
+     * Endpoint general para recibir notificaciones de otros servicios
+     */
+    @PostMapping
+    public ResponseEntity<Map<String, String>> sendNotification(@RequestBody Map<String, Object> notificationRequest) {
+        try {
+            Long userId = ((Number) notificationRequest.get("userId")).longValue();
+            String title = (String) notificationRequest.get("title");
+            String message = (String) notificationRequest.get("message");
+            String typeStr = (String) notificationRequest.get("type");
+
+            log.info("Received notification for user {}: {}", userId, title);
+
+            io.audira.commerce.model.NotificationType type;
+            try {
+                type = io.audira.commerce.model.NotificationType.valueOf(typeStr);
+            } catch (IllegalArgumentException e) {
+                type = io.audira.commerce.model.NotificationType.SYSTEM_NOTIFICATION;
+            }
+
+            notificationService.createNotification(userId, title, message, type, null, null);
+            return ResponseEntity.ok(Map.of("message", "Notification created successfully"));
+        } catch (Exception e) {
+            log.error("Error creating notification: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Failed to create notification: " + e.getMessage()));
+        }
+    }
+
+    /**
      * Endpoint interno para procesar notificaciones de compra
      * Llamado por otros servicios o webhooks
      */

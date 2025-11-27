@@ -113,6 +113,52 @@ public class UserServiceClient {
     }
 
     /**
+     * Get list of user IDs that follow a specific artist
+     * Used for notifying followers about new content
+     *
+     * @param artistId Artist ID
+     * @return List of follower user IDs
+     */
+    public List<Long> getFollowerIds(Long artistId) {
+        String url = userServiceUrl + "/" + artistId + "/followers";
+
+        try {
+            log.debug("Fetching followers for artistId: {} from URL: {}", artistId, url);
+
+            ResponseEntity<List<Long>> response = restTemplate.exchange(
+                    url,
+                    HttpMethod.GET,
+                    null,
+                    new ParameterizedTypeReference<List<Long>>() {}
+            );
+
+            List<Long> followerIds = response.getBody();
+            if (followerIds == null) {
+                log.warn("Received null response for followers of artistId: {}", artistId);
+                return new ArrayList<>();
+            }
+
+            log.debug("Followers retrieved successfully for artistId: {}, count: {}",
+                    artistId, followerIds.size());
+            return followerIds;
+
+        } catch (HttpClientErrorException e) {
+            log.warn("HTTP error fetching followers for artistId: {}. Status: {}",
+                    artistId, e.getStatusCode());
+            return new ArrayList<>();
+
+        } catch (ResourceAccessException e) {
+            log.warn("Connection error accessing user service at {} for artistId: {}",
+                    url, artistId);
+            return new ArrayList<>();
+
+        } catch (Exception e) {
+            log.error("Unexpected error fetching followers for artistId: {}", artistId, e);
+            return new ArrayList<>();
+        }
+    }
+
+    /**
      * Create a fallback user when the service is unavailable
      */
     private UserDTO createFallbackUser(Long userId) {

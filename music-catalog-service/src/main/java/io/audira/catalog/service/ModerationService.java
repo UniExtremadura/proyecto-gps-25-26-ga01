@@ -27,6 +27,7 @@ public class ModerationService {
     private final AlbumRepository albumRepository;
     private final ModerationHistoryRepository moderationHistoryRepository;
     private final UserServiceClient userServiceClient;
+    private final io.audira.catalog.client.NotificationClient notificationClient;
 
     /**
      * GA01-162: Aprobar una canción
@@ -51,6 +52,20 @@ public class ModerationService {
         // Registrar en historial
         recordModerationHistory(savedSong, previousStatus, ModerationStatus.APPROVED,
                 adminId, null, notes);
+
+        // Notificar al artista que su canción fue aprobada
+        try {
+            notificationClient.notifyArtistApproved(savedSong.getArtistId(), "SONG", savedSong.getTitle());
+        } catch (Exception e) {
+            log.error("Failed to send approval notification to artist {}", savedSong.getArtistId(), e);
+        }
+
+        // Notificar a los seguidores sobre el nuevo contenido publicado
+        try {
+            notifyFollowersNewProduct(savedSong);
+        } catch (Exception e) {
+            log.error("Failed to notify followers about new song {}", songId, e);
+        }
 
         log.info("Canción aprobada y publicada: {} por admin: {}", songId, adminId);
         return savedSong;
@@ -83,6 +98,13 @@ public class ModerationService {
         recordModerationHistory(savedSong, previousStatus, ModerationStatus.REJECTED,
                 adminId, rejectionReason, notes);
 
+        // Notificar al artista que su canción fue rechazada
+        try {
+            notificationClient.notifyArtistRejected(savedSong.getArtistId(), "SONG", savedSong.getTitle(), rejectionReason);
+        } catch (Exception e) {
+            log.error("Failed to send rejection notification to artist {}", savedSong.getArtistId(), e);
+        }
+
         log.info("Canción rechazada: {} por admin: {} - Motivo: {}", songId, adminId, rejectionReason);
         return savedSong;
     }
@@ -110,6 +132,20 @@ public class ModerationService {
         // Registrar en historial
         recordModerationHistory(savedAlbum, previousStatus, ModerationStatus.APPROVED,
                 adminId, null, notes);
+
+        // Notificar al artista que su álbum fue aprobado
+        try {
+            notificationClient.notifyArtistApproved(savedAlbum.getArtistId(), "ALBUM", savedAlbum.getTitle());
+        } catch (Exception e) {
+            log.error("Failed to send approval notification to artist {}", savedAlbum.getArtistId(), e);
+        }
+
+        // Notificar a los seguidores sobre el nuevo contenido publicado
+        try {
+            notifyFollowersNewProduct(savedAlbum);
+        } catch (Exception e) {
+            log.error("Failed to notify followers about new album {}", albumId, e);
+        }
 
         log.info("Álbum aprobado y publicado: {} por admin: {}", albumId, adminId);
         return savedAlbum;
@@ -141,6 +177,13 @@ public class ModerationService {
         // Registrar en historial
         recordModerationHistory(savedAlbum, previousStatus, ModerationStatus.REJECTED,
                 adminId, rejectionReason, notes);
+
+        // Notificar al artista que su álbum fue rechazado
+        try {
+            notificationClient.notifyArtistRejected(savedAlbum.getArtistId(), "ALBUM", savedAlbum.getTitle(), rejectionReason);
+        } catch (Exception e) {
+            log.error("Failed to send rejection notification to artist {}", savedAlbum.getArtistId(), e);
+        }
 
         log.info("Álbum rechazado: {} por admin: {} - Motivo: {}", albumId, adminId, rejectionReason);
         return savedAlbum;
@@ -270,6 +313,47 @@ public class ModerationService {
             albumRepository.save(album);
 
             log.info("Álbum {} marcado como pendiente de revisión", albumId);
+        }
+    }
+
+    /**
+     * Notificar a los seguidores de un artista sobre un nuevo producto publicado
+     */
+    private void notifyFollowersNewProduct(Product product) {
+        try {
+            // Obtener seguidores del artista
+            List<Long> followerIds = userServiceClient.getFollowerIds(product.getArtistId());
+
+            if (followerIds.isEmpty()) {
+                log.debug("Artista {} no tiene seguidores para notificar", product.getArtistId());
+                return;
+            }
+
+            // Obtener información del artista
+            UserDTO artist = userServiceClient.getUserById(product.getArtistId());
+            String artistName = artist != null && artist.getArtistName() != null
+                ? artist.getArtistName()
+                : (artist != null ? artist.getUsername() : "Artista");
+
+            // Enviar notificación a cada seguidor
+            for (Long followerId : followerIds) {
+                try {
+                    notificationClient.notifyNewProduct(
+                        followerId,
+                        product.getProductType(),
+                        product.getTitle(),
+                        artistName
+                    );
+                } catch (Exception e) {
+                    log.warn("Failed to notify follower {} about new product {}", followerId, product.getId(), e);
+                }
+            }
+
+            log.info("Notificados {} seguidores sobre nuevo producto: {} ({})",
+                followerIds.size(), product.getTitle(), product.getProductType());
+
+        } catch (Exception e) {
+            log.error("Error notifying followers about new product {}", product.getId(), e);
         }
     }
 }

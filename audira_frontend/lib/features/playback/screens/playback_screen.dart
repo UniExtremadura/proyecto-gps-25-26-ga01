@@ -38,6 +38,7 @@ class _PlaybackScreenState extends State<PlaybackScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final currentContext = context;
     // Usamos Consumer para reconstruir la UI macro cuando cambia la canción o el estado Play/Pause
     return Consumer<AudioProvider>(
       builder: (context, audioProvider, child) {
@@ -47,8 +48,9 @@ class _PlaybackScreenState extends State<PlaybackScreen> {
         if (audioProvider.demoFinished) {
           // Usamos un microtask para evitar errores de construcción durante el renderizado
           Future.microtask(() {
-            if (mounted && ModalRoute.of(context)?.isCurrent == true) {
-              _showDemoFinishedDialog(context);
+          if(!currentContext.mounted) return;
+            if (mounted && ModalRoute.of(currentContext)?.isCurrent == true) {
+              _showDemoFinishedDialog(currentContext);
             }
           });
         }
@@ -670,6 +672,7 @@ class _PlaybackScreenState extends State<PlaybackScreen> {
   }
 
   void _showAddToPlaylistDialog(BuildContext context, Song song) {
+    final currentContext = context;
     final authProvider = context.read<AuthProvider>();
     if (!authProvider.isAuthenticated) {
       ScaffoldMessenger.of(context)
@@ -703,6 +706,7 @@ class _PlaybackScreenState extends State<PlaybackScreen> {
                         try {
                           await libraryProvider.addSongToPlaylist(
                               pl.id, song.id);
+                          if (!currentContext.mounted) return;
                           if (mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                                 content: Text('Añadido a ${pl.name}'),

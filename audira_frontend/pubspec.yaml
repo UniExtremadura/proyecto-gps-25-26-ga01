@@ -78,6 +78,9 @@ dependencies:
   # Permissions
   permission_handler: ^11.0.1
 
+  # Push Notifications
+  flutter_local_notifications: ^18.0.1
+
   # Path Provider
   path_provider: ^2.1.1
 
