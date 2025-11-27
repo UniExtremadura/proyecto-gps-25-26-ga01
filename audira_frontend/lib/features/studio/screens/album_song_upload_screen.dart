@@ -247,42 +247,6 @@ class _AlbumSongUploadScreenState extends State<AlbumSongUploadScreen> {
     }
   }
 
-  void _addCollaborator() {
-    if (_collaboratorNameController.text.trim().isEmpty ||
-        _collaboratorRoleController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Por favor completa el nombre y rol del colaborador'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      return;
-    }
-
-    setState(() {
-      _collaborators.add({
-        'name': _collaboratorNameController.text.trim(),
-        'role': _collaboratorRoleController.text.trim(),
-      });
-      _collaboratorNameController.clear();
-      _collaboratorRoleController.clear();
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Colaborador añadido'),
-        backgroundColor: Colors.green,
-        duration: Duration(seconds: 1),
-      ),
-    );
-  }
-
-  void _removeCollaborator(int index) {
-    setState(() {
-      _collaborators.removeAt(index);
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     Provider.of<AuthProvider>(context);
@@ -545,105 +509,12 @@ class _AlbumSongUploadScreenState extends State<AlbumSongUploadScreen> {
                 labelText: 'Categoría (Opcional)',
                 border: OutlineInputBorder(),
                 prefixIcon: Icon(Icons.label),
-                helperText: 'Ej: Single, Álbum, EP, Remix, Cover',
+                helperText: 'Ej: Single, Remix, Cover',
               ),
               maxLines: 1,
             ).animate().fadeIn(delay: 185.ms),
             const SizedBox(height: 16),
-
-            // Colaboradores
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.people,
-                            color: AppTheme.primaryBlue, size: 20),
-                        const SizedBox(width: 8),
-                        const Text(
-                          'Colaboradores (Opcional)',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          flex: 2,
-                          child: TextField(
-                            controller: _collaboratorNameController,
-                            decoration: const InputDecoration(
-                              labelText: 'Nombre',
-                              border: OutlineInputBorder(),
-                              isDense: true,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: TextField(
-                            controller: _collaboratorRoleController,
-                            decoration: const InputDecoration(
-                              labelText: 'Rol',
-                              border: OutlineInputBorder(),
-                              isDense: true,
-                              helperText: 'Ej: feat, productor',
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        IconButton(
-                          onPressed: _addCollaborator,
-                          icon: const Icon(Icons.add_circle,
-                              color: AppTheme.primaryBlue),
-                          tooltip: 'Añadir colaborador',
-                        ),
-                      ],
-                    ),
-                    if (_collaborators.isNotEmpty) ...[
-                      const SizedBox(height: 12),
-                      const Divider(),
-                      const SizedBox(height: 8),
-                      ...List.generate(_collaborators.length, (index) {
-                        final collab = _collaborators[index];
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 4),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.person,
-                                  size: 16, color: AppTheme.textGrey),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  '${collab['name']} - ${collab['role']}',
-                                  style: const TextStyle(fontSize: 14),
-                                ),
-                              ),
-                              IconButton(
-                                onPressed: () => _removeCollaborator(index),
-                                icon: const Icon(Icons.remove_circle,
-                                    color: Colors.red, size: 20),
-                                padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints(),
-                              ),
-                            ],
-                          ),
-                        );
-                      }),
-                    ],
-                  ],
-                ),
-              ),
-            ).animate().fadeIn(delay: 190.ms),
-            const SizedBox(height: 16),
-
+            
             // Lyrics (Optional)
             TextFormField(
               controller: _lyricsController,

@@ -403,6 +403,15 @@ class ProfileScreen extends StatelessWidget {
                   Navigator.pushNamed(context, '/profile/purchase-history');
                 },
               ),
+              
+              ListTile(
+                leading: const Icon(Icons.error),
+                title: const Text('Tickets de Soporte'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () {
+                  Navigator.pushNamed(context, '/profile/tickets');
+                },
+              ),
 
               ListTile(
                 leading: const Icon(Icons.people_outlined),
