@@ -1,4 +1,5 @@
 import 'package:audira_frontend/core/api/api_client.dart';
+import '../../models/notification_model.dart'; // Asegúrate de importar el modelo
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -7,15 +8,30 @@ class NotificationService {
 
   final ApiClient _apiClient = ApiClient();
 
-  /// Get user's notifications
-  Future<ApiResponse<List<dynamic>>> getUserNotifications(int userId) async {
+  /// Get user's notifications (Paginado)
+  /// Devuelve una lista de notificaciones y un booleano indicando si es la última página
+  Future<ApiResponse<Map<String, dynamic>>> getUserNotifications(int userId,
+      {int page = 0, int size = 20}) async {
     try {
-      final response = await _apiClient.get('/api/notifications/user/$userId');
+      // Agregamos query params para la paginación de Spring Boot
+      final response = await _apiClient
+          .get('/api/notifications/user/$userId?page=$page&size=$size');
 
       if (response.success && response.data != null) {
+        // Spring devuelve un objeto Page: { "content": [], "last": false, ... }
+        final dataMap = response.data as Map<String, dynamic>;
+        final List<dynamic> content = dataMap['content'] ?? [];
+        final bool last = dataMap['last'] ?? true;
+
+        final notifications =
+            content.map((json) => NotificationModel.fromJson(json)).toList();
+
         return ApiResponse(
           success: true,
-          data: response.data as List<dynamic>,
+          data: {
+            'notifications': notifications,
+            'isLastPage': last,
+          },
           statusCode: response.statusCode,
         );
       }
@@ -37,9 +53,13 @@ class NotificationService {
           await _apiClient.get('/api/notifications/user/$userId/unread/count');
 
       if (response.success && response.data != null) {
+        // El backend devuelve map: {"count": 5}
+        final count =
+            (response.data is Map) ? response.data['count'] : response.data;
+
         return ApiResponse(
           success: true,
-          data: response.data as int,
+          data: count as int,
           statusCode: response.statusCode,
         );
       }
@@ -55,22 +75,22 @@ class NotificationService {
   }
 
   /// Mark notification as read
-  Future<ApiResponse<void>> markAsRead(int notificationId) async {
+  Future<ApiResponse<NotificationModel>> markAsRead(int notificationId) async {
     try {
       final response =
           await _apiClient.patch('/api/notifications/$notificationId/read');
 
-      if (response.success) {
+      if (response.success && response.data != null) {
         return ApiResponse(
           success: true,
-          data: null,
+          data: NotificationModel.fromJson(response.data),
           statusCode: response.statusCode,
         );
       }
 
       return ApiResponse(
         success: false,
-        error: response.error ?? 'Failed to mark notification as read',
+        error: response.error ?? 'Failed to mark as read',
         statusCode: response.statusCode,
       );
     } catch (e) {
@@ -94,7 +114,7 @@ class NotificationService {
 
       return ApiResponse(
         success: false,
-        error: response.error ?? 'Failed to mark all notifications as read',
+        error: response.error ?? 'Failed to mark all as read',
         statusCode: response.statusCode,
       );
     } catch (e) {
@@ -126,27 +146,9 @@ class NotificationService {
     }
   }
 
-  /// Delete all notifications for user
-  Future<ApiResponse<void>> deleteAllNotifications(int userId) async {
-    try {
-      final response =
-          await _apiClient.delete('/api/notifications/user/$userId');
-
-      if (response.success) {
-        return ApiResponse(
-          success: true,
-          data: null,
-          statusCode: response.statusCode,
-        );
-      }
-
-      return ApiResponse(
-        success: false,
-        error: response.error ?? 'Failed to delete all notifications',
-        statusCode: response.statusCode,
-      );
-    } catch (e) {
-      return ApiResponse(success: false, error: e.toString());
-    }
-  }
+  // Nota: El backend no tenía endpoint para borrar TODAS.
+  // Si lo añadiste, descomenta esto. Si no, quítalo.
+  /*
+  Future<ApiResponse<void>> deleteAllNotifications(int userId) async { ... }
+  */
 }
