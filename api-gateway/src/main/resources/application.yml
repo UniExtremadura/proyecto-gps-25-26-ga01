@@ -15,7 +15,7 @@ spring:
         - id: community-service
           uri: lb://community-service
           predicates:
-            - Path=/api/auth/**,/api/users/**,/api/admin/**,/api/ratings/**,/api/comments/**,/api/contact/**,/api/faqs/**,/api/notifications/**
+            - Path=/api/auth/**,/api/users/**,/api/admin/**,/api/ratings/**,/api/comments/**,/api/contact/**,/api/faqs/**
 
         # File Service - Gestión de archivos de audio e imágenes
         - id: file-service
@@ -35,7 +35,7 @@ spring:
         - id: commerce-service
           uri: lb://commerce-service
           predicates:
-            - Path=/api/products/**,/api/cart/**,/api/orders/**,/api/payments/**,/api/library/**,/api/receipts/**, /api/favorites/**
+            - Path=/api/products/**,/api/cart/**,/api/orders/**,/api/payments/**,/api/library/**,/api/receipts/**, /api/notifications/**, /api/favorites/**
 
 eureka:
   client:
