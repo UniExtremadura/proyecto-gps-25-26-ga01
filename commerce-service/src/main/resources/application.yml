@@ -26,9 +26,7 @@ services:
     url: http://api-gateway:8080/api/users
   catalog:
     url: http://172.16.0.4:9002/api
-  notification:
-    url: http://172.16.0.4:9020/api/notifications
-
+    
 eureka:
   client:
     service-url:
