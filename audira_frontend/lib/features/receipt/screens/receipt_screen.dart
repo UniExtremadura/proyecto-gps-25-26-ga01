@@ -259,7 +259,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
             ),
             const SizedBox(height: 8),
             _buildTotalRow(
-              'Impuestos (10%):',
+              'Impuestos (21%):',
               _receipt!.tax,
               isBold: false,
             ),

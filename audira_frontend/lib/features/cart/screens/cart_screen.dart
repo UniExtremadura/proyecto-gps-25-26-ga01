@@ -375,14 +375,26 @@ class _CartScreenState extends State<CartScreen> {
 
     try {
       // Prepare order items
-      final orderItems = cartProvider.cart!.items.map((item) {
+      final orderItems = cartProvider.cartItemDetails.map((itemDetail) {
+        final item = itemDetail.cartItem;
+
+        // Get artistId from song or album details
+        int? artistId;
+        if (item.itemType == 'SONG' && itemDetail.song != null) {
+          artistId = itemDetail.song!.artistId;
+        } else if (item.itemType == 'ALBUM' && itemDetail.album != null) {
+          artistId = itemDetail.album!.artistId;
+        }
+
         return {
           'itemType': item.itemType,
           'itemId': item.itemId,
+          'artistId': artistId,
           'quantity': item.quantity,
           'price': item.price,
         };
       }).toList();
+
 
       // Create order
       final response = await _orderService.createOrder(
