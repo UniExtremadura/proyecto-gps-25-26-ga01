@@ -219,6 +219,14 @@ class NotificationService {
   /// Show local push notification based on notification type
   Future<void> _showLocalNotification(NotificationModel notification) async {
     try {
+      // Create payload with navigation information
+      final payload = jsonEncode({
+        'type': notification.type,
+        'referenceId': notification.referenceId,
+        'referenceType': notification.referenceType,
+        'notificationId': notification.id,
+      });
+
       switch (notification.type) {
         case 'PAYMENT_SUCCESS':
         case 'ORDER_CONFIRMATION':
@@ -226,6 +234,7 @@ class NotificationService {
             id: notification.id,
             title: notification.title,
             body: notification.message,
+            payload: payload,
             priority: NotificationPriority.high,
           );
           break;
@@ -235,6 +244,7 @@ class NotificationService {
             id: notification.id,
             title: notification.title,
             body: notification.message,
+            payload: payload,
             priority: NotificationPriority.high,
           );
           break;
@@ -244,6 +254,7 @@ class NotificationService {
             id: notification.id,
             title: notification.title,
             body: notification.message,
+            payload: payload,
             priority: NotificationPriority.high,
           );
           break;
@@ -251,18 +262,24 @@ class NotificationService {
         case 'TICKET_CREATED':
         case 'TICKET_RESPONSE':
         case 'TICKET_RESOLVED':
-          await _localNotifications.showTicketNotification(
-            notification.title,
-            notification.message,
+          await _localNotifications.showNotification(
+            id: notification.id,
+            title: notification.title,
+            body: notification.message,
+            payload: payload,
+            priority: NotificationPriority.high,
           );
           break;
 
         case 'PRODUCT_PENDING_REVIEW':
         case 'PRODUCT_APPROVED':
         case 'PRODUCT_REJECTED':
-          await _localNotifications.showProductReviewNotification(
-            notification.title,
-            notification.message,
+          await _localNotifications.showNotification(
+            id: notification.id,
+            title: notification.title,
+            body: notification.message,
+            payload: payload,
+            priority: NotificationPriority.high,
           );
           break;
 
@@ -271,6 +288,7 @@ class NotificationService {
             id: notification.id,
             title: notification.title,
             body: notification.message,
+            payload: payload,
           );
       }
 
