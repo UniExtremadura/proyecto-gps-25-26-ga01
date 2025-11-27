@@ -15,15 +15,18 @@ import java.math.BigDecimal;
 @NoArgsConstructor
 @AllArgsConstructor
 public class OrderItemDTO {
-    private Long id; // Usado en la respuesta (OrderDTO)
+    private Long id;
 
-    private Long orderId; // Usado en la solicitud (OrderDTO)   
+    private Long orderId;
     
     @NotNull(message = "ItemType cannot be null")
     private ItemType itemType;
 
     @NotNull(message = "ItemId cannot be null")
     private Long itemId;
+
+    @NotNull(message = "ArtistId cannot be null")
+    private Long artistId;
 
     @Positive(message = "Quantity must be positive")
     private int quantity;
