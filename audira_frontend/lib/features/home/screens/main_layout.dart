@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:animations/animations.dart';
+import 'package:flutter_animate/flutter_animate.dart'; // Asegúrate de tener esto importado
 import '../../../config/theme.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/providers/cart_provider.dart';
@@ -23,6 +24,7 @@ class MainLayout extends StatefulWidget {
 class _MainLayoutState extends State<MainLayout> {
   int _currentIndex = 0;
 
+  // Mantenemos la lógica exacta de pantallas
   List<Widget> get _screens {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final isAuthenticated = authProvider.isAuthenticated;
@@ -40,6 +42,7 @@ class _MainLayoutState extends State<MainLayout> {
     ];
   }
 
+  // Mantenemos la lógica exacta de destinos
   List<NavigationDestination> get _destinations {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final isAuthenticated = authProvider.isAuthenticated;
@@ -93,14 +96,10 @@ class _MainLayoutState extends State<MainLayout> {
       _currentIndex = index;
     });
 
-    // Reload cart when cart tab is selected
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final cartProvider = Provider.of<CartProvider>(context, listen: false);
 
-    // Check if cart tab was selected (index 3 for authenticated users, or dynamic based on auth)
-    final isCartTab = _isCartTab(index);
-
-    if (isCartTab && authProvider.currentUser != null) {
+    if (_isCartTab(index) && authProvider.currentUser != null) {
       debugPrint('=== Cart tab selected, reloading cart ===');
       await cartProvider.loadCart(authProvider.currentUser!.id);
     }
@@ -108,69 +107,119 @@ class _MainLayoutState extends State<MainLayout> {
 
   bool _isCartTab(int index) {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final isAuthenticated = authProvider.isAuthenticated;
-
-    // Calculate cart tab index based on authentication
-    // 0: Home, 1: Store
-    if (isAuthenticated) {
-      // 2: Library, 3: Cart
-      return index == 3;
-    } else {
-      // 2: Cart (no Library when not authenticated)
-      return index == 2;
-    }
+    return authProvider.isAuthenticated ? index == 3 : index == 2;
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Audira'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.search),
-            onPressed: () {
-              Navigator.pushNamed(context, '/search');
-            },
+    // Usamos el Consumer para obtener el estado de autenticación y redibujar si cambia
+    return Consumer<AuthProvider>(
+      builder: (context, authProvider, _) {
+        return Scaffold(
+          backgroundColor: AppTheme.backgroundBlack,
+          // Eliminamos el AppBar por defecto para usar uno personalizado
+          body: SafeArea(
+            child: Column(
+              children: [
+                // 1. GLOBAL HEADER PERSONALIZADO
+                _buildGlobalHeader(context),
+
+                // 2. BANNER DE LOGIN (Si no está autenticado)
+                if (!authProvider.isAuthenticated) _buildLoginBanner(context),
+
+                // 3. CONTENIDO DE PANTALLAS
+                Expanded(
+                  child: PageTransitionSwitcher(
+                    duration: const Duration(milliseconds: 300),
+                    transitionBuilder:
+                        (child, primaryAnimation, secondaryAnimation) {
+                      return FadeThroughTransition(
+                        animation: primaryAnimation,
+                        secondaryAnimation: secondaryAnimation,
+                        fillColor: AppTheme.backgroundBlack,
+                        child: child,
+                      );
+                    },
+                    child: _screens[_currentIndex],
+                  ),
+                ),
+
+                // 4. MINI PLAYER (Siempre visible si hay audio)
+                const MiniPlayer(),
+              ],
+            ),
           ),
-          IconButton(
-            icon: const Icon(Icons.help_outline),
-            tooltip: 'Preguntas Frecuentes',
-            onPressed: () {
-              Navigator.pushNamed(context, '/faq');
-            },
+
+          // 5. BOTTOM NAVIGATION BAR REFINADO
+          bottomNavigationBar: _buildBottomNavBar(),
+        );
+      },
+    );
+  }
+
+  // --- WIDGETS PERSONALIZADOS ---
+
+  Widget _buildGlobalHeader(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: const BoxDecoration(
+        color: AppTheme.backgroundBlack,
+        border: Border(bottom: BorderSide(color: AppTheme.surfaceBlack)),
+      ),
+      child: Row(
+        children: [
+          // Logo / Título
+          const Icon(Icons.graphic_eq, color: AppTheme.primaryBlue, size: 24),
+          const SizedBox(width: 8),
+          const Text(
+            'AUDIRA',
+            style: TextStyle(
+              fontFamily: 'Poppins',
+              fontWeight: FontWeight.w900,
+              fontSize: 20,
+              letterSpacing: 2,
+              color: Colors.white,
+            ),
           ),
-          IconButton(
-            icon: const Icon(Icons.support_agent),
-            tooltip: 'Contactar Soporte',
-            onPressed: () {
-              Navigator.pushNamed(context, '/contact');
-            },
+
+          const Spacer(),
+
+          // Acciones Globales
+          _buildHeaderAction(
+            icon: Icons.search,
+            onTap: () => Navigator.pushNamed(context, '/search'),
           ),
+          _buildHeaderAction(
+            icon: Icons.help_outline,
+            onTap: () => Navigator.pushNamed(context, '/faq'),
+          ),
+          _buildHeaderAction(
+            icon: Icons.support_agent,
+            onTap: () => Navigator.pushNamed(context, '/contact'),
+          ),
+
+          // Carrito con Badge
           Consumer<CartProvider>(
             builder: (context, cartProvider, child) {
               return Stack(
+                clipBehavior: Clip.none,
                 children: [
-                  IconButton(
-                    icon: const Icon(Icons.notifications_outlined),
-                    onPressed: () {
-                      Navigator.pushNamed(context, '/notifications');
-                    },
+                  _buildHeaderAction(
+                    icon: Icons.notifications_outlined,
+                    onTap: () => Navigator.pushNamed(context, '/notifications'),
                   ),
                   if (cartProvider.itemCount > 0)
                     Positioned(
-                      right: 8,
-                      top: 8,
+                      right: 4,
+                      top: 4,
                       child: Container(
                         padding: const EdgeInsets.all(4),
                         decoration: const BoxDecoration(
                           color: AppTheme.errorRed,
                           shape: BoxShape.circle,
                         ),
-                        constraints: const BoxConstraints(
-                          minWidth: 16,
-                          minHeight: 16,
-                        ),
+                        constraints:
+                            const BoxConstraints(minWidth: 16, minHeight: 16),
                         child: Text(
                           '${cartProvider.itemCount}',
                           style: const TextStyle(
@@ -180,7 +229,9 @@ class _MainLayoutState extends State<MainLayout> {
                           ),
                           textAlign: TextAlign.center,
                         ),
-                      ),
+                      )
+                          .animate()
+                          .scale(duration: 200.ms, curve: Curves.easeOutBack),
                     ),
                 ],
               );
@@ -188,70 +239,130 @@ class _MainLayoutState extends State<MainLayout> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          Consumer<AuthProvider>(
-            builder: (context, authProvider, child) {
-              if (!authProvider.isAuthenticated) {
-                return Container(
-                  width: double.infinity,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  color: AppTheme.primaryBlue.withValues(alpha: 0.9),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Expanded(
-                        child: Text(
-                          '¿Quieres acceso completo? Inicia sesión gratis',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                      TextButton(
-                        onPressed: () {
-                          Navigator.pushNamed(context, '/login');
-                        },
-                        style: TextButton.styleFrom(
-                          backgroundColor: Colors.white,
-                          foregroundColor: AppTheme.primaryBlue,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 8,
-                          ),
-                        ),
-                        child: const Text('Iniciar sesión'),
-                      ),
-                    ],
-                  ),
-                );
-              }
-              return const SizedBox.shrink();
-            },
-          ),
-          Expanded(
-            child: PageTransitionSwitcher(
-              transitionBuilder: (child, primaryAnimation, secondaryAnimation) {
-                return FadeThroughTransition(
-                  animation: primaryAnimation,
-                  secondaryAnimation: secondaryAnimation,
-                  child: child,
-                );
-              },
-              child: _screens[_currentIndex],
-            ),
-          ),
-          const MiniPlayer(),
+    );
+  }
+
+  Widget _buildHeaderAction(
+      {required IconData icon, required VoidCallback onTap}) {
+    return IconButton(
+      icon: Icon(icon, color: AppTheme.textGrey, size: 22),
+      onPressed: onTap,
+      splashRadius: 20,
+      visualDensity: VisualDensity.compact,
+    );
+  }
+
+  Widget _buildLoginBanner(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppTheme.primaryBlue.withValues(alpha: 0.8),
+            AppTheme.darkBlue,
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.primaryBlue.withValues(alpha: 0.3),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          )
         ],
       ),
-      bottomNavigationBar: NavigationBar(
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.2),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.lock_open_rounded,
+                    color: Colors.white, size: 18),
+              ),
+              const SizedBox(width: 12),
+              const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Acceso Limitado',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                  Text(
+                    'Inicia sesión para desbloquear todo',
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pushNamed(context, '/login'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.white,
+              foregroundColor: AppTheme.primaryBlue,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8)),
+              minimumSize: const Size(0, 32),
+            ),
+            child: const Text('Entrar',
+                style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    ).animate().slideY(begin: -0.5, duration: 400.ms).fadeIn();
+  }
+
+  Widget _buildBottomNavBar() {
+    return NavigationBarTheme(
+      data: NavigationBarThemeData(
+        labelTextStyle: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.textWhite,
+                fontFamily: 'Poppins');
+          }
+          return const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.normal,
+              color: AppTheme.textGrey,
+              fontFamily: 'Poppins');
+        }),
+        indicatorColor: AppTheme.primaryBlue.withValues(alpha: 0.2),
+        iconTheme: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return const IconThemeData(color: AppTheme.primaryBlue);
+          }
+          return const IconThemeData(color: AppTheme.textGrey);
+        }),
+      ),
+      child: NavigationBar(
         selectedIndex: _currentIndex,
         onDestinationSelected: _onDestinationSelected,
         destinations: _destinations,
         backgroundColor: AppTheme.surfaceBlack,
-        indicatorColor: AppTheme.primaryBlue.withValues(alpha: 0.2),
+        elevation: 0,
+        height: 65,
+        animationDuration: const Duration(milliseconds: 500),
       ),
     );
   }

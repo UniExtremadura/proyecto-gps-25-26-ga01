@@ -36,7 +36,6 @@ spring:
           uri: lb://commerce-service
           predicates:
             - Path=/api/products/**,/api/cart/**,/api/orders/**,/api/payments/**,/api/library/**,/api/receipts/**, /api/notifications/**, /api/favorites/**
-        
 
 eureka:
   client:
