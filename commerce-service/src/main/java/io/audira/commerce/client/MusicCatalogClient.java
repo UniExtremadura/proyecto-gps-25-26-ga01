@@ -76,4 +76,50 @@ public class MusicCatalogClient {
             return new ArrayList<>();
         }
     }
+
+    /**
+     * Obtiene información de una canción por ID
+     * @param songId ID de la canción
+     * @return Mapa con información de la canción (id, title, artistId, etc.)
+     */
+    public Map<String, Object> getSongById(Long songId) {
+        String url = catalogServiceUrl + "/songs/" + songId;
+
+        try {
+            log.debug("Fetching song {} from URL: {}", songId, url);
+            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
+                    url,
+                    HttpMethod.GET,
+                    null,
+                    new ParameterizedTypeReference<Map<String, Object>>() {}
+            );
+            return response.getBody();
+        } catch (Exception e) {
+            log.error("Error fetching song {} from catalog service", songId, e);
+            return null;
+        }
+    }
+
+    /**
+     * Obtiene información de un álbum por ID
+     * @param albumId ID del álbum
+     * @return Mapa con información del álbum (id, title, artistId, etc.)
+     */
+    public Map<String, Object> getAlbumById(Long albumId) {
+        String url = catalogServiceUrl + "/albums/" + albumId;
+
+        try {
+            log.debug("Fetching album {} from URL: {}", albumId, url);
+            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
+                    url,
+                    HttpMethod.GET,
+                    null,
+                    new ParameterizedTypeReference<Map<String, Object>>() {}
+            );
+            return response.getBody();
+        } catch (Exception e) {
+            log.error("Error fetching album {} from catalog service", albumId, e);
+            return null;
+        }
+    }
 }

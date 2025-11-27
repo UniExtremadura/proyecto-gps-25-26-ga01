@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:intl/intl.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'package:share_plus/share_plus.dart'; // <--- NUEVO IMPORT
 
 import '../../../config/theme.dart';
 import '../../../core/models/payment.dart';
@@ -24,8 +25,6 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
   bool _isLoading = true;
   String? _error;
 
-  // YA NO NECESITAMOS _barcodeUrl PORQUE GENERAREMOS EL QR NATIVO
-
   @override
   void initState() {
     super.initState();
@@ -43,7 +42,6 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
           await _receiptService.getReceiptByPaymentId(widget.payment.id);
 
       if (!response.success) {
-        // Intento de generar si no existe
         response = await _receiptService.generateReceipt(widget.payment.id);
       }
 
@@ -72,11 +70,41 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
     }
   }
 
+  // --- LÓGICA DE COMPARTIR ---
+  void _shareReceipt() {
+    if (_receipt == null) return;
+
+    final date = DateFormat('dd/MM/yyyy HH:mm').format(_receipt!.issuedAt);
+
+    // Construimos un texto bonito estilo ticket para compartir
+    final StringBuffer sb = StringBuffer();
+    sb.writeln("🧾 COMPROBANTE DE PAGO - Audira Music");
+    sb.writeln("================================");
+    sb.writeln("Orden: #${_receipt!.order.orderNumber}");
+    sb.writeln("Fecha: $date");
+    sb.writeln("Cliente: ${_receipt!.customerName}");
+    sb.writeln("--------------------------------");
+
+    for (var item in _receipt!.items) {
+      sb.writeln("${item.quantity}x ${item.itemName}");
+      sb.writeln("   \$${item.totalPrice.toStringAsFixed(2)}");
+    }
+
+    sb.writeln("--------------------------------");
+    sb.writeln("TOTAL: \$${_receipt!.total.toStringAsFixed(2)}");
+    sb.writeln("================================");
+    sb.writeln("ID Transacción:");
+    sb.writeln(_receipt!.payment.transactionId);
+
+    // Lanza el menú nativo del celular
+    Share.share(sb.toString(),
+        subject: 'Recibo Audira Music #${_receipt!.order.orderNumber}');
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Usamos un Scaffold con fondo oscuro puro para resaltar el ticket
     return Scaffold(
-      backgroundColor: const Color(0xFF121212), // Fondo muy oscuro
+      backgroundColor: const Color(0xFF121212),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -152,7 +180,6 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
       padding: const EdgeInsets.fromLTRB(20, 10, 20, 40),
       child: Column(
         children: [
-          // 1. EL TICKET (Componente Principal)
           _buildReceiptCard()
               .animate()
               .slideY(
@@ -161,10 +188,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
                   duration: 600.ms,
                   curve: Curves.easeOutQuart)
               .fadeIn(duration: 400.ms),
-
           const SizedBox(height: 30),
-
-          // 2. BOTONES DE ACCIÓN
           _buildActionButtons()
               .animate(delay: 400.ms)
               .fadeIn()
@@ -185,10 +209,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
           gradient: const LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              Color(0xFF2C3040),
-              Color(0xFF222532),
-            ],
+            colors: [Color(0xFF2C3040), Color(0xFF222532)],
           ),
           boxShadow: [
             BoxShadow(
@@ -203,14 +224,10 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // --- HEADER ---
               _buildTicketHeader(),
-
               const SizedBox(height: 24),
               _buildDashedDivider(),
               const SizedBox(height: 24),
-
-              // --- DETALLES ---
               Column(
                 children: [
                   _buildDetailRow(
@@ -221,34 +238,25 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
                       "FECHA",
                       DateFormat('dd MMM yyyy, hh:mm a')
                           .format(_receipt!.issuedAt)),
-
-                  // Lógica Copy + Overflow
                   _buildTransactionIdRow(_receipt!.payment.transactionId),
                 ],
               ),
-
               const SizedBox(height: 24),
               _buildDashedDivider(),
               const SizedBox(height: 24),
-
-              // --- ITEMS ---
               Align(
                 alignment: Alignment.centerLeft,
                 child: Text("DETALLE DE ORDEN", style: _labelStyle()),
               ),
               const SizedBox(height: 12),
               ..._receipt!.items.map((item) => _buildItemRow(item)),
-
               const SizedBox(height: 24),
               const Divider(color: Colors.white10, height: 1),
               const SizedBox(height: 24),
-
-              // --- TOTALES ---
               _buildDetailRow(
                   "Subtotal", "\$${_receipt!.subtotal.toStringAsFixed(2)}"),
               _buildDetailRow(
                   "Impuestos (IVA)", "\$${_receipt!.tax.toStringAsFixed(2)}"),
-
               const SizedBox(height: 16),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -273,10 +281,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
                   ),
                 ],
               ),
-
               const SizedBox(height: 40),
-
-              // --- SECCIÓN QR (MEJORADA) ---
               _buildQrSection(),
             ],
           ),
@@ -284,8 +289,6 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
       ),
     );
   }
-
-  // --- WIDGETS INTERNOS ---
 
   Widget _buildTicketHeader() {
     return Column(
@@ -440,22 +443,19 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
     );
   }
 
-  // --- SECCIÓN ACTUALIZADA: QR REAL ---
   Widget _buildQrSection() {
     return Column(
       children: [
         Container(
-          // Quitamos altura fija para que se adapte al contenido (el QR)
-          // El QR necesita ser cuadrado, por lo que el padding lo hará respirar
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: Colors.white, // Fondo blanco para que el QR sea legible
+            color: Colors.white,
             borderRadius: BorderRadius.circular(8),
           ),
           child: QrImageView(
-            data: _receipt!.payment.transactionId, // Generamos QR del ID
+            data: _receipt!.payment.transactionId,
             version: QrVersions.auto,
-            size: 140.0, // Tamaño del QR
+            size: 140.0,
             backgroundColor: Colors.white,
           ),
         ),
@@ -486,7 +486,8 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
       children: [
         Expanded(
           child: ElevatedButton(
-            onPressed: () {},
+            // --- AQUI LLAMAMOS A LA FUNCION ---
+            onPressed: _shareReceipt,
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF2C3040),
               foregroundColor: Colors.white,
@@ -530,8 +531,6 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
     );
   }
 
-  // --- UTILIDADES ---
-
   TextStyle _labelStyle() {
     return TextStyle(
       color: Colors.white.withValues(alpha: 0.4),
@@ -546,7 +545,6 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
       builder: (context, constraints) {
         final boxWidth = constraints.constrainWidth();
         const dashWidth = 5.0;
-        const dashHeight = 1.0;
         final dashCount = (boxWidth / (2 * dashWidth)).floor();
         return Flex(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -554,7 +552,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
           children: List.generate(dashCount, (_) {
             return SizedBox(
               width: dashWidth,
-              height: dashHeight,
+              height: 1.0,
               child: DecoratedBox(
                 decoration:
                     BoxDecoration(color: Colors.white.withValues(alpha: 0.1)),

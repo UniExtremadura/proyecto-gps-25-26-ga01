@@ -202,6 +202,7 @@ class _LibraryScreenState extends State<LibraryScreen>
 
   @override
   Widget build(BuildContext context) {
+    final currentContext = context;
     return Scaffold(
       backgroundColor: AppTheme.backgroundBlack,
       // Usamos SafeArea para eliminar el AppBar clásico y usar espacio real
@@ -283,10 +284,11 @@ class _LibraryScreenState extends State<LibraryScreen>
                     final result =
                         await Navigator.pushNamed(context, '/playlist/create');
                     if (result == true) {
-                      _loadPlaylists(
-                          Provider.of<AuthProvider>(context, listen: false)
-                              .currentUser!
-                              .id);
+                      if (!currentContext.mounted) return;
+                      _loadPlaylists(Provider.of<AuthProvider>(currentContext,
+                              listen: false)
+                          .currentUser!
+                          .id);
                     }
                   },
                   backgroundColor: AppTheme.primaryBlue,
@@ -565,6 +567,7 @@ class _LibraryScreenState extends State<LibraryScreen>
   }
 
   Widget _buildPlaylistsList() {
+    final currentContext = context;
     if (_isLoadingPlaylists) {
       return const Center(
           child: CircularProgressIndicator(color: AppTheme.primaryBlue));
@@ -595,9 +598,11 @@ class _LibraryScreenState extends State<LibraryScreen>
             final res = await Navigator.pushNamed(context, '/playlist',
                 arguments: playlist.id);
             if (res == true) {
-              _loadPlaylists(Provider.of<AuthProvider>(context, listen: false)
-                  .currentUser!
-                  .id);
+              if (!currentContext.mounted) return;
+              _loadPlaylists(
+                  Provider.of<AuthProvider>(currentContext, listen: false)
+                      .currentUser!
+                      .id);
             }
           },
         ).animate().fadeIn(delay: (30 * index).ms).slideX();
@@ -774,6 +779,7 @@ class _LibraryScreenState extends State<LibraryScreen>
   }
 
   Widget _buildEmptyPlaylistState() {
+    final currentContext = context;
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -795,9 +801,11 @@ class _LibraryScreenState extends State<LibraryScreen>
               final result =
                   await Navigator.pushNamed(context, '/playlist/create');
               if (result == true) {
-                _loadPlaylists(Provider.of<AuthProvider>(context, listen: false)
-                    .currentUser!
-                    .id);
+                if (!currentContext.mounted) return;
+                _loadPlaylists(
+                    Provider.of<AuthProvider>(currentContext, listen: false)
+                        .currentUser!
+                        .id);
               }
             },
             style: ElevatedButton.styleFrom(

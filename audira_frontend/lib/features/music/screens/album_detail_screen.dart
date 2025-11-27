@@ -1,3 +1,11 @@
+import 'dart:ui'; // Para ImageFilter
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+
+// Imports de tu proyecto
 import 'package:audira_frontend/config/theme.dart';
 import 'package:audira_frontend/core/api/services/music_service.dart';
 import 'package:audira_frontend/core/models/album.dart';
@@ -11,11 +19,6 @@ import 'package:audira_frontend/core/providers/cart_provider.dart';
 import 'package:audira_frontend/core/providers/library_provider.dart';
 import 'package:audira_frontend/features/common/widgets/app_bottom_navigation_bar.dart';
 import 'package:audira_frontend/features/common/widgets/mini_player.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:provider/provider.dart';
-import 'package:cached_network_image/cached_network_image.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import '../../../core/api/services/rating_service.dart';
 import '../../../core/api/services/library_service.dart';
 import '../../../features/rating/widgets/rating_dialog.dart';
@@ -48,11 +51,12 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen>
   String? _error;
 
   late TabController _tabController;
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this); // Solo Info y Ratings
+    _tabController = TabController(length: 2, vsync: this);
     _loadAlbumDetails();
     _loadRatingsAndComments();
   }
@@ -60,8 +64,11 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen>
   @override
   void dispose() {
     _tabController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
+
+  // --- LOGIC (Carga de datos intacta) ---
 
   Future<void> _loadAlbumDetails() async {
     setState(() {
@@ -70,24 +77,20 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen>
     });
 
     try {
-      // Load album
       final albumResponse = await _musicService.getAlbumById(widget.albumId);
       if (albumResponse.success && albumResponse.data != null) {
         _album = albumResponse.data;
 
-        // Load artist
         final artistResponse =
             await _musicService.getArtistById(_album!.artistId);
         if (artistResponse.success) {
           _artist = artistResponse.data;
         }
 
-        // Load songs in album
         final songsResponse =
             await _musicService.getSongsByAlbum(widget.albumId);
         if (songsResponse.success && songsResponse.data != null) {
           _songs = songsResponse.data!;
-          // Sort by track number if available
           _songs.sort(
               (a, b) => (a.trackNumber ?? 0).compareTo(b.trackNumber ?? 0));
         }
@@ -97,18 +100,15 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen>
     } catch (e) {
       _error = e.toString();
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
   Future<void> _loadRatingsAndComments() async {
     final currentContext = context;
-    setState(() {
-      _isLoadingRatings = true;
-    });
+    setState(() => _isLoadingRatings = true);
 
     try {
-      // Cargar estadísticas (no requiere autenticación)
       final statsResponse = await _ratingService.getEntityRatingStats(
         entityType: 'ALBUM',
         entityId: widget.albumId,
@@ -117,7 +117,6 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen>
         _ratingStats = statsResponse.data;
       }
 
-      // Cargar valoraciones con comentarios (no requiere autenticación)
       final ratingsResponse = await _ratingService.getEntityRatingsWithComments(
         entityType: 'ALBUM',
         entityId: widget.albumId,
@@ -125,178 +124,35 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen>
       if (ratingsResponse.success && ratingsResponse.data != null) {
         _ratingsWithComments = ratingsResponse.data!;
       }
-      if(!currentContext.mounted) return;
-      // Obtener mi valoración SOLO si estoy autenticado
+
+      if (!currentContext.mounted) return;
       final authProvider = currentContext.read<AuthProvider>();
       if (authProvider.isAuthenticated) {
         final myRatingResponse = await _ratingService.getMyEntityRating(
           entityType: 'ALBUM',
           entityId: widget.albumId,
         );
-        if (myRatingResponse.success && myRatingResponse.data != null) {
+        if (myRatingResponse.success) {
           _myRating = myRatingResponse.data;
-        }
-        else {
+        } else {
           _myRating = null;
         }
-      } else {
-        // Usuario no autenticado (invitado)
-        _myRating = null;
       }
     } catch (e) {
-      debugPrint('Error loading ratings/comments: $e');
+      debugPrint('Error loading ratings: $e');
     } finally {
-      if (mounted) {
-        setState(() => _isLoadingRatings = false);
-      }
+      if (mounted) setState(() => _isLoadingRatings = false);
     }
   }
 
-  /// Mostrar diálogo para crear o editar valoración (con comentario incluido)
-  /// Verifica que el usuario haya comprado el álbum antes de permitir valorar
-  Future<void> _showRatingDialog() async {
-    final currentContext = context;
-    final authProvider = context.read<AuthProvider>();
-    if (!authProvider.isAuthenticated) {
-      // Usuario invitado - mostrar alerta para iniciar sesión
-      if (mounted) {
-        showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Inicie Sesión'),
-            content: const Text(
-              'Debe iniciar sesión para valorar productos y acceder a todas las funcionalidades de la plataforma.',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Cerrar'),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  // Redirigir a pantalla de login
-                  Navigator.pushNamed(context, '/login');
-                },
-                child: const Text('Iniciar Sesión'),
-              ),
-            ],
-          ),
-        );
-      }
-      return;
-    }
-
-    // Si ya tiene una valoración, puede editarla sin verificar compra
-    if (_myRating == null) {
-      // Verificar si ha comprado el álbum
-      final purchaseResponse = await _libraryService.checkIfPurchased(
-        authProvider.currentUser!.id,
-        'ALBUM',
-        widget.albumId,
-      );
-
-      if (!purchaseResponse.success || !(purchaseResponse.data ?? false)) {
-        // No ha comprado el álbum
-        if (mounted) {
-          showDialog(
-            context: context,
-            builder: (context) => AlertDialog(
-              title: const Text('Compra requerida'),
-              content: const Text(
-                'Debes comprar este álbum antes de poder valorarlo. '
-                '¿Deseas agregarlo al carrito?',
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Cancelar'),
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                    _addToCart();
-                  },
-                  child: const Text('Agregar al carrito'),
-                ),
-              ],
-            ),
-          );
-        }
-        return;
-      }
-    }
-    if(!currentContext.mounted) return;
-    final result = await showRatingDialog(
-      currentContext,
-      entityType: 'ALBUM',
-      entityId: widget.albumId,
-      existingRating: _myRating,
-      entityName: _album?.name,
-    );
-
-    if (result == true) {
-      _loadRatingsAndComments();
-      _loadMyRating(); 
-    }
-
-    if (result == true) {
-      _loadRatingsAndComments();
-    }
-  }
-
-  Future<void> _loadMyRating() async {
-    try {
-      final authProvider = context.read<AuthProvider>();
-      if (!authProvider.isAuthenticated) return;
-
-      final ratingService = RatingService();
-      
-      final response = await ratingService.getMyEntityRating(
-        entityType: 'ALBUM',
-        entityId: widget.albumId,
-      );
-
-      if (mounted) {
-        setState(() {
-          _myRating = response.data;
-        });
-      }
-    } catch (e) {
-      debugPrint('Error cargando mi valoración: $e');
-    }
-  }
+  // --- ACTIONS ---
 
   Future<void> _addToCart() async {
     if (_album == null) return;
-
     final authProvider = context.read<AuthProvider>();
+
     if (!authProvider.isAuthenticated) {
-      // Usuario invitado - mostrar alerta para iniciar sesión
-      if (mounted) {
-        showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Inicie Sesión'),
-            content: const Text(
-              'Debe iniciar sesión para agregar productos al carrito y realizar compras.',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Cerrar'),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  Navigator.pushNamed(context, '/login');
-                },
-                child: const Text('Iniciar Sesión'),
-              ),
-            ],
-          ),
-        );
-      }
+      _showLoginDialog();
       return;
     }
 
@@ -309,463 +165,450 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen>
         price: _album!.price,
         quantity: 1,
       );
-
       if (mounted) {
-        if (success) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('${_album!.name} añadido al carrito'),
-              backgroundColor: Colors.green,
-              duration: const Duration(seconds: 2),
-            ),
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('${_album!.name} ya está en el carrito'),
-              backgroundColor: Colors.orange,
-              duration: const Duration(seconds: 2),
-            ),
-          );
-        }
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(success
+              ? '${_album!.name} añadido al carrito'
+              : '${_album!.name} ya está en el carrito'),
+          backgroundColor: success ? AppTheme.successGreen : Colors.orange,
+          behavior: SnackBarBehavior.floating,
+        ));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Error: $e'), backgroundColor: AppTheme.errorRed));
       }
     }
   }
 
+  Future<void> _showRatingDialog() async {
+    final authProvider = context.read<AuthProvider>();
+    if (!authProvider.isAuthenticated) {
+      _showLoginDialog();
+      return;
+    }
+
+    if (_myRating == null) {
+      final purchaseResponse = await _libraryService.checkIfPurchased(
+        authProvider.currentUser!.id,
+        'ALBUM',
+        widget.albumId,
+      );
+      if (!purchaseResponse.success || !(purchaseResponse.data ?? false)) {
+        if (mounted) _showPurchaseRequiredDialog();
+        return;
+      }
+    }
+
+    if (!mounted) return;
+    final result = await showRatingDialog(
+      context,
+      entityType: 'ALBUM',
+      entityId: widget.albumId,
+      existingRating: _myRating,
+      entityName: _album?.name,
+    );
+
+    if (result == true) {
+      _loadRatingsAndComments();
+      _loadMyRating();
+    }
+  }
+
+  Future<void> _loadMyRating() async {
+    if (!context.read<AuthProvider>().isAuthenticated) return;
+    try {
+      final response = await _ratingService.getMyEntityRating(
+          entityType: 'ALBUM', entityId: widget.albumId);
+      if (mounted) setState(() => _myRating = response.data);
+    } catch (_) {}
+  }
+
+  void _showLoginDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF252836),
+        title:
+            const Text('Inicie Sesión', style: TextStyle(color: Colors.white)),
+        content: const Text('Necesitas una cuenta para realizar esta acción.',
+            style: TextStyle(color: Colors.white70)),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancelar')),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.pushNamed(context, '/login');
+            },
+            child: const Text('Login'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showPurchaseRequiredDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF252836),
+        title: const Text('Compra requerida',
+            style: TextStyle(color: Colors.white)),
+        content: const Text('Debes comprar el álbum para valorarlo.',
+            style: TextStyle(color: Colors.white70)),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancelar')),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _addToCart();
+            },
+            child: const Text('Comprar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- UI BUILDING ---
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Loading...')),
-        body: const Center(child: CircularProgressIndicator()),
+      return const Scaffold(
+        backgroundColor: Color(0xFF121212),
+        body: Center(
+            child: CircularProgressIndicator(color: AppTheme.primaryBlue)),
       );
     }
 
     if (_error != null || _album == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Error')),
+        backgroundColor: const Color(0xFF121212),
+        appBar: AppBar(backgroundColor: Colors.transparent),
         body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.error_outline, size: 64, color: Colors.red),
-              const SizedBox(height: 16),
-              Text(_error ?? 'Album not found'),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Go Back'),
-              ),
-            ],
-          ),
-        ),
+            child: Text(_error ?? 'Álbum no encontrado',
+                style: const TextStyle(color: Colors.white))),
       );
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(_album!.name),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.share),
-            onPressed: () {
-              final textToCopy = 'Check out "${_album!.name}" album on Audira!';
-              Clipboard.setData(ClipboardData(text: textToCopy));
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Album link copied to clipboard')),
-              );
-            },
-          ),
-        ],
-      ),
-      body: Column(
+      backgroundColor: const Color(0xFF121212),
+      body: Stack(
         children: [
-          Expanded(
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildAlbumHeader(),
-                  _buildActionButtons(),
-                  _buildTabs(),
-                ],
+          // FONDO CON BLUR DE LA PORTADA
+          Positioned.fill(
+            child: Container(
+              color: const Color(0xFF121212),
+              child: Opacity(
+                opacity: 0.3,
+                child: CachedNetworkImage(
+                  imageUrl: _album!.coverImageUrl ?? '',
+                  fit: BoxFit.cover,
+                  errorWidget: (_, __, ___) => Container(color: Colors.black),
+                ),
               ),
             ),
           ),
-          const MiniPlayer(),
+          Positioned.fill(
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+              child: Container(color: Colors.black.withValues(alpha: 0.5)),
+            ),
+          ),
+
+          // CONTENIDO PRINCIPAL
+          NestedScrollView(
+            headerSliverBuilder: (context, innerBoxIsScrolled) {
+              return [
+                _buildSliverAppBar(),
+                SliverToBoxAdapter(child: _buildAlbumInfo()),
+                SliverPersistentHeader(
+                  delegate: _SliverAppBarDelegate(_buildTabBar()),
+                  pinned: true,
+                ),
+              ];
+            },
+            body: TabBarView(
+              controller: _tabController,
+              children: [
+                _buildSongsList(),
+                _buildRatingsView(),
+              ],
+            ),
+          ),
+
+          // MINI PLAYER
+          const Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: MiniPlayer(),
+          ),
         ],
       ),
-      bottomNavigationBar: const AppBottomNavigationBar(
-        selectedIndex: null,
+      bottomNavigationBar: const AppBottomNavigationBar(selectedIndex: null),
+    );
+  }
+
+  Widget _buildSliverAppBar() {
+    return SliverAppBar(
+      backgroundColor: const Color(0xFF121212).withValues(alpha: 0.8),
+      expandedHeight: 300.0,
+      pinned: true,
+      elevation: 0,
+      leading: IconButton(
+        icon: const Icon(Icons.arrow_back_ios_new_rounded),
+        onPressed: () => Navigator.pop(context),
+      ),
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.share_outlined),
+          onPressed: () {
+            Clipboard.setData(
+                ClipboardData(text: 'Escucha ${_album!.name} en Audira!'));
+            ScaffoldMessenger.of(context)
+                .showSnackBar(const SnackBar(content: Text('Link copiado')));
+          },
+        ),
+      ],
+      flexibleSpace: FlexibleSpaceBar(
+        background: Center(
+          child: Padding(
+            padding: const EdgeInsets.only(top: 60, bottom: 20),
+            child: Hero(
+              tag: 'album-${_album!.id}',
+              child: Container(
+                width: 200,
+                height: 200,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.5),
+                      blurRadius: 20,
+                      offset: const Offset(0, 10),
+                    ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: CachedNetworkImage(
+                    imageUrl: _album!.coverImageUrl ?? '',
+                    fit: BoxFit.cover,
+                    placeholder: (_, __) => Container(color: Colors.grey[900]),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
 
-  Widget _buildAlbumHeader() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Cover image
-          Hero(
-            tag: 'album-${_album!.id}',
-            child: Container(
-              width: 140,
-              height: 140,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(8),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppTheme.primaryBlue.withValues(alpha: 0.3),
-                    blurRadius: 10,
-                    spreadRadius: 2,
-                  ),
-                ],
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: _album!.coverImageUrl != null
-                    ? CachedNetworkImage(
-                        imageUrl: _album!.coverImageUrl!,
-                        fit: BoxFit.cover,
-                        placeholder: (context, url) =>
-                            const Center(child: CircularProgressIndicator()),
-                        errorWidget: (context, url, error) =>
-                            const Icon(Icons.album, size: 48),
-                      )
-                    : const Icon(Icons.album, size: 48),
-              ),
-            ),
-          ),
-          const SizedBox(width: 16),
-          // Album info
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  // CORREGIDO: El campo se llama 'name', no 'title'
-                  _album!.name,
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                if (_artist != null)
-                  InkWell(
-                    onTap: () {
-                      Navigator.pushNamed(
-                        context,
-                        '/artist',
-                        arguments: _artist!.id,
-                      );
-                    },
-                    child: Text(
-                      _artist!.artistName ?? _artist!.username,
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: AppTheme.primaryBlue,
-                        decoration: TextDecoration.underline,
-                      ),
-                    ),
-                  ),
-                const SizedBox(height: 8),
-                if (_album!.releaseDate != null)
-                  Row(
-                    children: [
-                      Icon(Icons.calendar_today,
-                          size: 16, color: AppTheme.textSecondary),
-                      const SizedBox(width: 4),
-                      Text(
-                        _album!.releaseDate.toString().split(' ')[0],
-                        style: TextStyle(color: AppTheme.textSecondary),
-                      ),
-                    ],
-                  ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Icon(Icons.music_note,
-                        size: 16, color: AppTheme.textSecondary),
-                    const SizedBox(width: 4),
-                    Text(
-                      '${_songs.length} songs',
-                      style: TextStyle(color: AppTheme.textSecondary),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Icon(Icons.attach_money,
-                        size: 16, color: AppTheme.textSecondary),
-                    Text(
-                      '\$${_album!.price.toStringAsFixed(2)}',
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.primaryBlue,
-                      ),
-                    ),
-                  ],
-                ),
-                if (_ratingStats != null &&
-                    _ratingStats!.averageRating > 0)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: Row(
-                      children: [
-                        ...List.generate(
-                          5,
-                          (index) => Icon(
-                            index < _ratingStats!.averageRating.floor()
-                                ? Icons.star
-                                : Icons.star_border,
-                            color: Colors.amber,
-                            size: 16,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          '${_ratingStats!.averageRating.toStringAsFixed(1)} (${_ratingStats!.totalRatings})',
-                          style: TextStyle(
-                            color: AppTheme.textSecondary,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.2, end: 0);
-  }
-
-  Widget _buildActionButtons() {
-    final currentContext = context;
-    final audioProvider = Provider.of<AudioProvider>(context, listen: false);
+  Widget _buildAlbumInfo() {
     final libraryProvider = Provider.of<LibraryProvider>(context);
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final isFavorite = libraryProvider.isAlbumFavorite(_album!.id);
     final isPurchased = libraryProvider.isAlbumPurchased(_album!.id);
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Row(
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+      child: Column(
         children: [
-          Expanded(
-            child: isPurchased
-                ? ElevatedButton.icon(
-                    onPressed: () {
-                      if (_album != null && _songs.isNotEmpty) {
-                        audioProvider.playQueue(
-                          _songs,
-                          startIndex: 0,
-                          isUserAuthenticated: authProvider.isAuthenticated,
-                          userId: authProvider.currentUser?.id,
-                        );
-                        Navigator.pushNamed(context, '/playback');
-                      }
-                    },
-                    icon: const Icon(Icons.play_arrow),
-                    label: const Text('Reproducir álbum'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primaryBlue,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                  )
-                : ElevatedButton.icon(
-                    onPressed: _addToCart,
-                    icon: const Icon(Icons.shopping_cart),
-                    label: const Text('Añadir al Carrito'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primaryBlue,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                  ),
-          ),
-          const SizedBox(width: 8),
-          IconButton(
-            onPressed: () async {
-              if (!authProvider.isAuthenticated) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Por favor inicia sesión para agregar favoritos'),
-                  ),
-                );
-                return;
-              }
-              try {
-                await libraryProvider.toggleAlbumFavorite(
-                  authProvider.currentUser!.id,
-                  _album!,
-                );
-                if(!currentContext.mounted) return;
-                ScaffoldMessenger.of(currentContext).showSnackBar(
-                  SnackBar(
-                    content: Text(isFavorite
-                        ? 'Eliminado de favoritos'
-                        : 'Agregado a favoritos'),
-                  ),
-                );
-              } catch (e) {
-                if(!currentContext.mounted) return;
-                ScaffoldMessenger.of(currentContext).showSnackBar(
-                  SnackBar(content: Text('Error: $e')),
-                );
-              }
-            },
-            icon: Icon(isFavorite ? Icons.favorite : Icons.favorite_border),
-            color: isFavorite ? Colors.red : AppTheme.primaryBlue,
-          ),
-        ],
-      ),
-    ).animate().fadeIn(delay: 200.ms);
-  }
+          Text(
+            _album!.name,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              letterSpacing: -0.5,
+            ),
+            textAlign: TextAlign.center,
+          ).animate().fadeIn().slideY(begin: 0.2, end: 0),
 
-  Widget _buildTabs() {
-    return Column(
-      children: [
-        TabBar(
-          controller: _tabController,
-          labelColor: AppTheme.primaryBlue,
-          unselectedLabelColor: AppTheme.textSecondary,
-          indicatorColor: AppTheme.primaryBlue,
-          tabs: const [
-            Tab(text: 'Songs'),
-            Tab(text: 'Ratings'),
-          ],
-        ),
-        SizedBox(
-          height: 400,
-          child: TabBarView(
-            controller: _tabController,
+          const SizedBox(height: 8),
+
+          if (_artist != null)
+            InkWell(
+              onTap: () => Navigator.pushNamed(context, '/artist',
+                  arguments: _artist!.id),
+              child: Text(
+                _artist!.artistName ?? _artist!.username,
+                style: const TextStyle(
+                    color: AppTheme.primaryBlue,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500),
+              ),
+            ),
+
+          const SizedBox(height: 16),
+
+          // METADATA ROW
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              _buildSongsTab(),
-              _buildRatingsTab(),
+              _buildMetaPill('${_album!.releaseDate?.year ?? "Unknown"}'),
+              const SizedBox(width: 8),
+              _buildMetaPill('${_songs.length} Tracks'),
+              const SizedBox(width: 8),
+              if (_ratingStats != null)
+                _buildMetaPill(
+                    '★ ${_ratingStats!.averageRating.toStringAsFixed(1)}'),
             ],
           ),
-        ),
-      ],
+
+          const SizedBox(height: 24),
+
+          // ACTIONS ROW
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // PLAY / BUY BUTTON
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: isPurchased ? () => _playAlbum() : _addToCart,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor:
+                        isPurchased ? AppTheme.primaryBlue : Colors.white,
+                    foregroundColor: isPurchased ? Colors.white : Colors.black,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30)),
+                  ),
+                  child: Text(
+                    isPurchased ? 'REPRODUCIR' : 'COMPRAR \$${_album!.price}',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, letterSpacing: 1),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 16),
+              // FAVORITE BUTTON
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: IconButton(
+                  icon:
+                      Icon(isFavorite ? Icons.favorite : Icons.favorite_border),
+                  color: isFavorite ? AppTheme.errorRed : Colors.white,
+                  onPressed: () => _toggleFavorite(isFavorite),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+        ],
+      ),
     );
   }
 
-  Widget _buildSongsTab() {
-    if (_songs.isEmpty) {
-      return const Center(child: Text('No songs in this album'));
-    }
+  Widget _buildMetaPill(String text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+      ),
+      child: Text(text,
+          style: const TextStyle(color: Colors.white70, fontSize: 11)),
+    );
+  }
 
+  Widget _buildTabBar() {
+    return Container(
+      color: const Color(
+          0xFF121212), // Debe coincidir con fondo para efecto sticky
+      child: TabBar(
+        controller: _tabController,
+        indicatorColor: AppTheme.primaryBlue,
+        indicatorWeight: 3,
+        labelColor: Colors.white,
+        unselectedLabelColor: Colors.white54,
+        tabs: const [
+          Tab(text: 'Canciones'),
+          Tab(text: 'Valoraciones'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSongsList() {
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
+      physics:
+          const NeverScrollableScrollPhysics(), // Scroll controlado por NestedScrollView
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
       itemCount: _songs.length,
       itemBuilder: (context, index) {
         final song = _songs[index];
-        return Card(
-          child: ListTile(
-            leading: CircleAvatar(
-              backgroundColor: AppTheme.primaryBlue,
-              child: Text(
-                song.trackNumber?.toString() ?? (index + 1).toString(),
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-            ),
-            title: Text(song.name),
-            subtitle: Text(song.durationFormatted),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.play_circle_outline),
-                  onPressed: () {
-                    final audioProvider = context.read<AudioProvider>();
-                    final authProvider = context.read<AuthProvider>();
-                    // Reproducir desde esta canción en adelante en el contexto del álbum
-                    final songIndex = _songs.indexOf(song);
-                    audioProvider.playQueue(
-                      _songs,
-                      startIndex: songIndex >= 0 ? songIndex : 0,
-                      isUserAuthenticated: authProvider.isAuthenticated,
-                      userId: authProvider.currentUser?.id,
-                    );
-
-                    Navigator.pushNamed(context, '/playback');
-                    if (!authProvider.isAuthenticated) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: const Text('Vista previa de 10 segundos'),
-                          duration: const Duration(seconds: 2),
-                          action: SnackBarAction(
-                            label: 'Registrarse',
-                            textColor: AppTheme.primaryBlue,
-                            onPressed: () {
-                              Navigator.pushNamed(context, '/register');
-                            },
-                          ),
-                        ),
-                      );
-                    }
-                  },
-                ),
-                IconButton(
-                  icon: const Icon(Icons.info_outline),
-                  onPressed: () {
-                    Navigator.pushNamed(
-                      context,
-                      '/song',
-                      arguments: song.id,
-                    );
-                  },
-                ),
-              ],
-            ),
-          ),
-        );
+        return _buildSongTile(song, index);
       },
     );
   }
 
-  Widget _buildRatingsTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildSongTile(Song song, int index) {
+    final authProvider = context.read<AuthProvider>();
+
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(vertical: 4),
+      leading: Container(
+        width: 40,
+        alignment: Alignment.center,
+        child: Text(
+          '${index + 1}',
+          style: const TextStyle(color: Colors.white54, fontSize: 14),
+        ),
+      ),
+      title: Text(
+        song.name,
+        style:
+            const TextStyle(color: Colors.white, fontWeight: FontWeight.w500),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+      subtitle: Text(
+        _artist?.artistName ?? 'Unknown Artist',
+        style: const TextStyle(color: Colors.white38, fontSize: 12),
+      ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          // Botón para crear o editar mi valoración
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: ElevatedButton.icon(
-              onPressed: _showRatingDialog,
-              icon: Icon(_myRating != null ? Icons.edit : Icons.star),
-              label: Text(_myRating != null ? 'Editar mi valoración' : 'Valorar este álbum'),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
-              ),
-            ),
+          Text(song.durationFormatted,
+              style: const TextStyle(color: Colors.white38, fontSize: 12)),
+          const SizedBox(width: 8),
+          IconButton(
+            icon: const Icon(Icons.play_circle_fill, color: Colors.white70),
+            onPressed: () {
+              _playAlbum(startIndex: index, authProvider: authProvider);
+            },
           ),
+        ],
+      ),
+      onTap: () => _playAlbum(startIndex: index, authProvider: authProvider),
+    );
+  }
 
-          const Divider(),
-
-          // Lista de valoraciones y comentarios unificados
+  Widget _buildRatingsView() {
+    return SingleChildScrollView(
+      physics: const NeverScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+      child: Column(
+        children: [
           if (_isLoadingRatings)
-            const Center(
-              child: Padding(
-                padding: EdgeInsets.all(32.0),
-                child: CircularProgressIndicator(),
-              ),
+            const Center(child: CircularProgressIndicator())
+          else if (_ratingsWithComments.isEmpty)
+            const Padding(
+              padding: EdgeInsets.all(32.0),
+              child: Text("Aún no hay valoraciones.",
+                  style: TextStyle(color: Colors.white54)),
             )
           else
             RatingList(
@@ -773,9 +616,86 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen>
               currentUserId: context.read<AuthProvider>().currentUser?.id,
               onRatingChanged: _loadRatingsAndComments,
             ),
+          const SizedBox(height: 20),
+          OutlinedButton.icon(
+            onPressed: _showRatingDialog,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppTheme.primaryBlue,
+              side: const BorderSide(color: AppTheme.primaryBlue),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            ),
+            icon: Icon(_myRating != null ? Icons.edit : Icons.star_outline),
+            label: Text(
+                _myRating != null ? 'Editar mi reseña' : 'Escribir reseña'),
+          ),
         ],
       ),
     );
   }
 
+  // --- HELPERS ---
+
+  void _playAlbum({int startIndex = 0, AuthProvider? authProvider}) {
+    if (_songs.isEmpty) return;
+
+    authProvider ??= context.read<AuthProvider>();
+    final audioProvider = context.read<AudioProvider>();
+
+    audioProvider.playQueue(
+      _songs,
+      startIndex: startIndex,
+      isUserAuthenticated: authProvider.isAuthenticated,
+      userId: authProvider.currentUser?.id,
+    );
+    Navigator.pushNamed(context, '/playback');
+
+    if (!authProvider.isAuthenticated) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Reproduciendo Demo (10s)')),
+      );
+    }
+  }
+
+  Future<void> _toggleFavorite(bool isFavorite) async {
+    final authProvider = context.read<AuthProvider>();
+    if (!authProvider.isAuthenticated) {
+      _showLoginDialog();
+      return;
+    }
+
+    try {
+      await context.read<LibraryProvider>().toggleAlbumFavorite(
+            authProvider.currentUser!.id,
+            _album!,
+          );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
+    }
+  }
+}
+
+// Clase delegada para el TabBar pegajoso (Sticky Header)
+class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {
+  final Widget _tabBar;
+
+  _SliverAppBarDelegate(this._tabBar);
+
+  @override
+  double get minExtent => 48.0; // Altura estándar del TabBar
+  @override
+  double get maxExtent => 48.0;
+
+  @override
+  Widget build(
+      BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return _tabBar;
+  }
+
+  @override
+  bool shouldRebuild(_SliverAppBarDelegate oldDelegate) {
+    return false;
+  }
 }

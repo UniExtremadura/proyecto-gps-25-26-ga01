@@ -14,6 +14,9 @@ import 'core/providers/audio_provider.dart';
 import 'core/providers/library_provider.dart';
 import 'core/providers/download_provider.dart';
 
+// Services
+import 'core/api/services/local_notification_service.dart';
+
 // UI
 import 'features/home/screens/main_layout.dart';
 
@@ -112,6 +115,7 @@ class _AudiraOrchestratorState extends State<_AudiraOrchestrator> {
       title: 'Audira',
       theme: AppTheme.darkTheme, // Tu tema oscuro personalizado
       debugShowCheckedModeBanner: false,
+      navigatorKey: LocalNotificationService.navigatorKey, // Add navigation key for notifications
       onGenerateRoute: AppRoutes.generateRoute,
       home: Consumer<AuthProvider>(
         builder: (context, authProvider, _) {

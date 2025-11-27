@@ -25,6 +25,7 @@ public class NotificationService {
     private final NotificationClient notificationClient;
     private final OrderRepository orderRepository;
     private final NotificationRepository notificationRepository;
+    private final io.audira.commerce.client.MusicCatalogClient musicCatalogClient;
 
     @Transactional
     public void processPurchaseNotifications(PurchaseNotificationRequest request) {
@@ -98,6 +99,29 @@ public class NotificationService {
         notificationRepository.deleteById(notificationId);
     }
 
+    /**
+     * Create a new notification (called from other services)
+     */
+    @Transactional
+    public NotificationDTO createNotification(Long userId, String title, String message,
+                                             NotificationType type, Long referenceId, String referenceType) {
+        Notification notification = Notification.builder()
+                .userId(userId)
+                .title(title)
+                .message(message)
+                .type(type)
+                .referenceId(referenceId)
+                .referenceType(referenceType)
+                .isRead(false)
+                .isSent(true)
+                .sentAt(LocalDateTime.now())
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        Notification saved = notificationRepository.save(notification);
+        return mapToDTO(saved);
+    }
+
     // --- Métodos de Lógica de Notificación ---
 
     public void notifySuccessfulPurchase(Order order, Payment payment) {
@@ -109,17 +133,29 @@ public class NotificationService {
 
     private void notifyBuyer(Order order, Payment payment) {
         try {
-            String title = "¡Compra exitosa! 🎉";
-            String message = String.format("Tu pedido %s por $%s ha sido confirmado.", 
-                order.getOrderNumber(), payment.getAmount());
-            
+            // Obtener nombres de productos comprados
+            List<String> productNames = new ArrayList<>();
+            for (OrderItem item : order.getItems()) {
+                String productName = getProductName(item);
+                if (productName != null) {
+                    productNames.add(productName);
+                }
+            }
+
+            String productsText = productNames.isEmpty()
+                ? "tus productos"
+                : String.join(", ", productNames);
+
+            String title = "Compra exitosa";
+            String message = String.format("Compra de %s exitosa", productsText);
+
             // 1. Enviar externa (Email/Push)
             notificationClient.sendNotification(order.getUserId(), title, message, "SUCCESS");
-            
+
             // 2. Guardar interna (DB)
             saveLocalNotification(
-                order.getUserId(), title, message, 
-                NotificationType.ORDER_CONFIRMATION, order.getId(), "ORDER"
+                order.getUserId(), title, message,
+                NotificationType.PAYMENT_SUCCESS, order.getId(), "ORDER"
             );
         } catch (Exception e) {
             log.error("Error notifying buyer: {}", e.getMessage());
@@ -132,14 +168,26 @@ public class NotificationService {
 
         itemsByArtist.forEach((artistId, items) -> {
             try {
-                String title = "¡Nueva venta! 💰";
-                String message = String.format("Has vendido %d items en el pedido %s", 
-                    items.size(), order.getOrderNumber());
-                
+                // Obtener nombres de productos vendidos
+                List<String> productNames = new ArrayList<>();
+                for (OrderItem item : items) {
+                    String productName = getProductName(item);
+                    if (productName != null) {
+                        productNames.add(productName);
+                    }
+                }
+
+                String productsText = productNames.isEmpty()
+                    ? "productos"
+                    : String.join(", ", productNames);
+
+                String title = "Nueva venta";
+                String message = String.format("Se ha comprado una copia digital de %s", productsText);
+
                 notificationClient.sendNotification(artistId, title, message, "INFO");
-                
+
                 saveLocalNotification(
-                    artistId, title, message, 
+                    artistId, title, message,
                     NotificationType.PURCHASE_NOTIFICATION, order.getId(), "SALE"
                 );
             } catch (Exception e) {
@@ -218,6 +266,28 @@ public class NotificationService {
     }
 
     // --- Helpers ---
+
+    /**
+     * Obtiene el nombre de un producto (canción o álbum) a partir de un OrderItem
+     */
+    private String getProductName(OrderItem item) {
+        try {
+            if (item.getItemType() == ItemType.SONG) {
+                Map<String, Object> song = musicCatalogClient.getSongById(item.getItemId());
+                if (song != null && song.get("title") != null) {
+                    return (String) song.get("title");
+                }
+            } else if (item.getItemType() == ItemType.ALBUM) {
+                Map<String, Object> album = musicCatalogClient.getAlbumById(item.getItemId());
+                if (album != null && album.get("title") != null) {
+                    return (String) album.get("title");
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Could not fetch product name for item {} (type: {})", item.getItemId(), item.getItemType());
+        }
+        return null;
+    }
 
     private void saveLocalNotification(Long userId, String title, String message, NotificationType type, Long referenceId, String referenceType) {
         try {

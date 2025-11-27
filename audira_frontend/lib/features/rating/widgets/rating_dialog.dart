@@ -1,19 +1,38 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:audira_frontend/config/theme.dart';
 import 'package:audira_frontend/core/models/rating.dart';
 import 'package:audira_frontend/core/api/services/rating_service.dart';
-import 'package:audira_frontend/features/rating/widgets/rating_stars.dart';
 
-/// Diálogo para crear o editar una valoración
-/// GA01-128: Puntuación de 1-5 estrellas
-/// GA01-129: Comentario opcional (500 chars)
-/// GA01-130: Editar/eliminar valoración
-class RatingDialog extends StatefulWidget {
+/// Función helper para mostrar el diálogo remodelado
+Future<bool?> showRatingDialog(
+  BuildContext context, {
+  required String entityType,
+  required int entityId,
+  Rating? existingRating,
+  String? entityName,
+}) {
+  return showModalBottomSheet<bool>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (context) => RatingBottomSheet(
+      entityType: entityType,
+      entityId: entityId,
+      existingRating: existingRating,
+      entityName: entityName,
+    ),
+  );
+}
+
+class RatingBottomSheet extends StatefulWidget {
   final String entityType;
   final int entityId;
   final Rating? existingRating;
   final String? entityName;
 
-  const RatingDialog({
+  const RatingBottomSheet({
     super.key,
     required this.entityType,
     required this.entityId,
@@ -22,11 +41,10 @@ class RatingDialog extends StatefulWidget {
   });
 
   @override
-  State<RatingDialog> createState() => _RatingDialogState();
+  State<RatingBottomSheet> createState() => _RatingBottomSheetState();
 }
 
-class _RatingDialogState extends State<RatingDialog> {
-  final _formKey = GlobalKey<FormState>();
+class _RatingBottomSheetState extends State<RatingBottomSheet> {
   final _commentController = TextEditingController();
   final _ratingService = RatingService();
 
@@ -48,339 +66,317 @@ class _RatingDialogState extends State<RatingDialog> {
     super.dispose();
   }
 
+  // --- LÓGICA DE NEGOCIO ---
+
   Future<void> _submitRating() async {
     if (_selectedRating == 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Por favor selecciona una valoración'),
-          backgroundColor: Colors.orange,
-        ),
-      );
+      _showFeedback('Por favor selecciona una valoración', isError: true);
       return;
     }
 
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
-
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
     try {
       final comment = _commentController.text.trim();
+      final isUpdate = widget.existingRating != null;
 
-      if (widget.existingRating != null) {
-        // GA01-130: Actualizar valoración existente
-        final response = await _ratingService.updateRating(
-          ratingId: widget.existingRating!.id,
-          rating: _selectedRating,
-          comment: comment.isEmpty ? null : comment,
-        );
+      final response = isUpdate
+          ? await _ratingService.updateRating(
+              ratingId: widget.existingRating!.id,
+              rating: _selectedRating,
+              comment: comment.isEmpty ? null : comment,
+            )
+          : await _ratingService.createRating(
+              entityType: widget.entityType,
+              entityId: widget.entityId,
+              rating: _selectedRating,
+              comment: comment.isEmpty ? null : comment,
+            );
 
+      if (mounted) {
         if (response.success) {
-          if (mounted) {
-            Navigator.of(context).pop(true);
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Valoración actualizada correctamente'),
-                backgroundColor: Colors.green,
-              ),
-            );
-          }
+          Navigator.of(context).pop(true);
+          _showFeedback(
+              isUpdate ? 'Valoración actualizada' : 'Valoración publicada');
         } else {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(response.error ?? 'Error al actualizar valoración'),
-                backgroundColor: Colors.red,
-              ),
-            );
-          }
-        }
-      } else {
-        // GA01-128, GA01-129: Crear nueva valoración
-        final response = await _ratingService.createRating(
-          entityType: widget.entityType,
-          entityId: widget.entityId,
-          rating: _selectedRating,
-          comment: comment.isEmpty ? null : comment,
-        );
-
-        if (response.success) {
-          if (mounted) {
-            Navigator.of(context).pop(true);
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Valoración creada correctamente'),
-                backgroundColor: Colors.green,
-              ),
-            );
-          }
-        } else {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(response.error ?? 'Error al crear valoración'),
-                backgroundColor: Colors.red,
-              ),
-            );
-          }
+          _showFeedback(response.error ?? 'Error en la operación',
+              isError: true);
         }
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      if (mounted) _showFeedback('Error: $e', isError: true);
     } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
   Future<void> _deleteRating() async {
     if (widget.existingRating == null) return;
 
-    final confirmed = await showDialog<bool>(
+    // Confirmación integrada
+    final confirm = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Eliminar valoración'),
-        content: const Text('¿Estás seguro de que quieres eliminar esta valoración?'),
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF252836),
+        title: const Text('¿Eliminar reseña?',
+            style: TextStyle(color: Colors.white)),
+        content: const Text('Esta acción no se puede deshacer.',
+            style: TextStyle(color: Colors.white70)),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancelar'),
-          ),
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancelar')),
           TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: AppTheme.errorRed),
             child: const Text('Eliminar'),
           ),
         ],
       ),
     );
 
-    if (confirmed != true) return;
+    if (confirm != true) return;
 
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
     try {
-      final response = await _ratingService.deleteRating(widget.existingRating!.id);
-
-      if (response.success) {
-        if (mounted) {
+      final response =
+          await _ratingService.deleteRating(widget.existingRating!.id);
+      if (mounted) {
+        if (response.success) {
           Navigator.of(context).pop(true);
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Valoración eliminada correctamente'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(response.error ?? 'Error al eliminar valoración'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          _showFeedback('Valoración eliminada');
+        } else {
+          _showFeedback(response.error ?? 'Error al eliminar', isError: true);
         }
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      if (mounted) _showFeedback('Error: $e', isError: true);
     } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
+  void _showFeedback(String message, {bool isError = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isError ? AppTheme.errorRed : AppTheme.successGreen,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  // --- UI ---
+
   @override
   Widget build(BuildContext context) {
-    final isEditing = widget.existingRating != null;
+    // Calculamos el espacio del teclado para que no tape el botón
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
 
-    return AlertDialog(
-      title: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              isEditing
-                  ? 'Editar valoración'
-                  : 'Nueva valoración ${widget.entityName ?? "item"}',
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
+    return Container(
+      decoration: const BoxDecoration(
+        color: Color(0xFF1E1E1E), // Fondo oscuro premium
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      padding: EdgeInsets.fromLTRB(24, 24, 24, bottomInset + 24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // HEADER (Drag Handle & Title)
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[700],
+                borderRadius: BorderRadius.circular(2),
               ),
             ),
-            const SizedBox(height: 8),
-            
-            // Mostrar fecha si estamos editando
-            if (isEditing && widget.existingRating!.updatedAt != null)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+          ),
+          const SizedBox(height: 20),
+
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(Icons.access_time, size: 12, color: Colors.grey),
-                    const SizedBox(width: 4),
                     Text(
-                      'Actualizado: ${_formatDate(widget.existingRating!.updatedAt)}',
-                      style: const TextStyle(fontSize: 12, color: Colors.grey),
+                      widget.existingRating != null
+                          ? 'Editar Reseña'
+                          : 'Valorar',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
+                    if (widget.entityName != null)
+                      Text(
+                        widget.entityName!,
+                        style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.6),
+                            fontSize: 14),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                   ],
                 ),
               ),
-          ],
-        ),
-      ),
-
-      content: SingleChildScrollView(
-        child: Form(
-          key: _formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (widget.entityName != null) ...[
-                Text(
-                  widget.entityName!,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
+              if (widget.existingRating != null)
+                IconButton(
+                  icon: const Icon(Icons.delete_outline,
+                      color: AppTheme.errorRed),
+                  onPressed: _isLoading ? null : _deleteRating,
+                  tooltip: 'Eliminar reseña',
                 ),
-                const SizedBox(height: 16),
-              ],
+            ],
+          ),
 
-              // GA01-128: Selector de estrellas
-              const Text('Valoración *'),
-              const SizedBox(height: 8),
-              Center(
-                child: RatingStars(
-                  rating: _selectedRating,
-                  isInteractive: true,
-                  onRatingChanged: (rating) {
-                    setState(() {
-                      _selectedRating = rating;
-                    });
+          const SizedBox(height: 24),
+
+          // ESTRELLAS INTERACTIVAS
+          Center(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: List.generate(5, (index) {
+                final starValue = index + 1;
+                final isSelected = starValue <= _selectedRating;
+
+                return GestureDetector(
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    setState(() => _selectedRating = starValue);
                   },
-                  size: 40.0,
-                ),
-              ),
-              const SizedBox(height: 24),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: AnimatedScale(
+                      scale: isSelected ? 1.1 : 1.0,
+                      duration: const Duration(milliseconds: 200),
+                      child: Icon(
+                        isSelected
+                            ? Icons.star_rounded
+                            : Icons.star_outline_rounded,
+                        color: isSelected ? Colors.amber : Colors.grey[700],
+                        size: 40,
+                      ).animate(target: isSelected ? 1 : 0).shake(
+                          hz: 4,
+                          curve: Curves.easeInOutCubic,
+                          duration: 200.ms), // Efecto sutil al seleccionar
+                    ),
+                  ),
+                );
+              }),
+            ),
+          ),
 
-              // GA01-129: Comentario opcional (500 chars)
-              const Text('Comentario (opcional)'),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: _commentController,
-                maxLength: 500,
-                maxLines: 4,
-                // Actualizar contador al escribir
-                onChanged: (_) => setState(() {}),
-                decoration: const InputDecoration(
-                  hintText: 'Escribe tu opinión...',
-                  border: OutlineInputBorder(),
-                  counterText: '', 
-                ),
-                validator: (value) {
-                  if (value != null && value.length > 500) {
-                    return 'El comentario no puede exceder 500 caracteres';
-                  }
-                  return null;
-                },
+          const SizedBox(height: 8),
+          Center(
+            child: Text(
+              _getRatingLabel(_selectedRating),
+              style: const TextStyle(
+                  color: Colors.amber, fontWeight: FontWeight.bold),
+            ).animate(key: ValueKey(_selectedRating)).fadeIn(),
+          ),
+
+          const SizedBox(height: 24),
+
+          // CAMPO DE COMENTARIO
+          TextField(
+            controller: _commentController,
+            maxLength: 500,
+            maxLines: 4,
+            style: const TextStyle(color: Colors.white),
+            decoration: InputDecoration(
+              hintText: 'Cuéntanos qué te pareció... (Opcional)',
+              hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.3)),
+              filled: true,
+              fillColor: Colors.black26,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide.none,
               ),
-              const SizedBox(height: 8),
-              Align(
-                alignment: Alignment.centerRight,
-                child: Text(
-                  '${_commentController.text.length}/500 caracteres',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: _commentController.text.length > 500
-                        ? Colors.red
-                        : Colors.grey,
+              contentPadding: const EdgeInsets.all(16),
+              counterStyle:
+                  TextStyle(color: Colors.white.withValues(alpha: 0.4)),
+            ),
+            onChanged: (_) =>
+                setState(() {}), // Para actualizar contador y validaciones
+          ),
+
+          const SizedBox(height: 24),
+
+          // BOTONES DE ACCIÓN
+          Row(
+            children: [
+              Expanded(
+                child: TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancelar',
+                      style: TextStyle(color: Colors.grey)),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                flex: 2,
+                child: SizedBox(
+                  height: 50,
+                  child: ElevatedButton(
+                    onPressed: (_selectedRating > 0 && !_isLoading)
+                        ? _submitRating
+                        : null,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primaryBlue,
+                      disabledBackgroundColor:
+                          AppTheme.primaryBlue.withValues(alpha: 0.3),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: _isLoading
+                        ? const SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                                color: Colors.white, strokeWidth: 2),
+                          )
+                        : Text(
+                            widget.existingRating != null
+                                ? 'Actualizar'
+                                : 'Publicar',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
                   ),
                 ),
               ),
             ],
           ),
-        ),
+        ],
       ),
-      actions: [
-        if (isEditing)
-          TextButton(
-            onPressed: _isLoading ? null : _deleteRating,
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Eliminar'),
-          ),
-
-        TextButton(
-          onPressed: _isLoading ? null : () => Navigator.of(context).pop(false),
-          child: const Text('Cancelar'),
-        ),
-
-        ElevatedButton(
-          onPressed: _isLoading ? null : _submitRating,
-          child: _isLoading
-              ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : Text(isEditing ? 'Actualizar' : 'Publicar'),
-        ),
-      ],
     );
   }
-}
 
-// Función auxiliar fuera de la clase
-String _formatDate(DateTime? date) {
-  if (date == null) return '';
-  
-  // Convertimos a hora local del dispositivo
-  final localDate = date.toLocal();
-  
-  String twoDigits(int n) => n.toString().padLeft(2, '0');
-  return '${twoDigits(localDate.day)}/${twoDigits(localDate.month)}/${localDate.year} ${twoDigits(localDate.hour)}:${twoDigits(localDate.minute)}';
-}
-
-Future<bool?> showRatingDialog(
-  BuildContext context, {
-  required String entityType,
-  required int entityId,
-  Rating? existingRating,
-  String? entityName,
-}) {
-  return showDialog<bool>(
-    context: context,
-    builder: (context) => RatingDialog(
-      entityType: entityType,
-      entityId: entityId,
-      existingRating: existingRating,
-      entityName: entityName,
-    ),
-  );
+  String _getRatingLabel(int rating) {
+    switch (rating) {
+      case 1:
+        return 'Malo';
+      case 2:
+        return 'Regular';
+      case 3:
+        return 'Bueno';
+      case 4:
+        return 'Muy bueno';
+      case 5:
+        return '¡Excelente!';
+      default:
+        return 'Toca las estrellas para valorar';
+    }
+  }
 }

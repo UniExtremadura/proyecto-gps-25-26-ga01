@@ -431,4 +431,8 @@ class AudioProvider with ChangeNotifier {
   Future<void> setUrl(String url) async {
     await _audioPlayer.setUrl(url);
   }
+
+  Future<void> resume() async {
+    await play();
+  }
 }

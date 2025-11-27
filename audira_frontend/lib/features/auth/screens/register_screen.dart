@@ -14,7 +14,7 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
-  // --- Colores Locales Dark Mode (Iguales al Login) ---
+  // --- Colores Locales Dark Mode ---
   final Color _darkBgStart = const Color(0xFF0F111A);
   final Color _darkBgEnd = Colors.black;
   final Color _darkSurface = const Color(0xFF1A1D2B);
@@ -95,7 +95,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final authProvider = Provider.of<AuthProvider>(context);
 
     return Scaffold(
-      // extendBodyBehindAppBar permite que el gradiente suba hasta arriba del todo
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
@@ -119,288 +118,291 @@ class _RegisterScreenState extends State<RegisterScreen> {
           ),
         ),
         child: SafeArea(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // --- BRANDING HEADER (Nuevo) ---
-              Center(
-                child: Column(
-                  children: [
-                    const Icon(Icons.graphic_eq,
-                        color: AppTheme.primaryBlue, size: 40),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'AUDIRA',
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontWeight: FontWeight.w900,
-                        fontSize: 24,
-                        letterSpacing: 3,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ],
-                ),
-              ).animate().fadeIn(duration: 600.ms),
-
-              const SizedBox(height: 24),
-
-              // Texto secundario
-              Text(
-                'Crea tu cuenta',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-              ).animate().fadeIn(delay: 200.ms),
-
-              const SizedBox(height: 30),
-
-              // --- Form Container ---
-              Container(
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: _darkSurface,
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(
-                    color: AppTheme.primaryBlue.withValues(alpha: 0.1),
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.2),
-                      blurRadius: 20,
-                      offset: const Offset(0, 10),
-                    ),
-                  ],
-                ),
-                child: Form(
-                  key: _formKey,
+          // SOLUCIÓN: Envolvemos todo el contenido en SingleChildScrollView
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // --- BRANDING HEADER ---
+                Center(
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // --- Selector de Rol Personalizado ---
-                      Text(
-                        'QUIERO SER',
+                      const Icon(Icons.graphic_eq,
+                          color: AppTheme.primaryBlue, size: 40),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'AUDIRA',
                         style: TextStyle(
-                          color: _textLightGrey,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 1.5,
+                          fontFamily: 'Poppins',
+                          fontWeight: FontWeight.w900,
+                          fontSize: 24,
+                          letterSpacing: 3,
+                          color: Colors.white,
                         ),
                       ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildRoleCard(
-                              title: 'Oyente',
-                              value: AppConstants.roleUser,
-                              icon: Icons.headphones,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _buildRoleCard(
-                              title: 'Artista',
-                              value: AppConstants.roleArtist,
-                              icon: Icons.mic_external_on,
-                            ),
-                          ),
-                        ],
-                      ).animate().fadeIn(delay: 300.ms),
-
-                      const SizedBox(height: 24),
-                      const Divider(color: Colors.white10),
-                      const SizedBox(height: 24),
-
-                      // --- Campos Principales ---
-                      _buildDarkInput(
-                        controller: _usernameController,
-                        label: 'Usuario *',
-                        icon: Icons.alternate_email_rounded,
-                        action: TextInputAction.next,
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Requerido';
-                          }
-                          if (value.length < AppConstants.minUsernameLength) {
-                            return 'Mínimo ${AppConstants.minUsernameLength} caracteres';
-                          }
-                          return null;
-                        },
-                      ).animate().fadeIn(delay: 400.ms).slideX(),
-
-                      const SizedBox(height: 16),
-
-                      _buildDarkInput(
-                        controller: _emailController,
-                        label: 'Email *',
-                        icon: Icons.email_outlined,
-                        inputType: TextInputType.emailAddress,
-                        action: TextInputAction.next,
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Requerido';
-                          }
-                          if (!value.contains('@')) return 'Email inválido';
-                          return null;
-                        },
-                      ).animate().fadeIn(delay: 500.ms).slideX(),
-
-                      const SizedBox(height: 16),
-
-                      _buildDarkInput(
-                        controller: _passwordController,
-                        label: 'Contraseña *',
-                        icon: Icons.lock_outline_rounded,
-                        isPassword: true,
-                        isObscure: _obscurePassword,
-                        toggleObscure: () => setState(
-                            () => _obscurePassword = !_obscurePassword),
-                        action: TextInputAction.next,
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Requerido';
-                          }
-                          if (value.length < AppConstants.minPasswordLength) {
-                            return 'Mínimo ${AppConstants.minPasswordLength} caracteres';
-                          }
-                          return null;
-                        },
-                      ).animate().fadeIn(delay: 600.ms).slideX(),
-
-                      const SizedBox(height: 24),
-
-                      // --- Datos Personales (Opcionales) ---
-                      Text(
-                        'OPCIONAL',
-                        style: TextStyle(
-                          color: _textLightGrey,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 1.5,
-                        ),
-                      ).animate().fadeIn(delay: 700.ms),
-
-                      const SizedBox(height: 12),
-
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildDarkInput(
-                              controller: _firstNameController,
-                              label: 'Nombre',
-                              icon: Icons.person_outline,
-                              action: TextInputAction.next,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _buildDarkInput(
-                              controller: _lastNameController,
-                              label: 'Apellido',
-                              icon: Icons.person_outline,
-                              action: _selectedRole == AppConstants.roleArtist
-                                  ? TextInputAction.next
-                                  : TextInputAction.done,
-                            ),
-                          ),
-                        ],
-                      ).animate().fadeIn(delay: 800.ms),
-
-                      // --- Campo Condicional para Artista ---
-                      // Usamos AnimatedSize o una animación condicional para que se vea suave
-                      if (_selectedRole == AppConstants.roleArtist) ...[
-                        const SizedBox(height: 16),
-                        _buildDarkInput(
-                          controller: _artistNameController,
-                          label: 'Nombre Artístico',
-                          icon: Icons.library_music_outlined,
-                          action: TextInputAction.done,
-                          // Resaltamos este input un poco más
-                          borderColor:
-                              AppTheme.primaryBlue.withValues(alpha: 0.5),
-                        )
-                            .animate()
-                            .fadeIn(duration: 400.ms)
-                            .slideY(begin: -0.2),
-                      ],
-
-                      const SizedBox(height: 32),
-
-                      // --- Botón de Registro ---
-                      SizedBox(
-                        width: double.infinity,
-                        height: 56,
-                        child: ElevatedButton(
-                          onPressed:
-                              authProvider.isLoading ? null : _handleRegister,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.primaryBlue,
-                            foregroundColor: Colors.white,
-                            elevation: 4,
-                            shadowColor:
-                                AppTheme.primaryBlue.withValues(alpha: 0.4),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                          ),
-                          child: authProvider.isLoading
-                              ? const SizedBox(
-                                  height: 24,
-                                  width: 24,
-                                  child: CircularProgressIndicator(
-                                    color: Colors.white,
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : const Text(
-                                  'CREAR CUENTA',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    letterSpacing: 1,
-                                  ),
-                                ),
-                        ),
-                      ).animate().fadeIn(delay: 900.ms).scale(),
                     ],
                   ),
-                ),
-              ),
+                ).animate().fadeIn(duration: 600.ms),
 
-              const SizedBox(height: 24),
+                const SizedBox(height: 24),
 
-              Center(
-                child: TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: RichText(
-                    text: TextSpan(
-                      text: '¿Ya tienes cuenta? ',
-                      style: TextStyle(color: _textLightGrey),
+                // Texto secundario
+                Text(
+                  'Crea tu cuenta',
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                ).animate().fadeIn(delay: 200.ms),
+
+                const SizedBox(height: 30),
+
+                // --- Form Container ---
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: _darkSurface,
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(
+                      color: AppTheme.primaryBlue.withValues(alpha: 0.1),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.2),
+                        blurRadius: 20,
+                        offset: const Offset(0, 10),
+                      ),
+                    ],
+                  ),
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        TextSpan(
-                          text: 'Inicia Sesión',
+                        // --- Selector de Rol Personalizado ---
+                        Text(
+                          'QUIERO SER',
                           style: TextStyle(
-                            color: AppTheme.primaryBlue,
+                            color: _textLightGrey,
+                            fontSize: 12,
                             fontWeight: FontWeight.bold,
+                            letterSpacing: 1.5,
                           ),
                         ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildRoleCard(
+                                title: 'Oyente',
+                                value: AppConstants.roleUser,
+                                icon: Icons.headphones,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _buildRoleCard(
+                                title: 'Artista',
+                                value: AppConstants.roleArtist,
+                                icon: Icons.mic_external_on,
+                              ),
+                            ),
+                          ],
+                        ).animate().fadeIn(delay: 300.ms),
+
+                        const SizedBox(height: 24),
+                        const Divider(color: Colors.white10),
+                        const SizedBox(height: 24),
+
+                        // --- Campos Principales ---
+                        _buildDarkInput(
+                          controller: _usernameController,
+                          label: 'Usuario *',
+                          icon: Icons.alternate_email_rounded,
+                          action: TextInputAction.next,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Requerido';
+                            }
+                            if (value.length < AppConstants.minUsernameLength) {
+                              return 'Mínimo ${AppConstants.minUsernameLength} caracteres';
+                            }
+                            return null;
+                          },
+                        ).animate().fadeIn(delay: 400.ms).slideX(),
+
+                        const SizedBox(height: 16),
+
+                        _buildDarkInput(
+                          controller: _emailController,
+                          label: 'Email *',
+                          icon: Icons.email_outlined,
+                          inputType: TextInputType.emailAddress,
+                          action: TextInputAction.next,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Requerido';
+                            }
+                            if (!value.contains('@')) return 'Email inválido';
+                            return null;
+                          },
+                        ).animate().fadeIn(delay: 500.ms).slideX(),
+
+                        const SizedBox(height: 16),
+
+                        _buildDarkInput(
+                          controller: _passwordController,
+                          label: 'Contraseña *',
+                          icon: Icons.lock_outline_rounded,
+                          isPassword: true,
+                          isObscure: _obscurePassword,
+                          toggleObscure: () => setState(
+                              () => _obscurePassword = !_obscurePassword),
+                          action: TextInputAction.next,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Requerido';
+                            }
+                            if (value.length < AppConstants.minPasswordLength) {
+                              return 'Mínimo ${AppConstants.minPasswordLength} caracteres';
+                            }
+                            return null;
+                          },
+                        ).animate().fadeIn(delay: 600.ms).slideX(),
+
+                        const SizedBox(height: 24),
+
+                        // --- Datos Personales (Opcionales) ---
+                        Text(
+                          'OPCIONAL',
+                          style: TextStyle(
+                            color: _textLightGrey,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1.5,
+                          ),
+                        ).animate().fadeIn(delay: 700.ms),
+
+                        const SizedBox(height: 12),
+
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildDarkInput(
+                                controller: _firstNameController,
+                                label: 'Nombre',
+                                icon: Icons.person_outline,
+                                action: TextInputAction.next,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _buildDarkInput(
+                                controller: _lastNameController,
+                                label: 'Apellido',
+                                icon: Icons.person_outline,
+                                action: _selectedRole == AppConstants.roleArtist
+                                    ? TextInputAction.next
+                                    : TextInputAction.done,
+                              ),
+                            ),
+                          ],
+                        ).animate().fadeIn(delay: 800.ms),
+
+                        // --- Campo Condicional para Artista ---
+                        if (_selectedRole == AppConstants.roleArtist) ...[
+                          const SizedBox(height: 16),
+                          _buildDarkInput(
+                            controller: _artistNameController,
+                            label: 'Nombre Artístico',
+                            icon: Icons.library_music_outlined,
+                            action: TextInputAction.done,
+                            borderColor:
+                                AppTheme.primaryBlue.withValues(alpha: 0.5),
+                          )
+                              .animate()
+                              .fadeIn(duration: 400.ms)
+                              .slideY(begin: -0.2),
+                        ],
+
+                        const SizedBox(height: 32),
+
+                        // --- Botón de Registro ---
+                        SizedBox(
+                          width: double.infinity,
+                          height: 56,
+                          child: ElevatedButton(
+                            onPressed:
+                                authProvider.isLoading ? null : _handleRegister,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppTheme.primaryBlue,
+                              foregroundColor: Colors.white,
+                              elevation: 4,
+                              shadowColor:
+                                  AppTheme.primaryBlue.withValues(alpha: 0.4),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                            ),
+                            child: authProvider.isLoading
+                                ? const SizedBox(
+                                    height: 24,
+                                    width: 24,
+                                    child: CircularProgressIndicator(
+                                      color: Colors.white,
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Text(
+                                    'CREAR CUENTA',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: 1,
+                                    ),
+                                  ),
+                          ),
+                        ).animate().fadeIn(delay: 900.ms).scale(),
                       ],
                     ),
                   ),
                 ),
-              ).animate().fadeIn(delay: 1000.ms),
 
-              const SizedBox(height: 20),
-            ],
+                const SizedBox(height: 24),
+
+                Center(
+                  child: TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: RichText(
+                      text: TextSpan(
+                        text: '¿Ya tienes cuenta? ',
+                        style: TextStyle(color: _textLightGrey),
+                        children: [
+                          TextSpan(
+                            text: 'Inicia Sesión',
+                            style: TextStyle(
+                              color: AppTheme.primaryBlue,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ).animate().fadeIn(delay: 1000.ms),
+
+                const SizedBox(height: 20),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  // Widget personalizado para seleccionar Rol (Reemplaza los RadioButtons viejos)
+  // Widget personalizado para seleccionar Rol
   Widget _buildRoleCard({
     required String title,
     required String value,
@@ -447,7 +449,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-  // Input Helper (Mismo estilo que LoginScreen)
+  // Input Helper
   Widget _buildDarkInput({
     required TextEditingController controller,
     required String label,
