@@ -134,6 +134,13 @@ class AudioProvider with ChangeNotifier {
 
     try {
       _currentSong = song;
+      final artistResponse = await _musicService.getArtistById(song.artistId);
+      if (artistResponse.success && artistResponse.data != null) {
+        _currentSong = _currentSong?.copyWith(
+            artistName: artistResponse.data!.artistName ??
+                artistResponse.data!.username);
+        notifyListeners();
+      }
 
       // Usar userId si se proporciona, si no usar el guardado
       final effectiveUserId = userId ?? _currentUserId;
@@ -164,10 +171,12 @@ class AudioProvider with ChangeNotifier {
         debugPrint('   ✅ Demo mode forzado por parámetro: $_isDemoMode');
       } else if (isUserAuthenticated == false || !isPurchased) {
         _isDemoMode = true;
-        debugPrint('   ✅ Demo mode activado: user auth=$isUserAuthenticated, purchased=$isPurchased');
+        debugPrint(
+            '   ✅ Demo mode activado: user auth=$isUserAuthenticated, purchased=$isPurchased');
       } else {
         _isDemoMode = false;
-        debugPrint('   ✅ Modo completo: usuario autenticado y canción comprada');
+        debugPrint(
+            '   ✅ Modo completo: usuario autenticado y canción comprada');
       }
 
       debugPrint('   🎯 FINAL isDemoMode: $_isDemoMode');
@@ -191,14 +200,16 @@ class AudioProvider with ChangeNotifier {
 
           // CRITICAL FIX: Increment play count for metrics tracking
           // This is fire-and-forget, we don't wait for the response
-          debugPrint('   📊 Attempting to increment play count for song ID: ${song.id}');
+          debugPrint(
+              '   📊 Attempting to increment play count for song ID: ${song.id}');
           _musicService.incrementPlays(song.id).then((response) {
             if (response.success && response.data != null) {
               debugPrint('   ✅ Play count incremented successfully!');
               debugPrint('      Song: ${song.name}');
               debugPrint('      New play count: ${response.data!.plays}');
             } else {
-              debugPrint('   ❌ Failed to increment play count: ${response.error}');
+              debugPrint(
+                  '   ❌ Failed to increment play count: ${response.error}');
             }
           }).catchError((error) {
             debugPrint('   ⚠️ Error incrementing play count: $error');
@@ -218,7 +229,8 @@ class AudioProvider with ChangeNotifier {
     }
   }
 
-  Future<void> playAlbum(Album album, {int startIndex = 0, bool? isUserAuthenticated, int? userId}) async {
+  Future<void> playAlbum(Album album,
+      {int startIndex = 0, bool? isUserAuthenticated, int? userId}) async {
     try {
       _isLoading = true;
       notifyListeners();
@@ -231,7 +243,8 @@ class AudioProvider with ChangeNotifier {
 
         if (_queue.isNotEmpty) {
           _currentIndex = startIndex;
-          await playSong(_queue[_currentIndex], isUserAuthenticated: isUserAuthenticated, userId: userId);
+          await playSong(_queue[_currentIndex],
+              isUserAuthenticated: isUserAuthenticated, userId: userId);
         }
       }
 
@@ -244,13 +257,15 @@ class AudioProvider with ChangeNotifier {
     }
   }
 
-  Future<void> playQueue(List<Song> songs, {int startIndex = 0, bool? isUserAuthenticated, int? userId}) async {
+  Future<void> playQueue(List<Song> songs,
+      {int startIndex = 0, bool? isUserAuthenticated, int? userId}) async {
     try {
       if (songs.isEmpty) return;
 
       _queue = List.from(songs);
       _currentIndex = startIndex;
-      await playSong(_queue[_currentIndex], isUserAuthenticated: isUserAuthenticated, userId: userId);
+      await playSong(_queue[_currentIndex],
+          isUserAuthenticated: isUserAuthenticated, userId: userId);
     } catch (e) {
       debugPrint('Error reproduciendo la cola: $e');
     }
@@ -279,13 +294,11 @@ class AudioProvider with ChangeNotifier {
       _currentIndex++;
       // Mantener el mismo modo (demo o completo) al pasar a la siguiente canción
       await playSong(_queue[_currentIndex],
-        isUserAuthenticated: _currentUserId != null,
-        userId: _currentUserId);
+          isUserAuthenticated: _currentUserId != null, userId: _currentUserId);
     } else if (_repeatMode == RepeatMode.all) {
       _currentIndex = 0;
       await playSong(_queue[_currentIndex],
-        isUserAuthenticated: _currentUserId != null,
-        userId: _currentUserId);
+          isUserAuthenticated: _currentUserId != null, userId: _currentUserId);
     } else {
       await pause();
       await seek(Duration.zero);
@@ -300,13 +313,11 @@ class AudioProvider with ChangeNotifier {
     } else if (_currentIndex > 0) {
       _currentIndex--;
       await playSong(_queue[_currentIndex],
-        isUserAuthenticated: _currentUserId != null,
-        userId: _currentUserId);
+          isUserAuthenticated: _currentUserId != null, userId: _currentUserId);
     } else if (_repeatMode == RepeatMode.all) {
       _currentIndex = _queue.length - 1;
       await playSong(_queue[_currentIndex],
-        isUserAuthenticated: _currentUserId != null,
-        userId: _currentUserId);
+          isUserAuthenticated: _currentUserId != null, userId: _currentUserId);
     }
   }
 
@@ -366,8 +377,8 @@ class AudioProvider with ChangeNotifier {
     switch (_repeatMode) {
       case RepeatMode.one:
         playSong(_queue[_currentIndex],
-          isUserAuthenticated: _currentUserId != null,
-          userId: _currentUserId);
+            isUserAuthenticated: _currentUserId != null,
+            userId: _currentUserId);
         break;
       case RepeatMode.all:
         next(); // Ya está manejando la autenticación correctamente

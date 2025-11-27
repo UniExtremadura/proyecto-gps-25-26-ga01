@@ -1,5 +1,4 @@
-
-
+import 'package:audira_frontend/core/api/services/music_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
@@ -14,6 +13,7 @@ import '../services/download_service.dart';
 /// GA01-137: Registro de descargas
 class DownloadProvider with ChangeNotifier {
   final DownloadService _downloadService = DownloadService();
+  final MusicService _musicService = MusicService();
 
   // Registro de canciones descargadas
   // GA01-137: Registro de descargas
@@ -94,6 +94,14 @@ class DownloadProvider with ChangeNotifier {
       if (_downloadProgress[song.id]?.status == DownloadStatus.downloading) {
         debugPrint('La canción ya se está descargando');
         return false;
+      }
+
+      // IMPORTANTE: Cargar el nombre del artista ANTES de descargar
+      final artistResponse = await _musicService.getArtistById(song.artistId);
+      if (artistResponse.success && artistResponse.data != null) {
+        song = song.copyWith(
+            artistName: artistResponse.data!.artistName ??
+                artistResponse.data!.username);
       }
 
       // Crear token de cancelación
@@ -292,7 +300,8 @@ class DownloadProvider with ChangeNotifier {
     if (removedCount > 0) {
       await _saveDownloadRegistry();
       notifyListeners();
-      debugPrint('Se eliminaron $removedCount registros de archivos inexistentes');
+      debugPrint(
+          'Se eliminaron $removedCount registros de archivos inexistentes');
     }
 
     return removedCount;

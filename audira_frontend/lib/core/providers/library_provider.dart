@@ -64,6 +64,13 @@ class LibraryProvider with ChangeNotifier {
       if (isFavorite) {
         _favoriteSongs.removeWhere((s) => s.id == song.id);
       } else {
+        // Cargar el nombre del artista antes de agregar
+        final artistResponse = await _musicService.getArtistById(song.artistId);
+        if (artistResponse.success && artistResponse.data != null) {
+          song = song.copyWith(
+              artistName: artistResponse.data!.artistName ??
+                  artistResponse.data!.username);
+        }
         _favoriteSongs.add(song);
       }
 
@@ -81,6 +88,14 @@ class LibraryProvider with ChangeNotifier {
       if (isFavorite) {
         _favoriteAlbums.removeWhere((a) => a.id == album.id);
       } else {
+        // Cargar el nombre del artista antes de agregar
+        final artistResponse =
+            await _musicService.getArtistById(album.artistId);
+        if (artistResponse.success && artistResponse.data != null) {
+          album = album.copyWith(
+              artistName: artistResponse.data!.artistName ??
+                  artistResponse.data!.username);
+        }
         _favoriteAlbums.add(album);
       }
 
@@ -304,14 +319,36 @@ class LibraryProvider with ChangeNotifier {
         for (var item in library.songs) {
           final songResponse = await _musicService.getSongById(item.itemId);
           if (songResponse.success && songResponse.data != null) {
-            _purchasedSongs.add(songResponse.data!);
+            var song = songResponse.data!;
+
+            // Cargar el nombre del artista
+            final artistResponse =
+                await _musicService.getArtistById(song.artistId);
+            if (artistResponse.success && artistResponse.data != null) {
+              song = song.copyWith(
+                  artistName: artistResponse.data!.artistName ??
+                      artistResponse.data!.username);
+            }
+
+            _purchasedSongs.add(song);
           }
         }
 
         for (var item in library.albums) {
           final albumResponse = await _musicService.getAlbumById(item.itemId);
           if (albumResponse.success && albumResponse.data != null) {
-            _purchasedAlbums.add(albumResponse.data!);
+            var album = albumResponse.data!;
+
+            // Cargar el nombre del artista
+            final artistResponse =
+                await _musicService.getArtistById(album.artistId);
+            if (artistResponse.success && artistResponse.data != null) {
+              album = album.copyWith(
+                  artistName: artistResponse.data!.artistName ??
+                      artistResponse.data!.username);
+            }
+
+            _purchasedAlbums.add(album);
           }
         }
 
@@ -335,6 +372,13 @@ class LibraryProvider with ChangeNotifier {
 
   Future<void> addPurchasedSong(Song song, {int? userId}) async {
     if (!_purchasedSongs.any((s) => s.id == song.id)) {
+      // Cargar el nombre del artista
+      final artistResponse = await _musicService.getArtistById(song.artistId);
+      if (artistResponse.success && artistResponse.data != null) {
+        song = song.copyWith(
+            artistName: artistResponse.data!.artistName ??
+                artistResponse.data!.username);
+      }
       _purchasedSongs.add(song);
       if (userId != null) {
         await _savePurchasedContentToLocal(userId);
@@ -345,6 +389,14 @@ class LibraryProvider with ChangeNotifier {
 
   Future<void> addPurchasedAlbum(Album album, {int? userId}) async {
     if (!_purchasedAlbums.any((a) => a.id == album.id)) {
+      // Cargar el nombre del artista
+      final artistResponse = await _musicService.getArtistById(album.artistId);
+      if (artistResponse.success && artistResponse.data != null) {
+        album = album.copyWith(
+            artistName: artistResponse.data!.artistName ??
+                artistResponse.data!.username);
+      }
+
       _purchasedAlbums.add(album);
       if (userId != null) {
         await _savePurchasedContentToLocal(userId);
