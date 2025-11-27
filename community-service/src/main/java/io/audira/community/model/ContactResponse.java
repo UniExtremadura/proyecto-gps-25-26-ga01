@@ -11,46 +11,28 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 
 @Entity
-@Table(name = "contact_messages")
+@Table(name = "contact_responses")
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ContactMessage {
+public class ContactResponse {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, length = 255)
-    private String name;
+    @Column(name = "contact_message_id", nullable = false)
+    private Long contactMessageId;
 
-    @Column(nullable = false, length = 255)
-    private String email;
+    @Column(name = "admin_id", nullable = false)
+    private Long adminId;
 
-    @Column(nullable = false, length = 500)
-    private String subject;
+    @Column(name = "admin_name", nullable = false, length = 255)
+    private String adminName;
 
     @Column(nullable = false, columnDefinition = "TEXT")
-    private String message;
-
-    @Column(name = "user_id")
-    private Long userId;
-
-    @Column(name = "song_id")
-    private Long songId;
-
-    @Column(name = "album_id")
-    private Long albumId;
-
-    @Column(name = "is_read", nullable = false)
-    @Builder.Default
-    private Boolean isRead = false;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
-    @Builder.Default
-    private ContactStatus status = ContactStatus.PENDING;
+    private String response;
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;

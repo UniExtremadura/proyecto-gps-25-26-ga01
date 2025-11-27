@@ -1,6 +1,7 @@
 package io.audira.community.controller;
 
 import io.audira.community.model.ContactMessage;
+import io.audira.community.model.ContactStatus;
 import io.audira.community.service.ContactMessageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -31,6 +32,21 @@ public class ContactController {
     @GetMapping("/user/{userId}")
     public ResponseEntity<List<ContactMessage>> getMessagesByUserId(@PathVariable Long userId) {
         return ResponseEntity.ok(contactMessageService.getMessagesByUserId(userId));
+    }
+
+    @GetMapping("/status/{status}")
+    public ResponseEntity<List<ContactMessage>> getMessagesByStatus(@PathVariable String status) {
+        try {
+            ContactStatus contactStatus = ContactStatus.valueOf(status.toUpperCase());
+            return ResponseEntity.ok(contactMessageService.getMessagesByStatus(contactStatus));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    @GetMapping("/pending-inprogress")
+    public ResponseEntity<List<ContactMessage>> getPendingAndInProgressMessages() {
+        return ResponseEntity.ok(contactMessageService.getPendingAndInProgressMessages());
     }
 
     @GetMapping("/{id}")
@@ -69,11 +85,41 @@ public class ContactController {
         }
     }
 
+    @PatchMapping("/{id}/status")
+    public ResponseEntity<?> updateStatus(@PathVariable Long id, @RequestBody Map<String, String> request) {
+        try {
+            String statusStr = request.get("status");
+            if (statusStr == null || statusStr.trim().isEmpty()) {
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "El estado es obligatorio");
+                return ResponseEntity.badRequest().body(error);
+            }
+
+            ContactStatus status = ContactStatus.valueOf(statusStr.toUpperCase());
+            ContactMessage message = contactMessageService.updateStatus(id, status);
+            return ResponseEntity.ok(message);
+        } catch (IllegalArgumentException e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Estado inválido. Valores permitidos: PENDING, IN_PROGRESS, RESOLVED, CLOSED");
+            return ResponseEntity.badRequest().body(error);
+        } catch (RuntimeException e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", e.getMessage());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+        }
+    }
+
     @PutMapping("/{id}")
     public ResponseEntity<?> updateMessage(@PathVariable Long id, @RequestBody Map<String, Object> updates) {
         try {
             if (updates.containsKey("isRead") && (Boolean) updates.get("isRead")) {
                 ContactMessage message = contactMessageService.markAsRead(id);
+                return ResponseEntity.ok(message);
+            }
+            if (updates.containsKey("status")) {
+                String statusStr = (String) updates.get("status");
+                ContactStatus status = ContactStatus.valueOf(statusStr.toUpperCase());
+                ContactMessage message = contactMessageService.updateStatus(id, status);
                 return ResponseEntity.ok(message);
             }
             Map<String, String> error = new HashMap<>();
@@ -87,7 +133,7 @@ public class ContactController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> deletMessage(@PathVariable Long id) {
+    public ResponseEntity<?> deleteMessage(@PathVariable Long id) {
         try {
             contactMessageService.deleteMessage(id);
             return ResponseEntity.noContent().build();

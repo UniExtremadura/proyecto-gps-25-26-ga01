@@ -8,6 +8,8 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 
 @Entity
 @Table(name = "payments")
@@ -59,8 +61,10 @@ public class Payment {
 
     @PrePersist
     protected void onCreate() {
-        this.createdAt = LocalDateTime.now();
-        this.updatedAt = LocalDateTime.now();
+        ZonedDateTime now = ZonedDateTime.now(ZoneId.of("Europe/Madrid"));
+        this.createdAt = now.toLocalDateTime();
+        this.updatedAt = now.toLocalDateTime();
+        this.completedAt = now.toLocalDateTime();
         if (this.status == null) {
             this.status = PaymentStatus.PENDING;
         }

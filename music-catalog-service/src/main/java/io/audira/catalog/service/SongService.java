@@ -210,17 +210,21 @@ public class SongService {
      * Helper method to convert a Song to SongDTO with artist name
      */
     private SongDTO convertToDTO(Song song) {
-        String artistName;
         try {
-            artistName = userServiceClient.getUserById(song.getArtistId()).getArtistName();
-            if (artistName == null || artistName.trim().isEmpty()) {
-                artistName = "Artista #" + song.getArtistId();
-            }
+            String fetchedName = userServiceClient.getUserById(song.getArtistId()).getArtistName();
+            
+            song.setArtistName(fetchedName);
+            
         } catch (Exception e) {
             log.warn("Failed to fetch artist name for artistId: {}, using fallback", song.getArtistId());
-            artistName = "Artista #" + song.getArtistId();
+            song.setArtistName("Artista #" + song.getArtistId());
         }
-        return SongDTO.fromSong(song, artistName);
+
+        if (song.getArtistName() == null || song.getArtistName().trim().isEmpty()) {
+            song.setArtistName("Artista #" + song.getArtistId());
+        }
+
+        return SongDTO.fromSong(song, song.getArtistName());
     }
  
     /**

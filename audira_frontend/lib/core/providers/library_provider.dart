@@ -158,10 +158,6 @@ class LibraryProvider with ChangeNotifier {
           notifyListeners();
         }
       }
-      debugPrint(
-          "FUNCIONALIDAD 'updatePlaylist' PENDIENTE DE IMPLEMENTAR EN PlaylistService");
-      throw UnimplementedError(
-          "updatePlaylist no está implementado en PlaylistService");
     } catch (e) {
       debugPrint('Error updating playlist: $e');
       rethrow;
@@ -232,11 +228,13 @@ class LibraryProvider with ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
 
       // Save songs
-      final songsJson = jsonEncode(_purchasedSongs.map((s) => s.toJson()).toList());
+      final songsJson =
+          jsonEncode(_purchasedSongs.map((s) => s.toJson()).toList());
       await prefs.setString('purchased_songs_$userId', songsJson);
 
       // Save albums
-      final albumsJson = jsonEncode(_purchasedAlbums.map((a) => a.toJson()).toList());
+      final albumsJson =
+          jsonEncode(_purchasedAlbums.map((a) => a.toJson()).toList());
       await prefs.setString('purchased_albums_$userId', albumsJson);
 
       debugPrint('Purchased content saved to local storage');
@@ -264,7 +262,8 @@ class LibraryProvider with ChangeNotifier {
         _purchasedAlbums = albumsList.map((a) => Album.fromJson(a)).toList();
       }
 
-      debugPrint('Purchased content loaded from local storage: ${_purchasedSongs.length} songs, ${_purchasedAlbums.length} albums');
+      debugPrint(
+          'Purchased content loaded from local storage: ${_purchasedSongs.length} songs, ${_purchasedAlbums.length} albums');
     } catch (e) {
       debugPrint('Error loading purchased content from local storage: $e');
     }
@@ -319,7 +318,8 @@ class LibraryProvider with ChangeNotifier {
         // Save to local storage as backup
         await _savePurchasedContentToLocal(userId);
 
-        debugPrint('Library loaded: ${_purchasedSongs.length} songs, ${_purchasedAlbums.length} albums');
+        debugPrint(
+            'Library loaded: ${_purchasedSongs.length} songs, ${_purchasedAlbums.length} albums');
       } else {
         debugPrint('Failed to load library from server: ${response.error}');
         // Keep using the local cache if server fails
@@ -353,7 +353,8 @@ class LibraryProvider with ChangeNotifier {
     }
   }
 
-  Future<void> addPurchasedContent(List<Song> songs, List<Album> albums, {int? userId}) async {
+  Future<void> addPurchasedContent(List<Song> songs, List<Album> albums,
+      {int? userId}) async {
     bool changed = false;
     for (final song in songs) {
       if (!_purchasedSongs.any((s) => s.id == song.id)) {

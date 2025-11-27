@@ -295,6 +295,7 @@ class _UploadAlbumScreenState extends State<UploadAlbumScreen> {
               'lyrics': songData['lyrics'],
               'collaborators': songData['collaborators'],
               'coverImageUrl': coverImageUrl,
+              'productType': 'SONG',
             };
 
             final songCreateResponse =
@@ -348,7 +349,6 @@ class _UploadAlbumScreenState extends State<UploadAlbumScreen> {
         'title': _titleController.text,
         'artistId': authProvider.currentUser!.id,
         'description': _descriptionController.text,
-        // NO enviar precio - se calcula en el backend
         'coverImageUrl': coverImageUrl,
         'genreIds': [],
         'releaseDate': _releaseDateController.text.isNotEmpty
@@ -356,6 +356,7 @@ class _UploadAlbumScreenState extends State<UploadAlbumScreen> {
             : null,
         'discountPercentage': _discountPercentage,
         'songIds': allSongIds,
+        'productType': 'ALBUM',
       };
 
       final createResponse = await musicService.createAlbum(albumData);
