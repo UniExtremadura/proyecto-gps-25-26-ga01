@@ -155,6 +155,16 @@ class StudioDashboardScreen extends StatelessWidget {
             const SizedBox(height: 12),
             _buildControlTile(
               context,
+              title: 'Soporte y Tickets',
+              subtitle: 'Consultas y respuestas del equipo',
+              icon: Icons.support_agent_rounded,
+              iconColor: Colors.purple,
+              route: '/studio/tickets',
+              delay: 850,
+            ),
+            const SizedBox(height: 12),
+            _buildControlTile(
+              context,
               title: 'Laboratorio de Pruebas',
               subtitle: 'Herramientas de diagnóstico',
               icon: Icons.science,

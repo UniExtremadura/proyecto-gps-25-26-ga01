@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../../config/theme.dart';
 import '../../../core/models/song.dart';
@@ -35,6 +36,7 @@ class _AddCollaboratorDialogState extends State<AddCollaboratorDialog> {
   bool _isLoading = false;
   bool _isSearching = false;
   List<User> _searchResults = [];
+  Timer? _debounceTimer;
 
   final List<String> _suggestedRoles = [
     'Artista destacado',
@@ -48,9 +50,31 @@ class _AddCollaboratorDialogState extends State<AddCollaboratorDialog> {
 
   @override
   void dispose() {
+    _debounceTimer?.cancel();
     _searchController.dispose();
     _roleController.dispose();
     super.dispose();
+  }
+
+  void _onSearchChanged(String query) {
+    // Cancel previous timer
+    _debounceTimer?.cancel();
+
+    if (query.trim().length < 2) {
+      setState(() {
+        _searchResults = [];
+        _isSearching = false;
+      });
+      return;
+    }
+
+    // Set searching state immediately
+    setState(() => _isSearching = true);
+
+    // Create new timer with 500ms delay
+    _debounceTimer = Timer(const Duration(milliseconds: 500), () {
+      _searchArtists(query);
+    });
   }
 
   Future<void> _searchArtists(String query) async {
@@ -62,21 +86,30 @@ class _AddCollaboratorDialogState extends State<AddCollaboratorDialog> {
       return;
     }
 
-    setState(() => _isSearching = true);
-
     try {
       final response = await _userService.searchArtists(query);
       if (response.success && response.data != null) {
-        setState(() {
-          _searchResults = response.data!;
-        });
+        if (mounted) {
+          setState(() {
+            _searchResults = response.data!;
+            _isSearching = false;
+          });
+        }
       } else {
-        setState(() => _searchResults = []);
+        if (mounted) {
+          setState(() {
+            _searchResults = [];
+            _isSearching = false;
+          });
+        }
       }
     } catch (e) {
-      setState(() => _searchResults = []);
-    } finally {
-      setState(() => _isSearching = false);
+      if (mounted) {
+        setState(() {
+          _searchResults = [];
+          _isSearching = false;
+        });
+      }
     }
   }
 
@@ -348,7 +381,7 @@ class _AddCollaboratorDialogState extends State<AddCollaboratorDialog> {
             fillColor: AppTheme.backgroundBlack,
           ),
           onChanged: (value) {
-            _searchArtists(value);
+            _onSearchChanged(value);
             // Clear selection if user is typing
             if (_selectedArtist != null) {
               setState(() => _selectedArtist = null);

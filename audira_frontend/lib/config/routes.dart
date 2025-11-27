@@ -3,6 +3,8 @@ import 'package:audira_frontend/features/admin/screens/admin_moderation_history_
 import 'package:audira_frontend/features/profile/screens/followed_artists_screen.dart';
 import 'package:audira_frontend/features/studio/screens/file_upload_demo_screen.dart';
 import 'package:audira_frontend/features/studio/screens/studio_catalog_screen.dart';
+import 'package:audira_frontend/features/studio/screens/studio_tickets_screen.dart';
+import 'package:audira_frontend/features/user/screens/my_tickets_screen.dart';
 import 'package:flutter/material.dart';
 import '../core/models/payment.dart';
 import '../features/auth/screens/login_screen.dart';
@@ -71,6 +73,7 @@ class AppRoutes {
   static const String studioCatalog = '/studio/catalog';
   static const String studioFileDemo = '/studio/file-demo';
   static const String studioCollaborations = '/studio/collaborations';
+  static const String studioTickets = '/studio/tickets';
   static const String admin = '/admin';
   static const String adminSongs = '/admin/songs';
   static const String adminAlbums = '/admin/albums';
@@ -83,6 +86,7 @@ class AppRoutes {
   static const String downloads = '/downloads';
   static const String adminModerationHistory = '/admin/moderation-history';
   static const String adminFeaturedContent = '/admin/featured-content';
+  static const String userTicket = '/profile/tickets';
 
   static Route<dynamic> generateRoute(RouteSettings settings) {
     switch (settings.name) {
@@ -214,6 +218,10 @@ class AppRoutes {
 
       case studioCatalog:
         return MaterialPageRoute(builder: (_) => const StudioCatalogScreen());
+
+      case studioTickets:
+        return MaterialPageRoute(builder: (_) => const StudioTicketsScreen());
+
       case adminSongs:
         return MaterialPageRoute(builder: (_) => const AdminSongsScreen());
 
@@ -240,6 +248,9 @@ class AppRoutes {
 
       case downloads:
         return MaterialPageRoute(builder: (_) => const DownloadsScreen());
+      
+      case userTicket:
+        return MaterialPageRoute(builder: (_) => const MyTicketsScreen());
 
       case adminModerationHistory:
         return MaterialPageRoute(builder: (_) => const AdminModerationHistoryScreen());

@@ -1,6 +1,7 @@
 package io.audira.community.service;
 
 import io.audira.community.model.ContactMessage;
+import io.audira.community.model.ContactStatus;
 import io.audira.community.repository.ContactMessageRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,6 +29,16 @@ public class ContactMessageService {
         return contactMessageRepository.findByUserIdOrderByCreatedAtDesc(userId);
     }
 
+    public List<ContactMessage> getMessagesByStatus(ContactStatus status) {
+        return contactMessageRepository.findByStatusOrderByCreatedAtDesc(status);
+    }
+
+    public List<ContactMessage> getPendingAndInProgressMessages() {
+        return contactMessageRepository.findByStatusInOrderByCreatedAtDesc(
+                List.of(ContactStatus.PENDING, ContactStatus.IN_PROGRESS)
+        );
+    }
+
     public ContactMessage getMessageById(Long id) {
         return contactMessageRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Mensaje de contacto no encontrado con id: " + id));
@@ -48,6 +59,11 @@ public class ContactMessageService {
             throw new IllegalArgumentException("El mensaje es obligatorio");
         }
 
+        // Set default status if not set
+        if (message.getStatus() == null) {
+            message.setStatus(ContactStatus.PENDING);
+        }
+
         log.info("Creando mensaje de contacto de: {}", message.getEmail());
         return contactMessageRepository.save(message);
     }
@@ -57,6 +73,14 @@ public class ContactMessageService {
         ContactMessage message = getMessageById(id);
         message.setIsRead(true);
         log.info("Marcando mensaje {} como leído", id);
+        return contactMessageRepository.save(message);
+    }
+
+    @Transactional
+    public ContactMessage updateStatus(Long id, ContactStatus status) {
+        ContactMessage message = getMessageById(id);
+        message.setStatus(status);
+        log.info("Actualizando estado del mensaje {} a {}", id, status);
         return contactMessageRepository.save(message);
     }
 
