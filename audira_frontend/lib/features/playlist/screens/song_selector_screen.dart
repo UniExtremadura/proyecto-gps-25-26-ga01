@@ -1,15 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+
+// Imports de tu proyecto
 import '../../../config/theme.dart';
 import '../../../core/models/song.dart';
 import '../../../core/api/services/music_service.dart';
-import '../../../core/providers/audio_provider.dart';
-import '../../../core/providers/auth_provider.dart';
 
-/// Pantalla para seleccionar canciones para añadir a una playlist
-/// GA01-114: Añadir canciones a playlist
 class SongSelectorScreen extends StatefulWidget {
   final List<int> currentSongIds; // Canciones ya en la playlist
   final String playlistName;
@@ -61,12 +58,12 @@ class _SongSelectorScreenState extends State<SongSelectorScreen> {
             .toList();
         _filteredSongs = _allSongs;
       } else {
-        _error = response.error ?? 'Failed to load songs';
+        _error = response.error ?? 'Error cargando canciones';
       }
     } catch (e) {
       _error = e.toString();
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -94,7 +91,6 @@ class _SongSelectorScreenState extends State<SongSelectorScreen> {
   }
 
   void _confirmSelection() {
-    // Obtener las canciones seleccionadas
     final selectedSongs = _filteredSongs
         .where((song) => _selectedSongIds.contains(song.id))
         .toList();
@@ -104,14 +100,19 @@ class _SongSelectorScreenState extends State<SongSelectorScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppTheme.backgroundBlack,
       appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Añadir canciones'),
+            const Text('Añadir canciones',
+                style: TextStyle(fontWeight: FontWeight.bold)),
             Text(
               'a "${widget.playlistName}"',
-              style: const TextStyle(fontSize: 12, color: AppTheme.textGrey),
+              style: TextStyle(
+                  fontSize: 12, color: Colors.white.withValues(alpha: 0.6)),
             ),
           ],
         ),
@@ -119,14 +120,22 @@ class _SongSelectorScreenState extends State<SongSelectorScreen> {
           if (_selectedSongIds.isNotEmpty)
             TextButton(
               onPressed: _confirmSelection,
-              child: Text(
-                'Añadir (${_selectedSongIds.length})',
-                style: const TextStyle(
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
                   color: AppTheme.primaryBlue,
-                  fontWeight: FontWeight.bold,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  'Añadir (${_selectedSongIds.length})',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
-            ),
+            ).animate().fadeIn().scale(),
         ],
       ),
       body: Column(
@@ -137,64 +146,36 @@ class _SongSelectorScreenState extends State<SongSelectorScreen> {
             child: TextField(
               controller: _searchController,
               onChanged: _filterSongs,
+              style: const TextStyle(color: Colors.white),
               decoration: InputDecoration(
                 hintText: 'Buscar canciones...',
-                prefixIcon: const Icon(Icons.search),
+                hintStyle:
+                    TextStyle(color: Colors.white.withValues(alpha: 0.4)),
+                prefixIcon: Icon(Icons.search,
+                    color: Colors.white.withValues(alpha: 0.4)),
                 suffixIcon: _searchController.text.isNotEmpty
                     ? IconButton(
-                        icon: const Icon(Icons.clear),
+                        icon: const Icon(Icons.clear, color: Colors.white70),
                         onPressed: () {
                           _searchController.clear();
                           _filterSongs('');
                         },
                       )
                     : null,
+                filled: true,
+                fillColor: AppTheme.surfaceBlack,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
                 ),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               ),
-            ).animate().fadeIn(duration: 300.ms),
+            ).animate().fadeIn(duration: 300.ms).slideY(begin: -0.2),
           ),
 
-          // Selected count chip
-          if (_selectedSongIds.isNotEmpty)
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [AppTheme.primaryBlue, AppTheme.darkBlue],
-                ),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.check_circle, color: Colors.white),
-                      const SizedBox(width: 8),
-                      Text(
-                        '${_selectedSongIds.length} canción${_selectedSongIds.length == 1 ? "" : "es"} seleccionada${_selectedSongIds.length == 1 ? "" : "s"}',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                  TextButton(
-                    onPressed: () {
-                      setState(() => _selectedSongIds.clear());
-                    },
-                    child: const Text(
-                      'Limpiar',
-                      style: TextStyle(color: Colors.white),
-                    ),
-                  ),
-                ],
-              ),
-            ).animate().fadeIn().slideY(begin: -0.5, end: 0),
+          // Selected count chip (opcional, ya está en AppBar, pero lo dejamos como resumen si se prefiere)
+          // Se puede quitar si se siente redundante con el botón de AppBar.
 
           // Songs list
           Expanded(
@@ -207,7 +188,8 @@ class _SongSelectorScreenState extends State<SongSelectorScreen> {
 
   Widget _buildSongsList() {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(
+          child: CircularProgressIndicator(color: AppTheme.primaryBlue));
     }
 
     if (_error != null) {
@@ -215,13 +197,16 @@ class _SongSelectorScreenState extends State<SongSelectorScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.error_outline, size: 64, color: Colors.red),
+            const Icon(Icons.error_outline, size: 64, color: AppTheme.errorRed),
             const SizedBox(height: 16),
-            Text(_error!),
+            Text(_error!, style: const TextStyle(color: Colors.white)),
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: _loadAllSongs,
-              child: const Text('Reintentar'),
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryBlue),
+              child: const Text('Reintentar',
+                  style: TextStyle(color: Colors.white)),
             ),
           ],
         ),
@@ -238,14 +223,15 @@ class _SongSelectorScreenState extends State<SongSelectorScreen> {
                   ? Icons.music_note
                   : Icons.search_off,
               size: 64,
-              color: AppTheme.textGrey,
+              color: Colors.white.withValues(alpha: 0.2),
             ),
             const SizedBox(height: 16),
             Text(
               _searchController.text.isEmpty
                   ? 'No hay canciones disponibles'
                   : 'No se encontraron canciones',
-              style: const TextStyle(fontSize: 18, color: AppTheme.textGrey),
+              style: TextStyle(
+                  fontSize: 18, color: Colors.white.withValues(alpha: 0.5)),
             ),
           ],
         ),
@@ -253,127 +239,107 @@ class _SongSelectorScreenState extends State<SongSelectorScreen> {
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       itemCount: _filteredSongs.length,
       itemBuilder: (context, index) {
         final song = _filteredSongs[index];
         final isSelected = _selectedSongIds.contains(song.id);
 
-        return Card(
-          margin: const EdgeInsets.only(bottom: 12),
-          color:
-              isSelected ? AppTheme.primaryBlue.withValues(alpha: 0.1) : null,
-          child: ListTile(
-            leading: Stack(
-              alignment: Alignment.center,
-              children: [
-                Container(
-                  width: 50,
-                  height: 50,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: song.coverImageUrl != null
-                        ? CachedNetworkImage(
-                            imageUrl: song.coverImageUrl!,
-                            fit: BoxFit.cover,
-                            placeholder: (context, url) =>
-                                const Icon(Icons.music_note),
-                            errorWidget: (context, url, error) =>
-                                const Icon(Icons.music_note),
-                          )
-                        : Container(
-                            color: AppTheme.primaryBlue.withValues(alpha: 0.2),
-                            child: const Icon(Icons.music_note),
-                          ),
-                  ),
-                ),
-                if (isSelected)
-                  Container(
-                    width: 50,
-                    height: 50,
-                    decoration: BoxDecoration(
-                      color: AppTheme.primaryBlue.withValues(alpha: 0.7),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(
-                      Icons.check_circle,
-                      color: Colors.white,
-                    ),
-                  ),
-              ],
-            ),
-            title: Text(
-              song.name,
-              style: TextStyle(
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                color: isSelected ? AppTheme.primaryBlue : null,
+        return GestureDetector(
+          onTap: () => _toggleSongSelection(song.id),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? AppTheme.primaryBlue.withValues(alpha: 0.15)
+                  : AppTheme.surfaceBlack,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isSelected ? AppTheme.primaryBlue : Colors.transparent,
+                width: 1.5,
               ),
             ),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Row(
               children: [
-                Text(song.artistName),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Icon(
-                      Icons.timer,
-                      size: 14,
-                      color: AppTheme.textSecondary,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      song.durationFormatted,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppTheme.textSecondary,
+                // Cover Image
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: song.coverImageUrl != null
+                      ? CachedNetworkImage(
+                          imageUrl: song.coverImageUrl!,
+                          width: 50,
+                          height: 50,
+                          fit: BoxFit.cover,
+                          placeholder: (_, __) =>
+                              Container(color: Colors.grey[900]),
+                          errorWidget: (_, __, ___) => Container(
+                              color: Colors.grey[900],
+                              child: const Icon(Icons.music_note)),
+                        )
+                      : Container(
+                          width: 50,
+                          height: 50,
+                          color: AppTheme.primaryBlue.withValues(alpha: 0.2),
+                          child:
+                              const Icon(Icons.music_note, color: Colors.white),
+                        ),
+                ),
+
+                const SizedBox(width: 16),
+
+                // Info
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        song.name,
+                        style: TextStyle(
+                          fontWeight:
+                              isSelected ? FontWeight.bold : FontWeight.w500,
+                          color:
+                              isSelected ? AppTheme.primaryBlue : Colors.white,
+                          fontSize: 16,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Icon(
-                      Icons.attach_money,
-                      size: 14,
-                      color: AppTheme.textSecondary,
-                    ),
-                    Text(
-                      song.price.toStringAsFixed(2),
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppTheme.textSecondary,
+                      const SizedBox(height: 4),
+                      Text(
+                        song.artistName,
+                        style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.6),
+                            fontSize: 13),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
+                    ],
+                  ),
+                ),
+
+                // Checkbox customizado
+                Container(
+                  width: 24,
+                  height: 24,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color:
+                        isSelected ? AppTheme.primaryBlue : Colors.transparent,
+                    border: Border.all(
+                      color: isSelected ? AppTheme.primaryBlue : Colors.grey,
+                      width: 2,
                     ),
-                  ],
+                  ),
+                  child: isSelected
+                      ? const Icon(Icons.check, size: 16, color: Colors.white)
+                      : null,
                 ),
               ],
             ),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.play_circle_outline),
-                  onPressed: () {
-                    final audioProvider = context.read<AudioProvider>();
-                    final authProvider = context.read<AuthProvider>();
-                    audioProvider.playSong(
-                      song,
-                      isUserAuthenticated: authProvider.isAuthenticated,
-                    );
-                  },
-                  tooltip: 'Vista previa',
-                ),
-                Checkbox(
-                  value: isSelected,
-                  onChanged: (_) => _toggleSongSelection(song.id),
-                  activeColor: AppTheme.primaryBlue,
-                ),
-              ],
-            ),
-            onTap: () => _toggleSongSelection(song.id),
           ),
-        ).animate(delay: (index * 30).ms).fadeIn().slideX(begin: -0.1);
+        ).animate(delay: (index * 30).ms).fadeIn().slideX(begin: 0.1);
       },
     );
   }

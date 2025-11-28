@@ -68,11 +68,13 @@ class RecommendedSongCard extends StatelessWidget {
                   right: 4,
                   child: Consumer<LibraryProvider>(
                     builder: (context, libraryProvider, child) {
-                      final isPurchased = libraryProvider.isSongPurchased(song.id);
+                      final isPurchased =
+                          libraryProvider.isSongPurchased(song.id);
 
                       if (isPurchased) {
                         return Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
                             color: Colors.green.withValues(alpha: 0.9),
                             borderRadius: BorderRadius.circular(12),
@@ -104,15 +106,20 @@ class RecommendedSongCard extends StatelessWidget {
                         child: InkWell(
                           onTap: () async {
                             final currentContext = context;
-                            final authProvider = Provider.of<AuthProvider>(context, listen: false);
-                            final cartProvider = Provider.of<CartProvider>(context, listen: false);
+                            final authProvider = Provider.of<AuthProvider>(
+                                context,
+                                listen: false);
+                            final cartProvider = Provider.of<CartProvider>(
+                                context,
+                                listen: false);
 
                             if (!authProvider.isAuthenticated) {
                               if (!currentContext.mounted) return;
 
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
-                                  content: Text('Inicia sesión para añadir al carrito'),
+                                  content: Text(
+                                      'Inicia sesión para añadir al carrito'),
                                   duration: Duration(seconds: 2),
                                 ),
                               );
@@ -122,7 +129,8 @@ class RecommendedSongCard extends StatelessWidget {
                             if (song.price == null) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
-                                  content: Text('Esta canción no está disponible para compra'),
+                                  content: Text(
+                                      'Esta canción no está disponible para compra'),
                                   duration: Duration(seconds: 2),
                                 ),
                               );
@@ -142,7 +150,8 @@ class RecommendedSongCard extends StatelessWidget {
                             if (success) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
-                                  content: Text('${song.title} añadido al carrito'),
+                                  content:
+                                      Text('${song.title} añadido al carrito'),
                                   duration: const Duration(seconds: 2),
                                   backgroundColor: Colors.green,
                                 ),
@@ -150,7 +159,8 @@ class RecommendedSongCard extends StatelessWidget {
                             } else {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
-                                  content: Text('${song.title} ya está en el carrito'),
+                                  content: Text(
+                                      '${song.title} ya está en el carrito'),
                                   duration: const Duration(seconds: 2),
                                   backgroundColor: Colors.orange,
                                 ),
@@ -161,7 +171,8 @@ class RecommendedSongCard extends StatelessWidget {
                           child: Container(
                             padding: const EdgeInsets.all(6),
                             decoration: BoxDecoration(
-                              color: AppTheme.primaryBlue.withValues(alpha: 0.9),
+                              color:
+                                  AppTheme.primaryBlue.withValues(alpha: 0.9),
                               shape: BoxShape.circle,
                             ),
                             child: const Icon(
@@ -177,7 +188,6 @@ class RecommendedSongCard extends StatelessWidget {
                 ),
               ],
             ),
-
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               child: Column(

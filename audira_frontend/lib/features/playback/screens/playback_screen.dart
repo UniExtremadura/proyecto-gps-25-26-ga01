@@ -48,7 +48,7 @@ class _PlaybackScreenState extends State<PlaybackScreen> {
         if (audioProvider.demoFinished) {
           // Usamos un microtask para evitar errores de construcción durante el renderizado
           Future.microtask(() {
-          if(!currentContext.mounted) return;
+            if (!currentContext.mounted) return;
             if (mounted && ModalRoute.of(currentContext)?.isCurrent == true) {
               _showDemoFinishedDialog(currentContext);
             }
@@ -292,8 +292,7 @@ class _PlaybackScreenState extends State<PlaybackScreen> {
             offset: const Offset(0, 10),
           ),
         ],
-        border:
-            Border.all(color: Colors.white.withValues(alpha: 0.1), width: 2),
+        border: Border.all(color: Colors.blue.withValues(alpha: 0.1), width: 2),
       ),
       child: ClipOval(
         child: song.coverImageUrl != null
@@ -343,7 +342,7 @@ class _PlaybackScreenState extends State<PlaybackScreen> {
         // Previous
         IconButton(
           icon: const Icon(Icons.skip_previous_rounded,
-              color: Colors.white, size: 42),
+              color: Colors.blue, size: 42),
           onPressed: () {
             HapticFeedback.lightImpact();
             provider.previous();
@@ -361,7 +360,7 @@ class _PlaybackScreenState extends State<PlaybackScreen> {
             height: 80,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: Colors.white, // Botón blanco clásico
+              color: Colors.blue, // Botón blanco clásico
               boxShadow: [
                 BoxShadow(
                   color: Colors.white.withValues(alpha: 0.3),
@@ -385,8 +384,8 @@ class _PlaybackScreenState extends State<PlaybackScreen> {
 
         // Next
         IconButton(
-          icon: const Icon(Icons.skip_next_rounded,
-              color: Colors.white, size: 42),
+          icon:
+              const Icon(Icons.skip_next_rounded, color: Colors.blue, size: 42),
           onPressed: () {
             HapticFeedback.lightImpact();
             provider.next();
@@ -837,10 +836,10 @@ class _ProgressSliderState extends State<_ProgressSlider> {
             thumbShape: const RoundSliderThumbShape(
                 enabledThumbRadius: 6, pressedElevation: 8),
             overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
-            activeTrackColor: Colors.white,
-            inactiveTrackColor: Colors.white.withValues(alpha: 0.2),
-            thumbColor: Colors.white,
-            overlayColor: Colors.white.withValues(alpha: 0.2),
+            activeTrackColor: Colors.blue,
+            inactiveTrackColor: Colors.blue.withValues(alpha: 0.2),
+            thumbColor: Colors.blue,
+            overlayColor: Colors.blue.withValues(alpha: 0.2),
             trackShape: const RectangularSliderTrackShape(),
           ),
           child: Slider(

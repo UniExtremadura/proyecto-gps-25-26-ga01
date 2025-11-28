@@ -1,8 +1,11 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+
+// Imports de tu proyecto
 import '../../../config/theme.dart';
 import '../../../core/models/playlist.dart';
 import '../../../core/models/song.dart';
@@ -11,10 +14,8 @@ import '../../../core/providers/auth_provider.dart';
 import '../../../core/providers/audio_provider.dart';
 import '../../../core/providers/library_provider.dart';
 import 'song_selector_screen.dart';
+import 'create_playlist_screen.dart'; // Importante para editar
 
-/// Pantalla de detalle de playlist con funcionalidad completa
-/// GA01-114: Añadir / eliminar canciones
-/// GA01-116: Ver todas mis listas
 class PlaylistDetailScreen extends StatefulWidget {
   final int playlistId;
 
@@ -29,13 +30,21 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
 
   Playlist? _playlist;
   List<Song> _songs = [];
-  bool _isLoading = false;
+  bool _isLoading = true;
   String? _error;
+
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
     _loadPlaylist();
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadPlaylist() async {
@@ -48,31 +57,35 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
       final response =
           await _playlistService.getPlaylistWithSongs(widget.playlistId);
       if (response.success && response.data != null) {
-        setState(() {
-          _playlist = response.data?['playlist'];
-          _songs = response.data?['songs'] ?? [];
-        });
+        if (mounted) {
+          setState(() {
+            _playlist = response.data?['playlist'];
+            _songs = response.data?['songs'] ?? [];
+          });
+        }
       } else {
-        setState(() => _error = response.error ?? 'Failed to load playlist');
+        if (mounted) {
+          setState(() => _error = response.error ?? 'Failed to load playlist');
+        }
       }
     } catch (e) {
-      setState(() => _error = e.toString());
+      if (mounted) setState(() => _error = e.toString());
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  /// Añadir canciones a la playlist
+  // --- ACTIONS ---
+
   Future<void> _addSongsToPlaylist() async {
     final currentContext = context;
     if (_playlist == null) return;
-
     final currentSongIds = _songs.map((s) => s.id).toList();
 
     final List<Song>? selectedSongs = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => SongSelectorScreen(
+        builder: (_) => SongSelectorScreen(
           currentSongIds: currentSongIds,
           playlistName: _playlist!.name,
         ),
@@ -87,46 +100,34 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
         for (final song in selectedSongs) {
           await libraryProvider.addSongToPlaylist(widget.playlistId, song.id);
         }
-        // Recargar playlist
         await _loadPlaylist();
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                  '${selectedSongs.length} canción${selectedSongs.length == 1 ? "" : "es"} añadida${selectedSongs.length == 1 ? "" : "s"}'),
-              backgroundColor: Colors.green,
-            ),
-          );
+          _showSnackBar('${selectedSongs.length} canciones añadidas');
         }
       } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-          );
-        }
+        if (mounted) _showSnackBar('Error: $e', isError: true);
       } finally {
-        setState(() => _isLoading = false);
+        if (mounted) setState(() => _isLoading = false);
       }
     }
   }
 
-  /// Eliminar canción de la playlist
-  Future<void> _removeSongFromPlaylist(Song song) async {
-    final currentContext = context;
+  Future<void> _removeSong(Song song) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppTheme.surfaceBlack,
-        title: const Text('Eliminar canción'),
-        content: Text('¿Eliminar "${song.name}" de esta playlist?'),
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF252836),
+        title: const Text('Eliminar canción',
+            style: TextStyle(color: Colors.white)),
+        content: Text('¿Quitar "${song.name}" de la lista?',
+            style: const TextStyle(color: Colors.white70)),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
-          ),
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancelar')),
           TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: AppTheme.errorRed),
             child: const Text('Eliminar'),
           ),
         ],
@@ -137,52 +138,31 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
       try {
         await _playlistService.removeSongFromPlaylist(
             widget.playlistId, song.id);
-        if (!currentContext.mounted) return;
-        ScaffoldMessenger.of(currentContext).showSnackBar(
-          const SnackBar(
-            content: Text('Canción eliminada'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        _loadPlaylist();
+        _showSnackBar('Canción eliminada');
+        _loadPlaylist(); // Recargar lista
       } catch (e) {
-        if (!currentContext.mounted) return;
-        ScaffoldMessenger.of(currentContext).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        _showSnackBar('Error: $e', isError: true);
       }
     }
   }
 
-  /// Eliminar playlist completa
   Future<void> _deletePlaylist() async {
     final currentContext = context;
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppTheme.surfaceBlack,
-        title: Row(
-          children: const [
-            Icon(Icons.warning, color: Colors.red),
-            SizedBox(width: 12),
-            Text('Eliminar Playlist'),
-          ],
-        ),
-        content: Text(
-          '¿Estás seguro de que deseas eliminar "${_playlist!.name}"?\n\nEsta acción no se puede deshacer.',
-          style: const TextStyle(fontSize: 16),
-        ),
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF252836),
+        title: const Text('Eliminar Playlist',
+            style: TextStyle(color: Colors.white)),
+        content: const Text('Esta acción es irreversible.',
+            style: TextStyle(color: Colors.white70)),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancelar')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: AppTheme.errorRed),
             child: const Text('Eliminar'),
           ),
         ],
@@ -192,487 +172,372 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
     if (confirmed == true) {
       try {
         if (!currentContext.mounted) return;
-        final libraryProvider = currentContext.read<LibraryProvider>();
-        await libraryProvider.deletePlaylist(widget.playlistId);
+        await currentContext
+            .read<LibraryProvider>()
+            .deletePlaylist(widget.playlistId);
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Playlist eliminada exitosamente'),
-              backgroundColor: Colors.green,
-            ),
-          );
-          Navigator.pop(context, true);
+          _showSnackBar('Playlist eliminada');
+          Navigator.pop(context); // Volver atrás
         }
       } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Error: $e'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
+        if (mounted) _showSnackBar('Error: $e', isError: true);
       }
     }
   }
 
-  /// Mostrar opciones de la playlist
-  void _showPlaylistOptions() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: AppTheme.surfaceBlack,
-      builder: (context) => Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          ListTile(
-            leading: const Icon(Icons.edit, color: AppTheme.primaryBlue),
-            title: const Text('Editar playlist'),
-            onTap: () async {
-              Navigator.pop(context);
-              final result = await Navigator.pushNamed(
-                context,
-                '/playlist/edit',
-                arguments: widget.playlistId,
-              );
-              if (result == true) {
-                _loadPlaylist();
-              }
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.add, color: AppTheme.primaryBlue),
-            title: const Text('Añadir canciones'),
-            onTap: () {
-              Navigator.pop(context);
-              _addSongsToPlaylist();
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.share, color: AppTheme.primaryBlue),
-            title: const Text('Compartir'),
-            onTap: () async {
-              Navigator.pop(context);
-              final shareText =
-                  '🎵 Mira mi playlist "${_playlist!.name}" en Audira!\n\n'
-                  '${_songs.length} canciones\n'
-                  '${_playlist!.description ?? ""}\n\n'
-                  '¡Escúchala ahora!';
+  void _playPlaylist({bool shuffle = false}) {
+    if (_songs.isEmpty) return;
+    final audioProvider = context.read<AudioProvider>();
+    final authProvider = context.read<AuthProvider>();
 
-              await Share.share(
-                shareText,
-                subject: 'Mira esta playlist en Audira',
-              );
-            },
-          ),
-          const Divider(),
-          ListTile(
-            leading: const Icon(Icons.delete, color: Colors.red),
-            title: const Text('Eliminar playlist',
-                style: TextStyle(color: Colors.red)),
-            onTap: () {
-              Navigator.pop(context);
-              _deletePlaylist();
-            },
-          ),
-          const SizedBox(height: 16),
-        ],
-      ),
+    // Si es shuffle, mezclamos una copia local antes de enviar
+    List<Song> queue = List.from(_songs);
+    if (shuffle) queue.shuffle();
+
+    audioProvider.playQueue(
+      queue,
+      startIndex: 0,
+      isUserAuthenticated: authProvider.isAuthenticated,
+      userId: authProvider.currentUser?.id,
     );
+    Navigator.pushNamed(context, '/playback');
   }
+
+  void _showSnackBar(String msg, {bool isError = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(msg),
+      backgroundColor: isError ? AppTheme.errorRed : AppTheme.successGreen,
+      behavior: SnackBarBehavior.floating,
+    ));
+  }
+
+  // --- UI BUILDING ---
 
   @override
   Widget build(BuildContext context) {
-    final authProvider = Provider.of<AuthProvider>(context);
-    final audioProvider = Provider.of<AudioProvider>(context);
+    final authProvider = context.watch<AuthProvider>();
+    final isOwner =
+        _playlist != null && authProvider.currentUser?.id == _playlist!.userId;
 
     if (_isLoading && _playlist == null) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Cargando...')),
-        body: const Center(child: CircularProgressIndicator()),
+      return const Scaffold(
+        backgroundColor: AppTheme.backgroundBlack,
+        body: Center(
+            child: CircularProgressIndicator(color: AppTheme.primaryBlue)),
       );
     }
 
     if (_error != null || _playlist == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Error')),
+        backgroundColor: AppTheme.backgroundBlack,
+        appBar: AppBar(backgroundColor: Colors.transparent),
         body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.error_outline, size: 64, color: Colors.red),
-              const SizedBox(height: 16),
-              Text(_error ?? 'Playlist no encontrada'),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Volver'),
+            child: Text(_error ?? 'Error desconocido',
+                style: const TextStyle(color: Colors.white))),
+      );
+    }
+
+    return Scaffold(
+      backgroundColor: AppTheme.backgroundBlack,
+      body: CustomScrollView(
+        controller: _scrollController,
+        physics: const BouncingScrollPhysics(),
+        slivers: [
+          _buildSliverAppBar(isOwner),
+          _buildPlaylistHeader(),
+          _buildActionButtons(),
+          _buildSongList(isOwner),
+          const SliverToBoxAdapter(
+              child: SizedBox(height: 100)), // Espacio final
+        ],
+      ),
+      floatingActionButton: isOwner
+          ? FloatingActionButton(
+              onPressed: _addSongsToPlaylist,
+              backgroundColor: AppTheme.primaryBlue,
+              child: const Icon(Icons.add_rounded, size: 32),
+            ).animate().scale(delay: 500.ms)
+          : null,
+    );
+  }
+
+  Widget _buildSliverAppBar(bool isOwner) {
+    return SliverAppBar(
+      backgroundColor: AppTheme.backgroundBlack,
+      expandedHeight: 280,
+      pinned: true,
+      elevation: 0,
+      leading: IconButton(
+        icon: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: const BoxDecoration(
+              color: Colors.black26, shape: BoxShape.circle),
+          child: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
+        ),
+        onPressed: () => Navigator.pop(context),
+      ),
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.share_outlined),
+          onPressed: () => Share.share(
+              'Escucha mi playlist "${_playlist!.name}" en Audira!'),
+        ),
+        if (isOwner)
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert_rounded),
+            color: const Color(0xFF2C2C2C),
+            onSelected: (value) {
+              if (value == 'edit') {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) =>
+                          CreatePlaylistScreen(playlistId: widget.playlistId)),
+                ).then((_) => _loadPlaylist());
+              } else if (value == 'delete') {
+                _deletePlaylist();
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                  value: 'edit',
+                  child: Text('Editar', style: TextStyle(color: Colors.white))),
+              const PopupMenuItem(
+                  value: 'delete',
+                  child: Text('Eliminar',
+                      style: TextStyle(color: AppTheme.errorRed))),
+            ],
+          ),
+      ],
+      flexibleSpace: FlexibleSpaceBar(
+        background: Stack(
+          fit: StackFit.expand,
+          children: [
+            // Fondo abstracto generado
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    AppTheme.primaryBlue.withValues(alpha: 0.6),
+                    AppTheme.backgroundBlack,
+                  ],
+                ),
               ),
+            ),
+            // Blur para suavizar
+            BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+              child: Container(color: Colors.transparent),
+            ),
+            // Portada central
+            Center(
+              child: Hero(
+                tag: 'playlist-${_playlist!.id}',
+                child: Container(
+                  width: 160,
+                  height: 160,
+                  decoration: BoxDecoration(
+                    color: AppTheme.surfaceBlack,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.4),
+                          blurRadius: 20,
+                          offset: const Offset(0, 10))
+                    ],
+                  ),
+                  child: _playlist!.coverImageUrl != null
+                      ? ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: CachedNetworkImage(
+                            imageUrl: _playlist!.coverImageUrl!,
+                            fit: BoxFit.cover,
+                          ),
+                        )
+                      : const Icon(Icons.playlist_play_rounded,
+                          size: 80, color: Colors.white24),
+                ),
+              ),
+            ).animate().scale(duration: 500.ms, curve: Curves.easeOutBack),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPlaylistHeader() {
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+        child: Column(
+          children: [
+            Text(
+              _playlist!.name,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white),
+            ).animate().fadeIn().slideY(begin: 0.2, end: 0),
+            if (_playlist!.description != null &&
+                _playlist!.description!.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(
+                _playlist!.description!,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    fontSize: 14, color: Colors.white.withValues(alpha: 0.6)),
+              ),
+            ],
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _buildBadge(Icons.music_note, '${_songs.length} canciones'),
+                const SizedBox(width: 12),
+                _buildBadge(_playlist!.isPublic ? Icons.public : Icons.lock,
+                    _playlist!.isPublic ? 'Pública' : 'Privada'),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBadge(IconData icon, String text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: Colors.white70),
+          const SizedBox(width: 6),
+          Text(text,
+              style: const TextStyle(color: Colors.white70, fontSize: 12)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionButtons() {
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+        child: Row(
+          children: [
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: () => _playPlaylist(shuffle: false),
+                icon: const Icon(Icons.play_arrow_rounded),
+                label: const Text("Reproducir"),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryBlue,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30)),
+                ),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: () => _playPlaylist(shuffle: true),
+                icon: const Icon(Icons.shuffle_rounded),
+                label: const Text("Aleatorio"),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.white,
+                  side: BorderSide(color: Colors.white.withValues(alpha: 0.3)),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30)),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSongList(bool isOwner) {
+    if (_songs.isEmpty) {
+      return SliverToBoxAdapter(
+        child: Container(
+          padding: const EdgeInsets.all(40),
+          alignment: Alignment.center,
+          child: Column(
+            children: [
+              Icon(Icons.library_music_outlined,
+                  size: 60, color: Colors.white.withValues(alpha: 0.2)),
+              const SizedBox(height: 16),
+              Text("Aún no hay canciones",
+                  style: TextStyle(color: Colors.white.withValues(alpha: 0.5))),
             ],
           ),
         ),
       );
     }
 
-    final isOwner = authProvider.currentUser?.id == _playlist!.userId;
-
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(_playlist!.name),
-        actions: [
-          if (isOwner)
-            IconButton(
-              icon: const Icon(Icons.more_vert),
-              onPressed: _showPlaylistOptions,
-              tooltip: 'Opciones',
+    return SliverList(
+      delegate: SliverChildBuilderDelegate(
+        (context, index) {
+          final song = _songs[index];
+          return ListTile(
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+            leading: Text(
+              '${index + 1}',
+              style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.5),
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold),
             ),
-          if (!isOwner)
-            IconButton(
-              icon: const Icon(Icons.share),
-              onPressed: () async {
-                final shareText =
-                    '🎵 Mira esta playlist "${_playlist!.name}" en Audira!\n\n'
-                    '${_songs.length} canciones\n'
-                    '${_playlist!.description ?? ""}\n\n'
-                    '¡Escúchala ahora!';
-
-                await Share.share(
-                  shareText,
-                  subject: 'Mira esta playlist en Audira',
-                );
-              },
+            title: Text(
+              song.name,
+              style: const TextStyle(
+                  color: Colors.white, fontWeight: FontWeight.w500),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
-        ],
+            subtitle: Text(
+              song.artistName,
+              style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.6), fontSize: 13),
+            ),
+            trailing: isOwner
+                ? IconButton(
+                    icon: Icon(Icons.remove_circle_outline,
+                        color: Colors.white.withValues(alpha: 0.3), size: 20),
+                    onPressed: () => _removeSong(song),
+                  )
+                : Text(song.durationFormatted,
+                    style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.4),
+                        fontSize: 12)),
+            onTap: () {
+              // Play queue starting from this song
+              final audioProvider = context.read<AudioProvider>();
+              final authProvider = context.read<AuthProvider>();
+              audioProvider.playQueue(
+                _songs,
+                startIndex: index,
+                isUserAuthenticated: authProvider.isAuthenticated,
+                userId: authProvider.currentUser?.id,
+              );
+              Navigator.pushNamed(context, '/playback');
+            },
+          ).animate(delay: (30 * index).ms).fadeIn().slideX(begin: 0.1);
+        },
+        childCount: _songs.length,
       ),
-      body: RefreshIndicator(
-        onRefresh: _loadPlaylist,
-        child: Column(
-          children: [
-            // Header
-            Container(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                children: [
-                  // Cover image
-                  Container(
-                    width: 150,
-                    height: 150,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [AppTheme.primaryBlue, AppTheme.darkBlue],
-                      ),
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppTheme.primaryBlue.withValues(alpha: 0.3),
-                          blurRadius: 20,
-                          spreadRadius: 5,
-                        ),
-                      ],
-                    ),
-                    child: const Icon(Icons.playlist_play,
-                        size: 60, color: Colors.white),
-                  ).animate().fadeIn().scale(),
-
-                  const SizedBox(height: 16),
-
-                  // Playlist name
-                  Text(
-                    _playlist!.name,
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    textAlign: TextAlign.center,
-                  ).animate().fadeIn(delay: 100.ms),
-
-                  const SizedBox(height: 8),
-
-                  // Description
-                  if (_playlist!.description != null &&
-                      _playlist!.description!.isNotEmpty)
-                    Text(
-                      _playlist!.description!,
-                      style: const TextStyle(color: AppTheme.textGrey),
-                      textAlign: TextAlign.center,
-                    ).animate().fadeIn(delay: 200.ms),
-
-                  const SizedBox(height: 8),
-
-                  // Info chips
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        _playlist!.isPublic ? Icons.public : Icons.lock,
-                        size: 16,
-                        color: AppTheme.textGrey,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        _playlist!.isPublic ? 'Pública' : 'Privada',
-                        style: const TextStyle(color: AppTheme.textGrey),
-                      ),
-                      const SizedBox(width: 16),
-                      const Icon(Icons.music_note,
-                          size: 16, color: AppTheme.textGrey),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${_songs.length} ${_songs.length == 1 ? "canción" : "canciones"}',
-                        style: const TextStyle(color: AppTheme.textSecondary),
-                      ),
-                    ],
-                  ).animate().fadeIn(delay: 250.ms),
-
-                  const SizedBox(height: 16),
-
-                  // Action buttons
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      if (_songs.isNotEmpty)
-                        ElevatedButton.icon(
-                          onPressed: () {
-                            audioProvider.playQueue(
-                              _songs,
-                              startIndex: 0,
-                              isUserAuthenticated: authProvider.isAuthenticated,
-                              userId: authProvider.currentUser?.id,
-                            );
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Reproduciendo playlist...'),
-                              ),
-                            );
-                          },
-                          icon: const Icon(Icons.play_arrow),
-                          label: const Text('Reproducir'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.primaryBlue,
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 32, vertical: 12),
-                          ),
-                        ).animate().fadeIn(delay: 300.ms).scale(),
-                      if (isOwner && _songs.isNotEmpty)
-                        const SizedBox(width: 12),
-                      if (isOwner)
-                        OutlinedButton.icon(
-                          onPressed: _addSongsToPlaylist,
-                          icon: const Icon(Icons.add),
-                          label: const Text('Añadir'),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 24, vertical: 12),
-                          ),
-                        ).animate().fadeIn(delay: 320.ms).scale(),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-
-            const Divider(height: 1),
-
-            // Songs list
-            Expanded(
-              child: _songs.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(20),
-                            decoration: BoxDecoration(
-                              color:
-                                  AppTheme.primaryBlue.withValues(alpha: 0.1),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.music_note,
-                              size: 64,
-                              color: AppTheme.primaryBlue,
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          const Text(
-                            'No hay canciones',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            isOwner
-                                ? 'Toca "Añadir" para agregar canciones'
-                                : 'Esta playlist está vacía',
-                            style: const TextStyle(
-                              color: AppTheme.textGrey,
-                            ),
-                          ),
-                        ],
-                      ),
-                    )
-                  : ListView.builder(
-                      itemCount: _songs.length,
-                      itemBuilder: (context, index) {
-                        final song = _songs[index];
-                        return Card(
-                          margin: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 4),
-                          color: AppTheme.surfaceBlack,
-                          child: ListTile(
-                            leading: Stack(
-                              children: [
-                                Container(
-                                  width: 50,
-                                  height: 50,
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(8),
-                                    child: song.coverImageUrl != null
-                                        ? CachedNetworkImage(
-                                            imageUrl: song.coverImageUrl!,
-                                            fit: BoxFit.cover,
-                                            placeholder: (context, url) =>
-                                                Container(
-                                              color: AppTheme.primaryBlue
-                                                  .withValues(alpha: 0.2),
-                                              child:
-                                                  const Icon(Icons.music_note),
-                                            ),
-                                            errorWidget:
-                                                (context, url, error) =>
-                                                    Container(
-                                              color: AppTheme.primaryBlue
-                                                  .withValues(alpha: 0.2),
-                                              child:
-                                                  const Icon(Icons.music_note),
-                                            ),
-                                          )
-                                        : Container(
-                                            color: AppTheme.primaryBlue
-                                                .withValues(alpha: 0.2),
-                                            child: const Icon(Icons.music_note),
-                                          ),
-                                  ),
-                                ),
-                                Positioned(
-                                  bottom: 2,
-                                  right: 2,
-                                  child: Container(
-                                    padding: const EdgeInsets.all(2),
-                                    decoration: BoxDecoration(
-                                      color: AppTheme.backgroundBlack,
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: Text(
-                                      '${index + 1}',
-                                      style: const TextStyle(
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            title: Text(song.name),
-                            subtitle: Text(
-                              '${song.artistName} • ${song.durationFormatted}',
-                              style: const TextStyle(color: AppTheme.textGrey),
-                            ),
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                IconButton(
-                                  icon: const Icon(Icons.play_circle_outline),
-                                  onPressed: () {
-                                    // Reproducir desde esta canción en la playlist
-                                    final songIndex = _songs.indexOf(song);
-                                    audioProvider.playQueue(
-                                      _songs,
-                                      startIndex: songIndex >= 0 ? songIndex : 0,
-                                      isUserAuthenticated: authProvider.isAuthenticated,
-                                      userId: authProvider.currentUser?.id,
-                                    );
-                                  },
-                                  tooltip: 'Reproducir',
-                                ),
-                                if (isOwner)
-                                  IconButton(
-                                    icon: const Icon(Icons.more_vert),
-                                    onPressed: () {
-                                      showModalBottomSheet(
-                                        context: context,
-                                        backgroundColor: AppTheme.surfaceBlack,
-                                        builder: (context) => Column(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            ListTile(
-                                              leading: const Icon(
-                                                  Icons.info_outline),
-                                              title: const Text('Ver detalles'),
-                                              onTap: () {
-                                                Navigator.pop(context);
-                                                Navigator.pushNamed(
-                                                  context,
-                                                  '/song',
-                                                  arguments: song.id,
-                                                );
-                                              },
-                                            ),
-                                            ListTile(
-                                              leading: const Icon(
-                                                  Icons.remove_circle_outline,
-                                                  color: Colors.red),
-                                              title: const Text(
-                                                'Eliminar de playlist',
-                                                style: TextStyle(
-                                                    color: Colors.red),
-                                              ),
-                                              onTap: () {
-                                                Navigator.pop(context);
-                                                _removeSongFromPlaylist(song);
-                                              },
-                                            ),
-                                            const SizedBox(height: 16),
-                                          ],
-                                        ),
-                                      );
-                                    },
-                                  ),
-                              ],
-                            ),
-                            onTap: () {
-                              // Reproducir desde esta canción en la playlist
-                              final songIndex = _songs.indexOf(song);
-                              audioProvider.playQueue(
-                                _songs,
-                                startIndex: songIndex >= 0 ? songIndex : 0,
-                                isUserAuthenticated: authProvider.isAuthenticated,
-                                userId: authProvider.currentUser?.id,
-                              );
-                            },
-                          ),
-                        ).animate(delay: (index * 50).ms).fadeIn();
-                      },
-                    ),
-            ),
-          ],
-        ),
-      ),
-      floatingActionButton: isOwner && _songs.isNotEmpty
-          ? FloatingActionButton.extended(
-              onPressed: _addSongsToPlaylist,
-              backgroundColor: AppTheme.primaryBlue,
-              icon: const Icon(Icons.add),
-              label: const Text('Añadir canciones'),
-            ).animate().fadeIn(delay: 500.ms).scale()
-          : null,
     );
   }
 }
