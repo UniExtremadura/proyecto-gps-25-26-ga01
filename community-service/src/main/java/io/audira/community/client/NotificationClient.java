@@ -12,8 +12,15 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * REST client for sending notifications to users
- * Communicates with Commerce Service notification endpoints
+ * Cliente REST para la comunicación con el microservicio de Notificaciones (dentro del Commerce Service).
+ * <p>
+ * Este cliente se utiliza para disparar notificaciones de sistema o transaccionales a usuarios
+ * enviando una solicitud POST al endpoint central de notificaciones.
+ * </p>
+ *
+ * @author Grupo GA01
+ * @see RestTemplate
+ * 
  */
 @Component
 @RequiredArgsConstructor
@@ -22,33 +29,44 @@ public class NotificationClient {
 
     private final RestTemplate restTemplate;
 
+    /**
+     * URL base del endpoint de notificaciones del Commerce Service ({@code /api/notifications}).
+     * El valor por defecto es {@code http://172.16.0.4:9003/api/notifications}.
+     */
     @Value("${services.commerce.url:http://172.16.0.4:9003/api/notifications}")
     private String notificationServiceUrl;
 
     /**
-     * Send a notification to a user
+     * Envía una notificación genérica a un usuario específico.
+     * <p>
+     * Llama al endpoint {@code POST /api/notifications} con el cuerpo de la notificación en formato JSON.
+     * </p>
      *
-     * @param userId User ID to receive notification
-     * @param title Notification title
-     * @param message Notification message
-     * @param type Notification type
-     * @return true if notification was sent successfully
+     * @param userId ID del usuario (tipo {@link Long}) destinatario.
+     * @param title Título de la notificación.
+     * @param message Mensaje (cuerpo) de la notificación.
+     * @param type Tipo de notificación (String, ej. "TICKET_RESPONSE", "PAYMENT_SUCCESS").
+     * @return {@code true} si la solicitud REST fue exitosa (código 2xx), {@code false} en caso contrario (fallo de comunicación o código de error HTTP).
      */
     public boolean sendNotification(Long userId, String title, String message, String type) {
         try {
             log.info("Sending notification to user {}: {}", userId, title);
 
+            // 1. Preparar el cuerpo de la solicitud JSON
             Map<String, Object> notificationRequest = new HashMap<>();
             notificationRequest.put("userId", userId);
             notificationRequest.put("title", title);
             notificationRequest.put("message", message);
             notificationRequest.put("type", type);
 
+            // 2. Configurar cabeceras
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
 
+            // 3. Crear la entidad de solicitud
             HttpEntity<Map<String, Object>> request = new HttpEntity<>(notificationRequest, headers);
 
+            // 4. Ejecutar la llamada REST
             ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
                 notificationServiceUrl,
                 HttpMethod.POST,
@@ -72,7 +90,15 @@ public class NotificationClient {
     }
 
     /**
-     * Notify admin that a new ticket was created
+     * Envía una notificación al administrador sobre la creación de un nuevo ticket de soporte.
+     * <p>
+     * Utiliza el tipo {@code TICKET_CREATED}.
+     * </p>
+     *
+     * @param adminId ID del usuario administrador destinatario.
+     * @param userName Nombre del usuario que creó el ticket.
+     * @param subject Asunto o título del ticket.
+     * @return {@code true} si se envió correctamente.
      */
     public boolean notifyAdminNewTicket(Long adminId, String userName, String subject) {
         String title = "Nuevo ticket de soporte";
@@ -86,7 +112,14 @@ public class NotificationClient {
     }
 
     /**
-     * Notify user that admin responded to their ticket
+     * Envía una notificación al usuario indicando que el equipo de soporte ha respondido a su ticket.
+     * <p>
+     * Utiliza el tipo {@code TICKET_RESPONSE}.
+     * </p>
+     *
+     * @param userId ID del usuario destinatario.
+     * @param subject Asunto o título del ticket.
+     * @return {@code true} si se envió correctamente.
      */
     public boolean notifyUserTicketResponse(Long userId, String subject) {
         String title = "Respuesta a tu ticket";
@@ -99,7 +132,14 @@ public class NotificationClient {
     }
 
     /**
-     * Notify user that their ticket was resolved
+     * Envía una notificación al usuario informando que su ticket ha sido marcado como resuelto.
+     * <p>
+     * Utiliza el tipo {@code TICKET_RESOLVED}.
+     * </p>
+     *
+     * @param userId ID del usuario destinatario.
+     * @param subject Asunto o título del ticket.
+     * @return {@code true} si se envió correctamente.
      */
     public boolean notifyUserTicketResolved(Long userId, String subject) {
         String title = "Ticket resuelto";

@@ -16,10 +16,23 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * Servicio para gestión de valoraciones
- * GA01-128: Puntuación de 1-5 estrellas
- * GA01-129: Comentario opcional (500 chars)
- * GA01-130: Editar/eliminar valoración
+ * Servicio principal para la gestión completa de **Valoraciones (Ratings)**.
+ * <p>
+ * Este servicio implementa la lógica de negocio, incluyendo validaciones (ej. rango de estrellas,
+ * longitud del comentario, requisitos de compra), la creación, actualización y eliminación
+ * (soft delete) de valoraciones, así como la recuperación de estadísticas y listas.
+ * </p>
+ * Requisitos asociados:
+ * <ul>
+ * <li>GA01-128: Puntuación de 1-5 estrellas</li>
+ * <li>GA01-129: Comentario opcional (máx. 500 caracteres)</li>
+ * <li>GA01-130: Edición/eliminación de valoración (Soft Delete)</li>
+ * </ul>
+ *
+ * @author Grupo GA01
+ * @see Rating
+ * @see RatingRepository
+ * 
  */
 @Service
 @RequiredArgsConstructor
@@ -30,10 +43,26 @@ public class RatingService {
     private final UserRepository userRepository;
     private final CommerceClient commerceClient;
 
+    // --- Métodos de CRUD y Lógica de Negocio ---
+
     /**
-     * GA01-128, GA01-129: Crear o actualizar valoración
-     * Si el usuario ya tiene una valoración para la entidad, la actualiza
-     * Verifica que el usuario haya comprado el producto antes de permitir valorar
+     * Crea una nueva valoración o actualiza una existente si el usuario ya ha valorado la entidad.
+     * <p>
+     * Aplica las siguientes reglas de negocio:
+     * <ul>
+     * <li>Valida que la puntuación esté entre 1 y 5 estrellas (GA01-128).</li>
+     * <li>Valida que el comentario no exceda los 500 caracteres (GA01-129).</li>
+     * <li>Para entidades de tipo {@code SONG} o {@code ALBUM}, verifica que el usuario haya comprado
+     * el artículo a través del {@link CommerceClient}.</li>
+     * </ul>
+     * </p>
+     *
+     * @param userId El ID del usuario que realiza la valoración.
+     * @param request El DTO que contiene los datos de la valoración.
+     * @return El objeto {@link RatingDTO} de la valoración creada o actualizada.
+     * @throws RatingException.InvalidRatingValueException Si la puntuación no está entre 1 y 5.
+     * @throws RatingException.InvalidCommentLengthException Si el comentario excede los 500 caracteres.
+     * @throws RatingException.ProductNotPurchasedException Si el usuario intenta valorar un producto no comprado (solo para SONG/ALBUM).
      */
     @Transactional
     public RatingDTO createOrUpdateRating(Long userId, CreateRatingRequest request) {
@@ -42,7 +71,6 @@ public class RatingService {
         // Validaciones
         validateRatingValue(request.getRating());
         validateComment(request.getComment());
-        
 
         // Buscar si ya existe una valoración
         Rating rating = ratingRepository
@@ -77,16 +105,17 @@ public class RatingService {
         if (rating != null) {
             // Actualizar valoración existente
             log.info("Updating existing rating {} for user {}", rating.getId(), userId);
-            
+
+            // Si la valoración estaba inactiva (eliminada previamente con soft delete), restablecer la fecha de creación
             if (Boolean.FALSE.equals(rating.getIsActive())) {
                 rating.setCreatedAt(now);
             }
-            
+
             rating.setRating(request.getRating());
             rating.setComment(request.getComment());
             rating.setIsActive(true);
             rating.setUpdatedAt(now);
-            
+
         } else {
             // Crear nueva valoración
             rating = new Rating();
@@ -97,7 +126,7 @@ public class RatingService {
             rating.setComment(request.getComment());
             rating.setIsActive(true);
             rating.setCreatedAt(now);
-            rating.setUpdatedAt(null);
+            rating.setUpdatedAt(null); // Se establece a null o la misma fecha en la entidad, dependiendo de la configuración
         }
 
         Rating savedRating = ratingRepository.save(rating);
@@ -107,7 +136,17 @@ public class RatingService {
     }
 
     /**
-     * GA01-130: Actualizar valoración existente
+     * Actualiza la puntuación y/o el comentario de una valoración existente (GA01-130).
+     * <p>
+     * Requiere que el ID de usuario proporcionado sea el propietario de la valoración.
+     * </p>
+     *
+     * @param ratingId El ID de la valoración a modificar.
+     * @param userId El ID del usuario que intenta modificar la valoración (para validación de propiedad).
+     * @param request El DTO con los campos a actualizar.
+     * @return El objeto {@link RatingDTO} de la valoración actualizada.
+     * @throws RatingException.RatingNotFoundException Si la valoración no existe o no pertenece al usuario.
+     * @throws RatingException.UnauthorizedRatingAccessException Si el {@code userId} no es el propietario.
      */
     @Transactional
     public RatingDTO updateRating(Long ratingId, Long userId, UpdateRatingRequest request) {
@@ -116,7 +155,7 @@ public class RatingService {
         Rating rating = ratingRepository.findByIdAndUserId(ratingId, userId)
                 .orElseThrow(() -> new RatingException.RatingNotFoundException(ratingId));
 
-        // Validar ownership
+        // Validar ownership (aunque findByIdAndUserId ya lo hace, se mantiene por seguridad explícita)
         if (!rating.getUserId().equals(userId)) {
             throw new RatingException.UnauthorizedRatingAccessException();
         }
@@ -130,7 +169,10 @@ public class RatingService {
         if (request.getComment() != null) {
             validateComment(request.getComment());
             rating.setComment(request.getComment());
+        }
 
+        // Actualizar la marca de tiempo de modificación si se cambió algún campo
+        if (request.getRating() != null || request.getComment() != null) {
             ZonedDateTime now = ZonedDateTime.now().truncatedTo(ChronoUnit.SECONDS);
             rating.setUpdatedAt(now);
         }
@@ -142,7 +184,15 @@ public class RatingService {
     }
 
     /**
-     * GA01-130: Eliminar valoración (soft delete)
+     * Marca una valoración como inactiva (soft delete) (GA01-130).
+     * <p>
+     * Requiere que el ID de usuario proporcionado sea el propietario de la valoración.
+     * </p>
+     *
+     * @param ratingId El ID de la valoración a eliminar.
+     * @param userId El ID del usuario que intenta eliminar la valoración (para validación de propiedad).
+     * @throws RatingException.RatingNotFoundException Si la valoración no existe o no pertenece al usuario.
+     * @throws RatingException.UnauthorizedRatingAccessException Si el {@code userId} no es el propietario.
      */
     @Transactional
     public void deleteRating(Long ratingId, Long userId) {
@@ -156,15 +206,20 @@ public class RatingService {
             throw new RatingException.UnauthorizedRatingAccessException();
         }
 
-        // Soft delete
+        // Soft delete: marcar como inactiva
         rating.setIsActive(false);
         ratingRepository.save(rating);
 
         log.info("Rating {} deleted successfully", ratingId);
     }
 
+    // --- Métodos de Consulta y Estadísticas ---
+
     /**
-     * Obtener valoraciones de un usuario
+     * Obtiene todas las valoraciones activas de un usuario.
+     *
+     * @param userId El ID del usuario.
+     * @return Una lista de objetos {@link RatingDTO}.
      */
     @Transactional(readOnly = true)
     public List<RatingDTO> getUserRatings(Long userId) {
@@ -176,7 +231,11 @@ public class RatingService {
     }
 
     /**
-     * Obtener valoraciones de una entidad
+     * Obtiene todas las valoraciones activas de una entidad específica, ordenadas por fecha de creación descendente.
+     *
+     * @param entityType El tipo de entidad (ej. "SONG", "ALBUM").
+     * @param entityId El ID de la entidad.
+     * @return Una lista de objetos {@link RatingDTO} que incluyen información básica del usuario que valoró.
      */
     @Transactional(readOnly = true)
     public List<RatingDTO> getEntityRatings(String entityType, Long entityId) {
@@ -191,7 +250,11 @@ public class RatingService {
     }
 
     /**
-     * Obtener valoraciones con comentarios de una entidad
+     * Obtiene solo las valoraciones activas de una entidad que contienen un comentario, ordenadas por fecha descendente.
+     *
+     * @param entityType El tipo de entidad.
+     * @param entityId El ID de la entidad.
+     * @return Una lista de objetos {@link RatingDTO} que incluyen información básica del usuario que valoró.
      */
     @Transactional(readOnly = true)
     public List<RatingDTO> getEntityRatingsWithComments(String entityType, Long entityId) {
@@ -205,7 +268,15 @@ public class RatingService {
     }
 
     /**
-     * Obtener estadísticas de valoraciones de una entidad
+     * Calcula y retorna las estadísticas resumidas de valoración para una entidad.
+     * <p>
+     * Esto incluye el promedio de la puntuación total, el número total de valoraciones
+     * y la distribución de estrellas (1 a 5).
+     * </p>
+     *
+     * @param entityType El tipo de entidad.
+     * @param entityId El ID de la entidad.
+     * @return El objeto {@link RatingStatsDTO} con las estadísticas calculadas.
      */
     @Transactional(readOnly = true)
     public RatingStatsDTO getEntityRatingStats(String entityType, Long entityId) {
@@ -228,7 +299,12 @@ public class RatingService {
     }
 
     /**
-     * Obtener valoración de un usuario para una entidad específica
+     * Obtiene la valoración activa de un usuario para una entidad específica, si existe.
+     *
+     * @param userId El ID del usuario.
+     * @param entityType El tipo de entidad.
+     * @param entityId El ID de la entidad.
+     * @return El objeto {@link RatingDTO} de la valoración activa, o {@code null} si no existe o está inactiva.
      */
     @Transactional(readOnly = true)
     public RatingDTO getUserEntityRating(Long userId, String entityType, Long entityId) {
@@ -242,7 +318,12 @@ public class RatingService {
     }
 
     /**
-     * Verificar si un usuario ha valorado una entidad
+     * Verifica si un usuario ya ha realizado una valoración activa para una entidad específica.
+     *
+     * @param userId El ID del usuario.
+     * @param entityType El tipo de entidad.
+     * @param entityId El ID de la entidad.
+     * @return {@code true} si existe una valoración activa, {@code false} en caso contrario.
      */
     @Transactional(readOnly = true)
     public boolean hasUserRatedEntity(Long userId, String entityType, Long entityId) {
@@ -250,24 +331,51 @@ public class RatingService {
                 userId, entityType.toUpperCase(), entityId);
     }
 
-    // Métodos privados de validación y conversión
+    // --- Métodos privados de validación y conversión ---
 
+    /**
+     * Valida que la puntuación de la valoración esté en el rango permitido (1 a 5).
+     *
+     * @param rating La puntuación.
+     * @throws RatingException.InvalidRatingValueException Si la puntuación no es válida.
+     */
     private void validateRatingValue(Integer rating) {
         if (rating == null || rating < 1 || rating > 5) {
             throw new RatingException.InvalidRatingValueException();
         }
     }
 
+    /**
+     * Valida que el comentario de la valoración no exceda la longitud máxima (500 caracteres).
+     *
+     * @param comment El comentario.
+     * @throws RatingException.InvalidCommentLengthException Si la longitud es excesiva.
+     */
     private void validateComment(String comment) {
         if (comment != null && comment.length() > 500) {
             throw new RatingException.InvalidCommentLengthException();
         }
     }
 
+    /**
+     * Convierte la entidad {@link Rating} a su DTO correspondiente.
+     *
+     * @param rating La entidad de valoración.
+     * @return El {@link RatingDTO} simple.
+     */
     private RatingDTO convertToDTO(Rating rating) {
         return new RatingDTO(rating);
     }
 
+    /**
+     * Convierte la entidad {@link Rating} a su DTO e inyecta la información básica del usuario.
+     * <p>
+     * Esto se utiliza para mostrar valoraciones en listas públicas.
+     * </p>
+     *
+     * @param rating La entidad de valoración.
+     * @return El {@link RatingDTO} con información del usuario (nombre de usuario e imagen de perfil).
+     */
     private RatingDTO convertToDTOWithUserInfo(Rating rating) {
         RatingDTO dto = new RatingDTO(rating);
 
