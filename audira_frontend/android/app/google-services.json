@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "676316663935",
+    "project_id": "audira-a1c74",
+    "storage_bucket": "audira-a1c74.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:676316663935:android:1bf7d69fadbb05a9e1af4a",
+        "android_client_info": {
+          "package_name": "com.audira.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDtDii3csvgvFnWVAgNA_JbNIiI1gmELiE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
