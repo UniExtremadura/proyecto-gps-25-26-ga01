@@ -112,7 +112,7 @@ public class FileStorageService {
         }
     }
 
-    **
+    /**
      * Valida si un archivo es una imagen compatible.
      * <p>
      * Comprueba tanto el tipo MIME (Content-Type) como la extensión del archivo.
