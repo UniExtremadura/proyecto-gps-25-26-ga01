@@ -71,26 +71,27 @@ class AudioProvider with ChangeNotifier {
     await _audioPlayer.setVolume(_volume);
 
     _audioPlayer.positionStream.listen((position) {
-      // 1. Ignorar si estamos en un seek manual
+      // 1. CRÍTICO: Ignorar COMPLETAMENTE si estamos haciendo seek
       if (_isSeekingInternally) {
         return;
       }
 
-      // 2. MITIGACIÓN CRÍTICA: Ignorar micro-actualizaciones cerca del final (500ms)
+      // 2. MITIGACIÓN: Ignorar actualizaciones muy cerca del final (para evitar glitches)
       if (!_isDemoMode &&
           _totalDuration > Duration.zero &&
           position.inMilliseconds >= _totalDuration.inMilliseconds - 500) {
         return;
       }
 
+      // 3. Actualizar posición solo si cambió significativamente (>= 100ms)
+      if ((position.inMilliseconds - _currentPosition.inMilliseconds).abs() <
+          100) {
+        return;
+      }
+
       _currentPosition = position;
 
       // Lógica de modo Demo
-      if (_isDemoMode) {
-        debugPrint(
-            '🎵 DEMO MODE - Posición: ${position.inSeconds} seg / isDemoMode: $_isDemoMode');
-      }
-
       if (_isDemoMode && position.inSeconds >= 10) {
         debugPrint(
             '⏹️ DEMO Finalizada - Parando reproducción en ${position.inSeconds} seg');
@@ -99,6 +100,7 @@ class AudioProvider with ChangeNotifier {
         _isDemoMode = false;
         _demoFinished = true;
         notifyListeners();
+        return;
       }
 
       notifyListeners();
@@ -452,37 +454,62 @@ class AudioProvider with ChangeNotifier {
 
   Future<void> seek(Duration position) async {
     try {
-      debugPrint('⏩ SEEK: Buscando posición ${position.inSeconds}s');
+      final targetPosition = Duration(
+        milliseconds:
+            position.inMilliseconds.clamp(0, _totalDuration.inMilliseconds),
+      );
 
-      // Guardar el estado de reproducción antes del seek
+      debugPrint(
+          '⏩ SEEK INICIO: ${targetPosition.inSeconds}s (${_isPlaying ? "reproduciendo" : "pausado"})');
+
+      // Marcar que estamos haciendo seek
+      _isSeekingInternally = true;
+
+      // Guardar estado ANTES del seek
       final wasPlaying = _isPlaying;
 
-      _isSeekingInternally = true;
+      // Si está reproduciendo, NO pausar - just_audio maneja el seek mientras reproduce
+      // Realizar el seek
+      await _audioPlayer.seek(targetPosition);
+
+      // Actualizar posición local inmediatamente para feedback visual
+      _currentPosition = targetPosition;
       notifyListeners();
 
-      // Realizar el seek
-      await _audioPlayer.seek(position);
-
-      // Actualizar la posición actual
-      _currentPosition = position;
-
-      // Pequeña pausa para que el reproductor se estabilice
+      // Esperar mínimamente para que el seek se procese
       await Future.delayed(const Duration(milliseconds: 100));
 
-      // Si estaba reproduciendo, asegurarse de que siga reproduciendo
-      if (wasPlaying && !_isPlaying) {
-        debugPrint('   ▶️ Reanudando reproducción después del seek');
-        await _audioPlayer.play();
+      // GARANTIZAR que continúe reproduciendo si estaba reproduciendo
+      if (wasPlaying) {
+        // Obtener estado actual del reproductor
+        final playerState = _audioPlayer.playerState;
+        final isCurrentlyPlaying = playerState.playing;
+
+        if (!isCurrentlyPlaying) {
+          debugPrint('   🔄 FORZANDO reanudación de reproducción');
+          try {
+            await _audioPlayer.play();
+            // Esperar un poco más para confirmar que arrancó
+            await Future.delayed(const Duration(milliseconds: 50));
+          } catch (e) {
+            debugPrint('   ⚠️ Error al reanudar: $e');
+          }
+        } else {
+          debugPrint('   ✅ Reproducción continua confirmada');
+        }
       }
 
+      // Desmarcar seeking
       _isSeekingInternally = false;
       notifyListeners();
 
-      debugPrint('   ✅ Seek completado a ${position.inSeconds}s');
+      debugPrint(
+          '   ✅ SEEK COMPLETADO: ${targetPosition.inSeconds}s - Estado final: ${_isPlaying ? "reproduciendo" : "pausado"}');
     } catch (e) {
-      debugPrint('❌ Error during seek operation: $e');
+      debugPrint('❌ ERROR CRÍTICO en seek: $e');
       _isSeekingInternally = false;
       notifyListeners();
+      // No hacer rethrow para evitar crashes en la UI
     }
   }
 
