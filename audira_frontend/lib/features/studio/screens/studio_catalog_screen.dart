@@ -6,14 +6,9 @@ import '../../../core/models/song.dart';
 import '../../../core/models/album.dart';
 import '../../../core/api/services/music_service.dart';
 import '../../../core/providers/auth_provider.dart';
-import '../../admin/widgets/moderation_widgets.dart';
 import 'edit_song_screen.dart';
 import 'edit_album_screen.dart';
 
-/// GA01-151: Editar contenido publicado (título/descripción)
-/// GA01-152: Quitar/ocultar publicación
-/// GA01-153: Ver lista de publicaciones/filtros
-/// GA01-162: Ver estado de moderación del contenido
 class StudioCatalogScreen extends StatefulWidget {
   const StudioCatalogScreen({super.key});
 
@@ -31,8 +26,8 @@ class _StudioCatalogScreenState extends State<StudioCatalogScreen>
   bool _isLoading = false;
   String? _error;
 
-  // GA01-153: Filtros
-  String _filterStatus = 'all'; // all, published, hidden, pending, approved, rejected
+  String _filterStatus =
+      'all'; // all, published, hidden, pending, approved, rejected
   String _sortBy = 'recent'; // recent, name, plays
 
   @override
@@ -76,247 +71,462 @@ class _StudioCatalogScreenState extends State<StudioCatalogScreen>
     }
   }
 
-  // GA01-151: Navegar a pantalla de edición completa de canción
+  // --- Lógica de Negocio (Intacta) ---
+
   Future<void> _editSong(Song song) async {
     final result = await Navigator.push<bool>(
       context,
-      MaterialPageRoute(
-        builder: (context) => EditSongScreen(song: song),
-      ),
+      MaterialPageRoute(builder: (context) => EditSongScreen(song: song)),
     );
-
-    // Si se guardaron cambios, recargar catálogo
-    if (result == true) {
-      _loadCatalog();
-    }
+    if (result == true) _loadCatalog();
   }
 
-  // GA01-151: Navegar a pantalla de edición completa de álbum
   Future<void> _editAlbum(Album album) async {
     final result = await Navigator.push<bool>(
       context,
-      MaterialPageRoute(
-        builder: (context) => EditAlbumScreen(album: album),
-      ),
+      MaterialPageRoute(builder: (context) => EditAlbumScreen(album: album)),
     );
-
-    // Si se guardaron cambios, recargar catálogo
-    if (result == true) {
-      _loadCatalog();
-    }
+    if (result == true) _loadCatalog();
   }
 
-  // GA01-152 y GA01-162: Toggle publicar/ocultar canción
   Future<void> _toggleSongPublished(Song song) async {
-    final currentContext = context;
-    // GA01-162: Verificar estado de moderación antes de publicar
     if (!song.published && song.moderationStatus != 'APPROVED') {
-      String message;
-      if (song.moderationStatus == 'PENDING') {
-        message =
-            'Esta canción está en revisión. Espera a que un administrador la apruebe antes de publicarla.';
-      } else if (song.moderationStatus == 'REJECTED') {
-        message =
-            'Esta canción fue rechazada. Debes realizar cambios y volver a subirla para que sea revisada nuevamente.';
-      } else {
-        message = 'No puedes publicar esta canción en su estado actual.';
-      }
-
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('No se puede publicar'),
-          content: Text(message),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Entendido'),
-            ),
-          ],
-        ),
-      );
+      _showModerationAlert(song.moderationStatus!);
       return;
     }
-
     try {
-      final response = await _musicService.publishSong(song.id, !song.published);
+      final response =
+          await _musicService.publishSong(song.id, !song.published);
       if (response.success) {
-        if(!currentContext.mounted) return;
-        ScaffoldMessenger.of(currentContext).showSnackBar(
-          SnackBar(
-            content: Text(song.published
-                ? 'Canción ocultada exitosamente'
-                : 'Canción publicada exitosamente'),
-          ),
-        );
+        _showSnack(song.published ? 'Ocultado' : 'Publicado');
         _loadCatalog();
       } else {
-        if(!currentContext.mounted) return;
-        ScaffoldMessenger.of(currentContext).showSnackBar(
-          SnackBar(content: Text('Error: ${response.error}')),
-        );
+        _showSnack('Error: ${response.error}', isError: true);
       }
     } catch (e) {
-      if(!currentContext.mounted) return;
-      ScaffoldMessenger.of(currentContext).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
+      _showSnack('Error: $e', isError: true);
     }
   }
 
-  // GA01-152 y GA01-162: Toggle publicar/ocultar álbum
   Future<void> _toggleAlbumPublished(Album album) async {
-    final currentContext = context;
-    // GA01-162: Verificar estado de moderación antes de publicar
     if (!album.published && album.moderationStatus != 'APPROVED') {
-      String message;
-      if (album.moderationStatus == 'PENDING') {
-        message =
-            'Este álbum está en revisión. Espera a que un administrador lo apruebe antes de publicarlo.';
-      } else if (album.moderationStatus == 'REJECTED') {
-        message =
-            'Este álbum fue rechazado. Debes realizar cambios y volver a subirlo para que sea revisado nuevamente.';
-      } else {
-        message = 'No puedes publicar este álbum en su estado actual.';
-      }
-
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('No se puede publicar'),
-          content: Text(message),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Entendido'),
-            ),
-          ],
-        ),
-      );
+      _showModerationAlert(album.moderationStatus!);
       return;
     }
-
     try {
       final response =
           await _musicService.publishAlbum(album.id, !album.published);
       if (response.success) {
-        if(!currentContext.mounted) return;
-        ScaffoldMessenger.of(currentContext).showSnackBar(
-          SnackBar(
-            content: Text(album.published
-                ? 'Álbum ocultado exitosamente'
-                : 'Álbum publicado exitosamente'),
-          ),
-        );
+        _showSnack(album.published ? 'Ocultado' : 'Publicado');
         _loadCatalog();
       } else {
-        if(!currentContext.mounted) return;
-        ScaffoldMessenger.of(currentContext).showSnackBar(
-          SnackBar(content: Text('Error: ${response.error}')),
-        );
+        _showSnack('Error: ${response.error}', isError: true);
       }
     } catch (e) {
-      if(!currentContext.mounted) return;
-      ScaffoldMessenger.of(currentContext).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
+      _showSnack('Error: $e', isError: true);
     }
   }
 
   Future<void> _deleteSong(int songId) async {
-    final currentContext = context;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Eliminar Canción'),
-        content:
-            const Text('¿Estás seguro? Esta acción no se puede deshacer.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Eliminar'),
-          ),
-        ],
-      ),
-    );
-
+    final confirmed = await _showDeleteDialog('Eliminar Canción');
     if (confirmed == true) {
       try {
         final response = await _musicService.deleteSong(songId);
         if (response.success) {
-          if(!currentContext.mounted) return;
-          ScaffoldMessenger.of(currentContext).showSnackBar(
-            const SnackBar(content: Text('Canción eliminada exitosamente')),
-          );
+          _showSnack('Eliminado correctamente');
           _loadCatalog();
         }
       } catch (e) {
-        if(!currentContext.mounted) return;
-        ScaffoldMessenger.of(currentContext).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
+        _showSnack('Error: $e', isError: true);
       }
     }
   }
 
   Future<void> _deleteAlbum(int albumId) async {
-    final currentContext = context;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Eliminar Álbum'),
-        content: const Text(
-            '¿Estás seguro? Esto también removerá todas las canciones del álbum.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Eliminar'),
-          ),
-        ],
-      ),
-    );
-
+    final confirmed = await _showDeleteDialog('Eliminar Álbum');
     if (confirmed == true) {
       try {
         final response = await _musicService.deleteAlbum(albumId);
         if (response.success) {
-          if(!currentContext.mounted) return;
-          ScaffoldMessenger.of(currentContext).showSnackBar(
-            const SnackBar(content: Text('Álbum eliminado exitosamente')),
-          );
+          _showSnack('Eliminado correctamente');
           _loadCatalog();
         }
       } catch (e) {
-        if(!currentContext.mounted) return;
-        ScaffoldMessenger.of(currentContext).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
+        _showSnack('Error: $e', isError: true);
       }
     }
   }
 
-  // GA01-153 y GA01-162: Filtrar y ordenar canciones
+  // --- UI ---
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppTheme.backgroundBlack,
+      appBar: AppBar(
+        backgroundColor: AppTheme.backgroundBlack,
+        elevation: 0,
+        title: const Text('MI CATÁLOGO',
+            style: TextStyle(
+                fontFamily: 'Poppins',
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+                letterSpacing: 1,
+                color: Colors.white)),
+        centerTitle: true,
+        iconTheme: const IconThemeData(color: Colors.white),
+        bottom: TabBar(
+          controller: _tabController,
+          indicatorColor: AppTheme.primaryBlue,
+          labelColor: AppTheme.primaryBlue,
+          unselectedLabelColor: AppTheme.textGrey,
+          indicatorSize: TabBarIndicatorSize.label,
+          labelStyle:
+              const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+          tabs: const [
+            Tab(text: 'CANCIONES'),
+            Tab(text: 'ÁLBUMES'),
+          ],
+        ),
+        actions: [
+          _buildFilterMenu(),
+        ],
+      ),
+      body: _isLoading
+          ? const Center(
+              child: CircularProgressIndicator(color: AppTheme.primaryBlue))
+          : _error != null
+              ? Center(
+                  child: Text(_error!,
+                      style: const TextStyle(color: AppTheme.errorRed)))
+              : TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _buildList(_filteredSongs, isSong: true),
+                    _buildList(_filteredAlbums, isSong: false),
+                  ],
+                ),
+    );
+  }
+
+  Widget _buildList(List<dynamic> items, {required bool isSong}) {
+    if (items.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(isSong ? Icons.music_note_rounded : Icons.album_rounded,
+                size: 64, color: Colors.white10),
+            const SizedBox(height: 16),
+            Text(
+              'No hay ${isSong ? 'canciones' : 'álbumes'} para mostrar',
+              style: const TextStyle(color: AppTheme.textGrey),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.separated(
+      padding: const EdgeInsets.all(20),
+      itemCount: items.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 16),
+      itemBuilder: (context, index) {
+        final item = items[index];
+        return _buildCatalogItem(item, isSong: isSong)
+            .animate(delay: (50 * index).ms)
+            .fadeIn()
+            .slideX(begin: 0.1, end: 0);
+      },
+    );
+  }
+
+  Widget _buildCatalogItem(dynamic item, {required bool isSong}) {
+    final bool isPublished = item.published;
+    final String status = item.moderationStatus;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: AppTheme.cardBlack,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => isSong ? _editSong(item) : _editAlbum(item),
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              children: [
+                // Cover
+                _buildCover(item.coverImageUrl, isPublished, isSong),
+                const SizedBox(width: 16),
+
+                // Info
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item.name,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          if (!isPublished) ...[
+                            _buildStatusTag('OCULTO', Colors.grey),
+                            const SizedBox(width: 6),
+                          ],
+                          _buildModerationTag(status),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        isSong
+                            ? '${item.plays} reproducciones • \$${item.price.toStringAsFixed(2)}'
+                            : '${item.songCount ?? 0} canciones • \$${item.price.toStringAsFixed(2)}',
+                        style: const TextStyle(
+                            color: AppTheme.textGrey, fontSize: 12),
+                      ),
+                      if (item.rejectionReason != null &&
+                          item.rejectionReason!.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: Text(
+                            'Rechazo: ${item.rejectionReason}',
+                            style: const TextStyle(
+                                color: AppTheme.errorRed, fontSize: 11),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+
+                // Menu
+                PopupMenuButton<String>(
+                  icon: const Icon(Icons.more_vert, color: AppTheme.textGrey),
+                  color: AppTheme.surfaceBlack,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                  itemBuilder: (context) => [
+                    _buildPopupItem('edit', 'Editar', Icons.edit),
+                    _buildPopupItem(
+                        'toggle',
+                        isPublished ? 'Ocultar' : 'Publicar',
+                        isPublished ? Icons.visibility_off : Icons.visibility),
+                    const PopupMenuDivider(),
+                    _buildPopupItem('delete', 'Eliminar', Icons.delete,
+                        color: AppTheme.errorRed),
+                  ],
+                  onSelected: (value) {
+                    if (value == 'edit') {
+                      isSong ? _editSong(item) : _editAlbum(item);
+                    }
+                    if (value == 'toggle') {
+                      isSong
+                          ? _toggleSongPublished(item)
+                          : _toggleAlbumPublished(item);
+                    }
+                    if (value == 'delete') {
+                      isSong ? _deleteSong(item.id) : _deleteAlbum(item.id);
+                    }
+                  },
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCover(String? url, bool isPublished, bool isSong) {
+    if (!isPublished) {
+      return Container(
+        width: 70,
+        height: 70,
+        decoration: BoxDecoration(
+            color: Colors.white10, borderRadius: BorderRadius.circular(8)),
+        child: const Icon(Icons.visibility_off, color: Colors.white38),
+      );
+    }
+    if (url != null && url.isNotEmpty) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: Image.network(url, width: 70, height: 70, fit: BoxFit.cover),
+      );
+    }
+    return Container(
+      width: 70,
+      height: 70,
+      decoration: BoxDecoration(
+          color: AppTheme.surfaceBlack, borderRadius: BorderRadius.circular(8)),
+      child: Icon(isSong ? Icons.music_note : Icons.album,
+          color: AppTheme.primaryBlue),
+    );
+  }
+
+  Widget _buildStatusTag(String text, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.2),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: color.withValues(alpha: 0.5)),
+      ),
+      child: Text(
+        text,
+        style:
+            TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.bold),
+      ),
+    );
+  }
+
+  Widget _buildModerationTag(String status) {
+    Color color;
+    String text;
+    switch (status) {
+      case 'APPROVED':
+        color = AppTheme.successGreen;
+        text = 'APROBADO';
+        break;
+      case 'REJECTED':
+        color = AppTheme.errorRed;
+        text = 'RECHAZADO';
+        break;
+      default:
+        color = AppTheme.warningOrange;
+        text = 'EN REVISIÓN';
+    }
+    return _buildStatusTag(text, color);
+  }
+
+  PopupMenuItem<String> _buildPopupItem(
+      String value, String text, IconData icon,
+      {Color? color}) {
+    return PopupMenuItem<String>(
+      value: value,
+      child: Row(
+        children: [
+          Icon(icon, color: color ?? Colors.white, size: 20),
+          const SizedBox(width: 12),
+          Text(text, style: TextStyle(color: color ?? Colors.white)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilterMenu() {
+    return PopupMenuButton<String>(
+      icon: const Icon(Icons.filter_list_rounded, color: Colors.white),
+      color: AppTheme.surfaceBlack,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      onSelected: (value) {
+        setState(() {
+          if (['all', 'published', 'hidden', 'pending', 'approved', 'rejected']
+              .contains(value)) {
+            _filterStatus = value;
+          } else {
+            _sortBy = value;
+          }
+        });
+      },
+      itemBuilder: (context) => [
+        _buildFilterHeader('ESTADO'),
+        _buildFilterOption('all', 'Todas'),
+        _buildFilterOption('published', 'Publicadas'),
+        _buildFilterOption('hidden', 'Ocultas'),
+        _buildFilterOption('pending', 'En Revisión',
+            icon: Icons.hourglass_empty, color: Colors.orange),
+        _buildFilterOption('rejected', 'Rechazadas',
+            icon: Icons.cancel, color: Colors.red),
+        const PopupMenuDivider(),
+        _buildFilterHeader('ORDENAR'),
+        _buildSortOption('recent', 'Recientes'),
+        _buildSortOption('plays', 'Reproducciones'),
+      ],
+    );
+  }
+
+  PopupMenuItem<String> _buildFilterHeader(String text) {
+    return PopupMenuItem(
+      enabled: false,
+      child: Text(text,
+          style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: AppTheme.textGrey)),
+    );
+  }
+
+  PopupMenuItem<String> _buildFilterOption(String value, String text,
+      {IconData? icon, Color? color}) {
+    final isSelected = _filterStatus == value;
+    return PopupMenuItem(
+      value: value,
+      child: Row(
+        children: [
+          Icon(isSelected ? Icons.check_box : Icons.check_box_outline_blank,
+              color: isSelected ? AppTheme.primaryBlue : AppTheme.textGrey,
+              size: 20),
+          const SizedBox(width: 12),
+          Text(text,
+              style: TextStyle(
+                  color: isSelected ? Colors.white : AppTheme.textGrey)),
+          if (icon != null) ...[
+            const Spacer(),
+            Icon(icon, size: 16, color: color),
+          ]
+        ],
+      ),
+    );
+  }
+
+  PopupMenuItem<String> _buildSortOption(String value, String text) {
+    final isSelected = _sortBy == value;
+    return PopupMenuItem(
+      value: value,
+      child: Row(
+        children: [
+          Icon(
+              isSelected
+                  ? Icons.radio_button_checked
+                  : Icons.radio_button_unchecked,
+              color: isSelected ? AppTheme.primaryBlue : AppTheme.textGrey,
+              size: 20),
+          const SizedBox(width: 12),
+          Text(text,
+              style: TextStyle(
+                  color: isSelected ? Colors.white : AppTheme.textGrey)),
+        ],
+      ),
+    );
+  }
+
+  // --- Helpers Funcionales ---
+
   List<Song> get _filteredSongs {
     var filtered = _songs.where((song) {
-      // Filtros de visibilidad
       if (_filterStatus == 'published') return song.published;
       if (_filterStatus == 'hidden') return !song.published;
-
-      // GA01-162: Filtros de moderación
       if (_filterStatus == 'pending') return song.moderationStatus == 'PENDING';
-      if (_filterStatus == 'approved') return song.moderationStatus == 'APPROVED';
-      if (_filterStatus == 'rejected') return song.moderationStatus == 'REJECTED';
-
+      if (_filterStatus == 'approved') {
+        return song.moderationStatus == 'APPROVED';
+      }
+      if (_filterStatus == 'rejected') {
+        return song.moderationStatus == 'REJECTED';
+      }
       return true;
     }).toList();
 
@@ -327,31 +537,26 @@ class _StudioCatalogScreenState extends State<StudioCatalogScreen>
       case 'plays':
         filtered.sort((a, b) => b.plays.compareTo(a.plays));
         break;
-      case 'recent':
       default:
-        filtered.sort((a, b) {
-          if (a.createdAt == null && b.createdAt == null) return 0;
-          if (a.createdAt == null) return 1;
-          if (b.createdAt == null) return -1;
-          return b.createdAt!.compareTo(a.createdAt!);
-        });
+        filtered.sort((a, b) => (b.createdAt ?? DateTime.now())
+            .compareTo(a.createdAt ?? DateTime.now()));
     }
-
     return filtered;
   }
 
-  // GA01-153 y GA01-162: Filtrar y ordenar álbumes
   List<Album> get _filteredAlbums {
     var filtered = _albums.where((album) {
-      // Filtros de visibilidad
       if (_filterStatus == 'published') return album.published;
       if (_filterStatus == 'hidden') return !album.published;
-
-      // GA01-162: Filtros de moderación
-      if (_filterStatus == 'pending') return album.moderationStatus == 'PENDING';
-      if (_filterStatus == 'approved') return album.moderationStatus == 'APPROVED';
-      if (_filterStatus == 'rejected') return album.moderationStatus == 'REJECTED';
-
+      if (_filterStatus == 'pending') {
+        return album.moderationStatus == 'PENDING';
+      }
+      if (_filterStatus == 'approved') {
+        return album.moderationStatus == 'APPROVED';
+      }
+      if (_filterStatus == 'rejected') {
+        return album.moderationStatus == 'REJECTED';
+      }
       return true;
     }).toList();
 
@@ -359,690 +564,47 @@ class _StudioCatalogScreenState extends State<StudioCatalogScreen>
       case 'name':
         filtered.sort((a, b) => a.name.compareTo(b.name));
         break;
-      case 'recent':
       default:
-        filtered.sort((a, b) {
-          if (a.createdAt == null && b.createdAt == null) return 0;
-          if (a.createdAt == null) return 1;
-          if (b.createdAt == null) return -1;
-          return b.createdAt!.compareTo(a.createdAt!);
-        });
+        filtered.sort((a, b) => (b.createdAt ?? DateTime.now())
+            .compareTo(a.createdAt ?? DateTime.now()));
     }
-
     return filtered;
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.grey[100],
-      appBar: AppBar(
-        elevation: 0,
-        title: const Text('Mi Catálogo'),
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(text: 'Canciones', icon: Icon(Icons.music_note)),
-            Tab(text: 'Álbumes', icon: Icon(Icons.album)),
-          ],
-        ),
+  void _showModerationAlert(String status) {
+    String msg = status == 'PENDING'
+        ? 'Contenido en revisión. Espera aprobación.'
+        : 'Contenido rechazado. Edítalo para reenviar.';
+    _showSnack(msg, isError: true);
+  }
+
+  void _showSnack(String msg, {bool isError = false}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(msg, style: const TextStyle(color: Colors.white)),
+      backgroundColor: isError ? AppTheme.errorRed : AppTheme.successGreen,
+      behavior: SnackBarBehavior.floating,
+    ));
+  }
+
+  Future<bool?> _showDeleteDialog(String title) {
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppTheme.cardBlack,
+        title: Text(title, style: const TextStyle(color: Colors.white)),
+        content: const Text('¿Estás seguro? Esta acción es irreversible.',
+            style: TextStyle(color: AppTheme.textGrey)),
         actions: [
-          // GA01-153: Menú de filtros
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.filter_list),
-            onSelected: (value) {
-              setState(() {
-                if (value == 'all' ||
-                    value == 'published' ||
-                    value == 'hidden') {
-                  _filterStatus = value;
-                } else {
-                  _sortBy = value;
-                }
-              });
-            },
-            itemBuilder: (context) => <PopupMenuEntry<String>>[
-              const PopupMenuItem<String>(
-                value: 'filter_header',
-                enabled: false,
-                child: Text('FILTRAR POR ESTADO',
-                    style: TextStyle(fontWeight: FontWeight.bold)),
-              ),
-              PopupMenuItem<String>(
-                value: 'all',
-                child: Row(
-                  children: [
-                    if (_filterStatus == 'all')
-                      const Icon(Icons.check, size: 20),
-                    if (_filterStatus != 'all') const SizedBox(width: 20),
-                    const SizedBox(width: 8),
-                    const Text('Todas'),
-                  ],
-                ),
-              ),
-              PopupMenuItem<String>(
-                value: 'published',
-                child: Row(
-                  children: [
-                    if (_filterStatus == 'published')
-                      const Icon(Icons.check, size: 20),
-                    if (_filterStatus != 'published') const SizedBox(width: 20),
-                    const SizedBox(width: 8),
-                    const Text('Publicadas'),
-                  ],
-                ),
-              ),
-              PopupMenuItem<String>(
-                value: 'hidden',
-                child: Row(
-                  children: [
-                    if (_filterStatus == 'hidden')
-                      const Icon(Icons.check, size: 20),
-                    if (_filterStatus != 'hidden') const SizedBox(width: 20),
-                    const SizedBox(width: 8),
-                    const Text('Ocultas'),
-                  ],
-                ),
-              ),
-              const PopupMenuDivider(),
-              const PopupMenuItem<String>(
-                value: 'moderation_header',
-                enabled: false,
-                child: Text('ESTADO DE MODERACIÓN',
-                    style: TextStyle(fontWeight: FontWeight.bold)),
-              ),
-              PopupMenuItem<String>(
-                value: 'pending',
-                child: Row(
-                  children: [
-                    if (_filterStatus == 'pending')
-                      const Icon(Icons.check, size: 20),
-                    if (_filterStatus != 'pending') const SizedBox(width: 20),
-                    const SizedBox(width: 8),
-                    const Text('En revisión'),
-                    const SizedBox(width: 8),
-                    const Icon(Icons.hourglass_empty,
-                        size: 16, color: Colors.orange),
-                  ],
-                ),
-              ),
-              PopupMenuItem<String>(
-                value: 'approved',
-                child: Row(
-                  children: [
-                    if (_filterStatus == 'approved')
-                      const Icon(Icons.check, size: 20),
-                    if (_filterStatus != 'approved') const SizedBox(width: 20),
-                    const SizedBox(width: 8),
-                    const Text('Aprobadas'),
-                    const SizedBox(width: 8),
-                    const Icon(Icons.check_circle,
-                        size: 16, color: Colors.green),
-                  ],
-                ),
-              ),
-              PopupMenuItem<String>(
-                value: 'rejected',
-                child: Row(
-                  children: [
-                    if (_filterStatus == 'rejected')
-                      const Icon(Icons.check, size: 20),
-                    if (_filterStatus != 'rejected') const SizedBox(width: 20),
-                    const SizedBox(width: 8),
-                    const Text('Rechazadas'),
-                    const SizedBox(width: 8),
-                    const Icon(Icons.cancel, size: 16, color: Colors.red),
-                  ],
-                ),
-              ),
-              const PopupMenuDivider(),
-              const PopupMenuItem<String>(
-                value: 'sort_header',
-                enabled: false,
-                child: Text('ORDENAR POR',
-                    style: TextStyle(fontWeight: FontWeight.bold)),
-              ),
-              PopupMenuItem<String>(
-                value: 'recent',
-                child: Row(
-                  children: [
-                    if (_sortBy == 'recent') const Icon(Icons.check, size: 20),
-                    if (_sortBy != 'recent') const SizedBox(width: 20),
-                    const SizedBox(width: 8),
-                    const Text('Más recientes'),
-                  ],
-                ),
-              ),
-              PopupMenuItem<String>(
-                value: 'name',
-                child: Row(
-                  children: [
-                    if (_sortBy == 'name') const Icon(Icons.check, size: 20),
-                    if (_sortBy != 'name') const SizedBox(width: 20),
-                    const SizedBox(width: 8),
-                    const Text('Nombre'),
-                  ],
-                ),
-              ),
-              PopupMenuItem<String>(
-                value: 'plays',
-                child: Row(
-                  children: [
-                    if (_sortBy == 'plays') const Icon(Icons.check, size: 20),
-                    if (_sortBy != 'plays') const SizedBox(width: 20),
-                    const SizedBox(width: 8),
-                    const Text('Reproducciones'),
-                  ],
-                ),
-              ),
-            ],
-          ),
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancelar',
+                  style: TextStyle(color: Colors.white70))),
+          TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Eliminar',
+                  style: TextStyle(color: AppTheme.errorRed))),
         ],
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _error != null
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.error_outline,
-                          size: 64, color: Colors.red),
-                      const SizedBox(height: 16),
-                      Text(_error!),
-                      ElevatedButton(
-                        onPressed: _loadCatalog,
-                        child: const Text('Reintentar'),
-                      ),
-                    ],
-                  ),
-                )
-              : TabBarView(
-                  controller: _tabController,
-                  children: [
-                    _buildSongsList(),
-                    _buildAlbumsList(),
-                  ],
-                ),
-    );
-  }
-
-  Widget _buildSongsList() {
-    final songs = _filteredSongs;
-
-    if (songs.isEmpty) {
-      String message = 'No hay canciones';
-      if (_filterStatus == 'published') {
-        message = 'No hay canciones publicadas';
-      } else if (_filterStatus == 'hidden') {
-        message = 'No hay canciones ocultas';
-      }
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.music_note, size: 64, color: Colors.grey[400]),
-            const SizedBox(height: 16),
-            Text(
-              message,
-              style: TextStyle(fontSize: 16, color: Colors.grey[600]),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: songs.length,
-      itemBuilder: (context, index) {
-        final song = songs[index];
-        return Card(
-          elevation: 2,
-          margin: const EdgeInsets.only(bottom: 16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: InkWell(
-            onTap: () => _editSong(song),
-            borderRadius: BorderRadius.circular(12),
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Row(
-                children: [
-                  // Portada o icono
-                  _buildSongCover(song),
-                  const SizedBox(width: 12),
-                  // Información
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                song.name,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            // GA01-162: Badge de estado de moderación
-                            ModerationBadge(
-                              status: song.moderationStatus,
-                              compact: true,
-                            ),
-                            const SizedBox(width: 4),
-                            if (!song.published)
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: Colors.grey[300],
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: Colors.grey),
-                                ),
-                                child: const Text(
-                                  'OCULTO',
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.grey,
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '\$${song.price.toStringAsFixed(2)} • ${song.durationFormatted}',
-                          style: TextStyle(
-                            color: Colors.grey[600],
-                            fontSize: 14,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          '${song.plays} reproducciones',
-                          style: TextStyle(
-                            color: Colors.grey[500],
-                            fontSize: 12,
-                          ),
-                        ),
-                        // GA01-162: Mostrar razón de rechazo si existe
-                        if (song.rejectionReason != null &&
-                            song.rejectionReason!.isNotEmpty) ...[
-                          const SizedBox(height: 8),
-                          RejectionReasonWidget(
-                            reason: song.rejectionReason!,
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                  // Menú de opciones
-                  PopupMenuButton<String>(
-                    itemBuilder: (context) => <PopupMenuEntry<String>>[
-                      const PopupMenuItem<String>(
-                        value: 'edit',
-                        child: Row(
-                          children: [
-                            Icon(Icons.edit, color: AppTheme.primaryBlue),
-                            SizedBox(width: 8),
-                            Text('Editar'),
-                          ],
-                        ),
-                      ),
-                      PopupMenuItem<String>(
-                        value: 'toggle',
-                        child: Row(
-                          children: [
-                            Icon(
-                              song.published
-                                  ? Icons.visibility_off
-                                  : Icons.visibility,
-                              color: AppTheme.primaryBlue,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(song.published ? 'Ocultar' : 'Publicar'),
-                          ],
-                        ),
-                      ),
-                      const PopupMenuDivider(),
-                      const PopupMenuItem<String>(
-                        value: 'delete',
-                        child: Row(
-                          children: [
-                            Icon(Icons.delete, color: Colors.red),
-                            SizedBox(width: 8),
-                            Text('Eliminar', style: TextStyle(color: Colors.red)),
-                          ],
-                        ),
-                      ),
-                    ],
-                    onSelected: (value) {
-                      if (value == 'edit') {
-                        _editSong(song);
-                      } else if (value == 'toggle') {
-                        _toggleSongPublished(song);
-                      } else if (value == 'delete') {
-                        _deleteSong(song.id);
-                      }
-                    },
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ).animate().fadeIn(delay: (index * 50).ms).slideX(begin: 0.2, end: 0);
-      },
-    );
-  }
-
-  Widget _buildAlbumsList() {
-    final albums = _filteredAlbums;
-
-    if (albums.isEmpty) {
-      String message = 'No hay álbumes';
-      if (_filterStatus == 'published') {
-        message = 'No hay álbumes publicados';
-      } else if (_filterStatus == 'hidden') {
-        message = 'No hay álbumes ocultos';
-      }
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.album, size: 64, color: Colors.grey[400]),
-            const SizedBox(height: 16),
-            Text(
-              message,
-              style: TextStyle(fontSize: 16, color: Colors.grey[600]),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: albums.length,
-      itemBuilder: (context, index) {
-        final album = albums[index];
-        return Card(
-          elevation: 2,
-          margin: const EdgeInsets.only(bottom: 16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: InkWell(
-            onTap: () => _editAlbum(album),
-            borderRadius: BorderRadius.circular(12),
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Row(
-                children: [
-                  // Portada o icono
-                  _buildAlbumCover(album),
-                  const SizedBox(width: 12),
-                  // Información
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                album.name,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            // GA01-162: Badge de estado de moderación
-                            ModerationBadge(
-                              status: album.moderationStatus,
-                              compact: true,
-                            ),
-                            const SizedBox(width: 4),
-                            if (!album.published)
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: Colors.grey[300],
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: Colors.grey),
-                                ),
-                                child: const Text(
-                                  'OCULTO',
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.grey,
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '\$${album.price.toStringAsFixed(2)}',
-                          style: TextStyle(
-                            color: Colors.grey[600],
-                            fontSize: 14,
-                          ),
-                        ),
-                        if (album.songCount != null) ...[
-                          const SizedBox(height: 2),
-                          Text(
-                            '${album.songCount} canciones',
-                            style: TextStyle(
-                              color: Colors.grey[500],
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
-                        // GA01-162: Mostrar razón de rechazo si existe
-                        if (album.rejectionReason != null &&
-                            album.rejectionReason!.isNotEmpty) ...[
-                          const SizedBox(height: 8),
-                          RejectionReasonWidget(
-                            reason: album.rejectionReason!,
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                  // Menú de opciones
-                  PopupMenuButton<String>(
-                    itemBuilder: (context) => <PopupMenuEntry<String>>[
-                      const PopupMenuItem<String>(
-                        value: 'edit',
-                        child: Row(
-                          children: [
-                            Icon(Icons.edit, color: AppTheme.primaryBlue),
-                            SizedBox(width: 8),
-                            Text('Editar'),
-                          ],
-                        ),
-                      ),
-                      PopupMenuItem<String>(
-                        value: 'toggle',
-                        child: Row(
-                          children: [
-                            Icon(
-                              album.published
-                                  ? Icons.visibility_off
-                                  : Icons.visibility,
-                              color: AppTheme.primaryBlue,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(album.published ? 'Ocultar' : 'Publicar'),
-                          ],
-                        ),
-                      ),
-                      const PopupMenuDivider(),
-                      const PopupMenuItem<String>(
-                        value: 'delete',
-                        child: Row(
-                          children: [
-                            Icon(Icons.delete, color: Colors.red),
-                            SizedBox(width: 8),
-                            Text('Eliminar', style: TextStyle(color: Colors.red)),
-                          ],
-                        ),
-                      ),
-                    ],
-                    onSelected: (value) {
-                      if (value == 'edit') {
-                        _editAlbum(album);
-                      } else if (value == 'toggle') {
-                        _toggleAlbumPublished(album);
-                      } else if (value == 'delete') {
-                        _deleteAlbum(album.id);
-                      }
-                    },
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ).animate().fadeIn(delay: (index * 50).ms).slideX(begin: 0.2, end: 0);
-      },
-    );
-  }
-
-  // Widget para mostrar portada de canción o icono de oculto
-  Widget _buildSongCover(Song song) {
-    if (!song.published) {
-      // Si está oculto, mostrar icono visibility_off
-      return Container(
-        width: 60,
-        height: 60,
-        decoration: BoxDecoration(
-          color: Colors.grey[300],
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: const Icon(
-          Icons.visibility_off,
-          size: 30,
-          color: Colors.grey,
-        ),
-      );
-    }
-
-    // Si está publicado, mostrar portada
-    if (song.coverImageUrl != null && song.coverImageUrl!.isNotEmpty) {
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(8),
-        child: Image.network(
-          song.coverImageUrl!,
-          width: 60,
-          height: 60,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) {
-            return Container(
-              width: 60,
-              height: 60,
-              decoration: BoxDecoration(
-                color: AppTheme.primaryBlue.withValues(alpha:0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(
-                Icons.music_note,
-                size: 30,
-                color: AppTheme.primaryBlue,
-              ),
-            );
-          },
-        ),
-      );
-    }
-
-    // Fallback: icono de música
-    return Container(
-      width: 60,
-      height: 60,
-      decoration: BoxDecoration(
-        color: AppTheme.primaryBlue.withValues(alpha:0.1),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: const Icon(
-        Icons.music_note,
-        size: 30,
-        color: AppTheme.primaryBlue,
-      ),
-    );
-  }
-
-  // Widget para mostrar portada de álbum o icono de oculto
-  Widget _buildAlbumCover(Album album) {
-    if (!album.published) {
-      // Si está oculto, mostrar icono visibility_off
-      return Container(
-        width: 60,
-        height: 60,
-        decoration: BoxDecoration(
-          color: Colors.grey[300],
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: const Icon(
-          Icons.visibility_off,
-          size: 30,
-          color: Colors.grey,
-        ),
-      );
-    }
-
-    // Si está publicado, mostrar portada
-    if (album.coverImageUrl != null && album.coverImageUrl!.isNotEmpty) {
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(8),
-        child: Image.network(
-          album.coverImageUrl!,
-          width: 60,
-          height: 60,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) {
-            return Container(
-              width: 60,
-              height: 60,
-              decoration: BoxDecoration(
-                color: AppTheme.primaryBlue.withValues(alpha:0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(
-                Icons.album,
-                size: 30,
-                color: AppTheme.primaryBlue,
-              ),
-            );
-          },
-        ),
-      );
-    }
-
-    // Fallback: icono de álbum
-    return Container(
-      width: 60,
-      height: 60,
-      decoration: BoxDecoration(
-        color: AppTheme.primaryBlue.withValues(alpha:0.1),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: const Icon(
-        Icons.album,
-        size: 30,
-        color: AppTheme.primaryBlue,
       ),
     );
   }

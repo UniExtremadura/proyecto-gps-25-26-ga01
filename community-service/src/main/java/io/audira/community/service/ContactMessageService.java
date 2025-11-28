@@ -30,6 +30,14 @@ public class ContactMessageService {
     private final ContactMessageRepository contactMessageRepository;
     private final io.audira.community.client.NotificationClient notificationClient;
 
+    /**
+     * ID del usuario administrador principal que recibe notificaciones de nuevos tickets.
+     * Configurable mediante la propiedad {@code admin.user.id}.
+     * Valor por defecto: 1
+     */
+    @org.springframework.beans.factory.annotation.Value("${admin.user.id:1}")
+    private Long adminUserId;
+
     // --- Métodos de Consulta ---
 
     /**
@@ -131,12 +139,12 @@ public class ContactMessageService {
         log.info("Creando mensaje de contacto de: {}", message.getEmail());
         ContactMessage savedMessage = contactMessageRepository.save(message);
 
-        // Notificar a administradores (usando un ID genérico o lista de admins)
+        // Notificar a administradores
         try {
-            // Asume que el admin principal tiene ID 1
-            notificationClient.notifyAdminNewTicket(1L, message.getName(), message.getSubject());
+            log.info("Notificando nuevo ticket al admin con ID: {}", adminUserId);
+            notificationClient.notifyAdminNewTicket(adminUserId, message.getName(), message.getSubject());
         } catch (Exception e) {
-            log.error("Failed to send ticket notification to admin", e);
+            log.error("Failed to send ticket notification to admin {}: {}", adminUserId, e.getMessage());
         }
 
         return savedMessage;

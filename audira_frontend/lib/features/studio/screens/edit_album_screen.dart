@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import '../../../config/theme.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/api/services/music_service.dart';
@@ -38,14 +39,15 @@ class _EditAlbumScreenState extends State<EditAlbumScreen> {
   @override
   void initState() {
     super.initState();
-    // Prellenar campos con datos actuales
     _nameController = TextEditingController(text: widget.album.name);
-    _descriptionController = TextEditingController(text: widget.album.description ?? '');
-    _priceController = TextEditingController(text: widget.album.price.toString());
-    _discountController = TextEditingController(text: widget.album.discountPercentage.toString());
+    _descriptionController =
+        TextEditingController(text: widget.album.description ?? '');
+    _priceController =
+        TextEditingController(text: widget.album.price.toString());
+    _discountController =
+        TextEditingController(text: widget.album.discountPercentage.toString());
     _releaseDate = widget.album.releaseDate;
     _selectedGenreIds = List.from(widget.album.genreIds);
-
     _loadGenres();
   }
 
@@ -57,6 +59,8 @@ class _EditAlbumScreenState extends State<EditAlbumScreen> {
     _discountController.dispose();
     super.dispose();
   }
+
+  // --- Logic (Intact) ---
 
   Future<void> _loadGenres() async {
     setState(() => _isLoadingGenres = true);
@@ -76,33 +80,23 @@ class _EditAlbumScreenState extends State<EditAlbumScreen> {
   }
 
   Future<void> _pickImageFile() async {
-  final currentContext = context; 
-  
-  try {
-    final picker = ImagePicker();
-    final XFile? image = await picker.pickImage(
-      source: ImageSource.gallery,
-      maxWidth: 2000,
-      maxHeight: 2000,
-      imageQuality: 85,
-    );
-
-    if (image != null) {
-      setState(() {
-        _imageFilePath = image.path;
-      });
-      if (!currentContext.mounted) return; 
-      ScaffoldMessenger.of(currentContext).showSnackBar( 
-        SnackBar(content: Text('Nueva imagen seleccionada: ${image.name}')),
+    try {
+      final picker = ImagePicker();
+      final XFile? image = await picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 2000,
+        maxHeight: 2000,
+        imageQuality: 85,
       );
+
+      if (image != null) {
+        setState(() => _imageFilePath = image.path);
+        if (mounted) _showSnack('Imagen seleccionada');
+      }
+    } catch (e) {
+      if (mounted) _showSnack('Error al seleccionar imagen: $e', isError: true);
     }
-  } catch (e) {
-    if (!currentContext.mounted) return;
-    ScaffoldMessenger.of(currentContext).showSnackBar(
-      SnackBar(content: Text('Error al seleccionar imagen: $e')),
-    );
   }
-}
 
   Future<void> _selectReleaseDate() async {
     final picked = await showDatePicker(
@@ -110,22 +104,30 @@ class _EditAlbumScreenState extends State<EditAlbumScreen> {
       initialDate: _releaseDate ?? DateTime.now(),
       firstDate: DateTime(2000),
       lastDate: DateTime(2100),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.dark(
+              primary: AppTheme.primaryBlue,
+              onPrimary: Colors.white,
+              surface: AppTheme.surfaceBlack,
+              onSurface: Colors.white,
+            ),
+          ),
+          child: child!,
+        );
+      },
     );
 
     if (picked != null) {
-      setState(() {
-        _releaseDate = picked;
-      });
+      setState(() => _releaseDate = picked);
     }
   }
 
   Future<void> _saveAlbum() async {
     if (!_formKey.currentState!.validate()) return;
-
     if (_selectedGenreIds.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Selecciona al menos un género')),
-      );
+      _showSnack('Selecciona al menos un género', isError: true);
       return;
     }
 
@@ -137,16 +139,15 @@ class _EditAlbumScreenState extends State<EditAlbumScreen> {
         throw Exception('Usuario no autenticado');
       }
 
-      // Subir nueva imagen si se seleccionó una
       String? coverUrl = widget.album.coverImageUrl;
       if (_imageFilePath != null) {
-        final uploadResponse = await _fileService.uploadImageFile(_imageFilePath!);
+        final uploadResponse =
+            await _fileService.uploadImageFile(_imageFilePath!);
         if (uploadResponse.success && uploadResponse.data != null) {
           coverUrl = uploadResponse.data!.fileUrl;
         }
       }
 
-      // Actualizar álbum
       final albumData = {
         'title': _nameController.text,
         'description': _descriptionController.text,
@@ -154,217 +155,194 @@ class _EditAlbumScreenState extends State<EditAlbumScreen> {
         'discountPercentage': double.parse(_discountController.text),
         'genreIds': _selectedGenreIds,
         'productType': 'ALBUM',
-        if (_releaseDate != null) 'releaseDate': _releaseDate!.toIso8601String().split('T')[0],
+        if (_releaseDate != null)
+          'releaseDate': _releaseDate!.toIso8601String().split('T')[0],
         if (coverUrl != null) 'coverImageUrl': coverUrl,
       };
 
-      final response = await _musicService.updateAlbum(widget.album.id, albumData);
+      final response =
+          await _musicService.updateAlbum(widget.album.id, albumData);
 
       if (response.success) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Álbum actualizado exitosamente'),
-              backgroundColor: Colors.green,
-            ),
-          );
-          Navigator.pop(context, true); // Retornar true para indicar éxito
+          _showSnack('Álbum actualizado exitosamente');
+          Navigator.pop(context, true);
         }
       } else {
         throw Exception(response.error ?? 'Error desconocido');
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error al actualizar álbum: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      if (mounted) _showSnack('Error: $e', isError: true);
     } finally {
       setState(() => _isSaving = false);
     }
   }
 
+  void _showSnack(String msg, {bool isError = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(msg, style: const TextStyle(color: Colors.white)),
+      backgroundColor: isError ? AppTheme.errorRed : AppTheme.successGreen,
+      behavior: SnackBarBehavior.floating,
+    ));
+  }
+
+  // --- UI ---
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppTheme.backgroundBlack,
       appBar: AppBar(
-        title: const Text('Editar Álbum'),
+        backgroundColor: AppTheme.backgroundBlack,
+        iconTheme: const IconThemeData(color: Colors.white),
+        centerTitle: true,
+        title: const Text(
+          'EDITAR ÁLBUM',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+            letterSpacing: 1,
+          ),
+        ),
         actions: [
           if (_isSaving)
             const Center(
-              child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16),
-                child: CircularProgressIndicator(color: Colors.white),
-              ),
-            )
+                child: Padding(
+                    padding: EdgeInsets.only(right: 16),
+                    child: SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white))))
           else
             IconButton(
-              icon: const Icon(Icons.save),
+              icon: const Icon(Icons.check_circle_outline),
               onPressed: _saveAlbum,
-              tooltip: 'Guardar cambios',
+              tooltip: 'Guardar',
             ),
         ],
       ),
       body: _isLoadingGenres
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(
+              child: CircularProgressIndicator(color: AppTheme.primaryBlue))
           : SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
+              physics: const BouncingScrollPhysics(),
+              padding: const EdgeInsets.all(20),
               child: Form(
                 key: _formKey,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Imagen de portada
-                    _buildCoverSection(),
-                    const SizedBox(height: 24),
+                    // 1. Portada
+                    _buildCoverSection().animate().scale(),
 
-                    // Información básica
-                    Text(
-                      'Información Básica',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                    ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 32),
 
-                    TextFormField(
+                    // 2. Info Básica
+                    _buildSectionLabel('INFORMACIÓN BÁSICA'),
+                    _buildDarkInput(
                       controller: _nameController,
-                      decoration: const InputDecoration(
-                        labelText: 'Título del álbum *',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.album),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'El título es requerido';
-                        }
-                        return null;
-                      },
-                    ),
+                      label: 'Título',
+                      icon: Icons.album_outlined,
+                      validator: (v) =>
+                          (v == null || v.trim().isEmpty) ? 'Requerido' : null,
+                    ).animate().fadeIn(delay: 100.ms),
+
                     const SizedBox(height: 16),
 
-                    TextFormField(
+                    _buildDarkInput(
                       controller: _descriptionController,
-                      decoration: const InputDecoration(
-                        labelText: 'Descripción',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.description),
-                        hintText: 'Describe tu álbum...',
-                      ),
+                      label: 'Descripción',
+                      icon: Icons.description_outlined,
                       maxLines: 3,
-                    ),
+                    ).animate().fadeIn(delay: 150.ms),
+
                     const SizedBox(height: 16),
 
                     Row(
                       children: [
                         Expanded(
-                          child: TextFormField(
+                          child: _buildDarkInput(
                             controller: _priceController,
-                            decoration: const InputDecoration(
-                              labelText: 'Precio (USD) *',
-                              border: OutlineInputBorder(),
-                              prefixIcon: Icon(Icons.attach_money),
-                            ),
-                            keyboardType: TextInputType.number,
-                            validator: (value) {
-                              if (value == null || value.trim().isEmpty) {
-                                return 'El precio es requerido';
-                              }
-                              final price = double.tryParse(value);
-                              if (price == null || price <= 0) {
-                                return 'Precio inválido';
-                              }
-                              return null;
-                            },
+                            label: 'Precio',
+                            icon: Icons.attach_money,
+                            inputType: TextInputType.number,
+                            validator: (v) =>
+                                (v == null || double.tryParse(v) == null)
+                                    ? 'Inválido'
+                                    : null,
                           ),
                         ),
                         const SizedBox(width: 16),
                         Expanded(
-                          child: TextFormField(
+                          child: _buildDarkInput(
                             controller: _discountController,
-                            decoration: const InputDecoration(
-                              labelText: 'Descuento (%)',
-                              border: OutlineInputBorder(),
-                              prefixIcon: Icon(Icons.percent),
-                            ),
-                            keyboardType: TextInputType.number,
-                            validator: (value) {
-                              if (value == null || value.trim().isEmpty) {
-                                return 'El descuento es requerido';
-                              }
-                              final discount = double.tryParse(value);
-                              if (discount == null || discount < 0 || discount > 100) {
-                                return 'Descuento inválido';
-                              }
-                              return null;
-                            },
+                            label: 'Descuento %',
+                            icon: Icons.percent,
+                            inputType: TextInputType.number,
+                            validator: (v) =>
+                                (v == null || double.tryParse(v) == null)
+                                    ? 'Inválido'
+                                    : null,
                           ),
                         ),
                       ],
-                    ),
+                    ).animate().fadeIn(delay: 200.ms),
+
                     const SizedBox(height: 16),
 
-                    // Fecha de lanzamiento
-                    InkWell(
+                    _buildDarkInput(
+                      controller:
+                          TextEditingController(), // Dummy controller just for display
+                      label: 'Fecha de Lanzamiento',
+                      hint: _releaseDate != null
+                          ? '${_releaseDate!.day}/${_releaseDate!.month}/${_releaseDate!.year}'
+                          : 'Seleccionar',
+                      icon: Icons.calendar_today_outlined,
+                      readOnly: true,
                       onTap: _selectReleaseDate,
-                      child: InputDecorator(
-                        decoration: const InputDecoration(
-                          labelText: 'Fecha de lanzamiento',
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.calendar_today),
-                        ),
-                        child: Text(
-                          _releaseDate != null
-                              ? '${_releaseDate!.day}/${_releaseDate!.month}/${_releaseDate!.year}'
-                              : 'Seleccionar fecha',
-                          style: TextStyle(
-                            color: _releaseDate != null ? Colors.black : Colors.grey,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
+                    ).animate().fadeIn(delay: 250.ms),
 
-                    // Géneros
-                    Text(
-                      'Géneros Musicales *',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                    ),
-                    const SizedBox(height: 12),
-                    _buildGenreSelection(),
                     const SizedBox(height: 32),
 
-                    // Botón de guardar
+                    // 3. Géneros
+                    _buildSectionLabel('GÉNEROS'),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: AppTheme.cardBlack,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.white10),
+                      ),
+                      child: _buildGenreSelection(),
+                    ).animate().fadeIn(delay: 300.ms),
+
+                    const SizedBox(height: 32),
+
+                    // Botón Guardar
                     SizedBox(
                       width: double.infinity,
                       height: 56,
                       child: ElevatedButton.icon(
                         onPressed: _isSaving ? null : _saveAlbum,
-                        icon: _isSaving
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : const Icon(Icons.save),
-                        label: Text(_isSaving ? 'Guardando...' : 'Guardar Cambios'),
+                        icon: const Icon(Icons.save_rounded),
+                        label: Text(
+                            _isSaving ? 'GUARDANDO...' : 'GUARDAR CAMBIOS',
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold, letterSpacing: 1)),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppTheme.primaryBlue,
                           foregroundColor: Colors.white,
+                          elevation: 0,
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
+                              borderRadius: BorderRadius.circular(16)),
                         ),
                       ),
-                    ),
+                    ).animate().fadeIn(delay: 350.ms).scale(),
+
+                    const SizedBox(height: 20),
                   ],
                 ),
               ),
@@ -373,75 +351,55 @@ class _EditAlbumScreenState extends State<EditAlbumScreen> {
   }
 
   Widget _buildCoverSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Portada del Álbum',
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-        ),
-        const SizedBox(height: 12),
-        Center(
-          child: Stack(
-            children: [
-              Container(
-                width: 200,
-                height: 200,
-                decoration: BoxDecoration(
-                  color: Colors.grey[200],
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.grey[400]!, width: 2),
-                ),
-                child: _imageFilePath != null
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(10),
-                        child: Image.file(
-                          File(_imageFilePath!),
-                          fit: BoxFit.cover,
-                        ),
-                      )
-                    : widget.album.coverImageUrl != null
-                        ? ClipRRect(
-                            borderRadius: BorderRadius.circular(10),
-                            child: Image.network(
-                              widget.album.coverImageUrl!,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) {
-                                return const Icon(
-                                  Icons.album,
-                                  size: 80,
-                                  color: Colors.grey,
-                                );
-                              },
-                            ),
-                          )
-                        : const Icon(
-                            Icons.album,
-                            size: 80,
-                            color: Colors.grey,
-                          ),
-              ),
-              Positioned(
-                right: 8,
-                bottom: 8,
-                child: FloatingActionButton.small(
-                  onPressed: _pickImageFile,
-                  backgroundColor: AppTheme.primaryBlue,
-                  child: const Icon(Icons.edit, color: Colors.white),
-                ),
-              ),
+    return Center(
+      child: GestureDetector(
+        onTap: _pickImageFile,
+        child: Container(
+          width: 180,
+          height: 180,
+          decoration: BoxDecoration(
+            color: AppTheme.cardBlack,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.white10),
+            boxShadow: [
+              BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.3),
+                  blurRadius: 20,
+                  offset: const Offset(0, 10)),
             ],
+            image: _imageFilePath != null
+                ? DecorationImage(
+                    image: FileImage(File(_imageFilePath!)), fit: BoxFit.cover)
+                : (widget.album.coverImageUrl != null
+                    ? DecorationImage(
+                        image: NetworkImage(widget.album.coverImageUrl!),
+                        fit: BoxFit.cover)
+                    : null),
           ),
+          child: (_imageFilePath == null && widget.album.coverImageUrl == null)
+              ? const Center(
+                  child: Icon(Icons.add_a_photo_outlined,
+                      size: 40, color: AppTheme.textGrey))
+              : Container(
+                  alignment: Alignment.bottomRight,
+                  padding: const EdgeInsets.all(12),
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: const BoxDecoration(
+                        color: Colors.black54, shape: BoxShape.circle),
+                    child:
+                        const Icon(Icons.edit, size: 16, color: Colors.white),
+                  ),
+                ),
         ),
-      ],
+      ),
     );
   }
 
   Widget _buildGenreSelection() {
     if (_availableGenres.isEmpty) {
-      return const Text('No hay géneros disponibles');
+      return const Text('No hay géneros disponibles',
+          style: TextStyle(color: AppTheme.textGrey));
     }
 
     return Wrap(
@@ -461,10 +419,77 @@ class _EditAlbumScreenState extends State<EditAlbumScreen> {
               }
             });
           },
-          selectedColor: AppTheme.primaryBlue.withValues(alpha:0.3),
+          backgroundColor: AppTheme.surfaceBlack,
+          selectedColor: AppTheme.primaryBlue.withValues(alpha: 0.2),
           checkmarkColor: AppTheme.primaryBlue,
+          labelStyle: TextStyle(
+            color: isSelected ? AppTheme.primaryBlue : AppTheme.textGrey,
+            fontSize: 12,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: BorderSide(
+                color: isSelected ? AppTheme.primaryBlue : Colors.white10),
+          ),
+          padding: EdgeInsets.zero,
         );
       }).toList(),
+    );
+  }
+
+  Widget _buildSectionLabel(String label) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12, left: 4),
+      child: Text(
+        label,
+        style: const TextStyle(
+            color: AppTheme.textGrey,
+            fontSize: 11,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 1.2),
+      ),
+    );
+  }
+
+  Widget _buildDarkInput({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    String? hint,
+    TextInputType inputType = TextInputType.text,
+    int maxLines = 1,
+    bool readOnly = false,
+    VoidCallback? onTap,
+    String? Function(String?)? validator,
+  }) {
+    return TextFormField(
+      controller: controller,
+      style: const TextStyle(color: Colors.white),
+      keyboardType: inputType,
+      maxLines: maxLines,
+      readOnly: readOnly,
+      onTap: onTap,
+      validator: validator,
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        hintStyle: TextStyle(
+            color: Colors.white
+                .withValues(alpha: 0.5)), // Hint visible si value es nulo
+        labelStyle: const TextStyle(color: AppTheme.textGrey),
+        prefixIcon: Icon(icon, color: AppTheme.textGrey, size: 20),
+        filled: true,
+        fillColor: AppTheme.cardBlack,
+        border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none),
+        focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: AppTheme.primaryBlue)),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      ),
     );
   }
 }

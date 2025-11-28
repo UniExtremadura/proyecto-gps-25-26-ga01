@@ -405,17 +405,34 @@ class _SongDetailScreenState extends State<SongDetailScreen>
                         const Icon(Icons.album_outlined,
                             size: 16, color: AppTheme.textGrey),
                         const SizedBox(width: 4),
-                        Text(_album!.name,
+
+                        // 🚨 CAMBIO CLAVE: Envolver el Text en Expanded para limitar su espacio
+                        Expanded(
+                          child: Text(
+                            // ASUMIENDO que 'ext' era un error tipográfico y debería ser 'Text'
+                            _album!.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                                color: AppTheme.textGrey, fontSize: 13)),
+                              color: AppTheme.textGrey,
+                              fontSize:
+                                  13, // Corregido: 'TfontSize' a 'fontSize'
+                            ),
+                          ),
+                        ),
+
                         const SizedBox(width: 12),
                       ],
+
+                      // Icono y texto de duración (estos tienen ancho fijo o limitado)
                       const Icon(Icons.timer_outlined,
                           size: 16, color: AppTheme.textGrey),
                       const SizedBox(width: 4),
-                      Text(_song!.durationFormatted,
-                          style: const TextStyle(
-                              color: AppTheme.textGrey, fontSize: 13)),
+                      Text(
+                        _song!.durationFormatted,
+                        style: const TextStyle(
+                            color: AppTheme.textGrey, fontSize: 13),
+                      ),
                     ],
                   ),
 

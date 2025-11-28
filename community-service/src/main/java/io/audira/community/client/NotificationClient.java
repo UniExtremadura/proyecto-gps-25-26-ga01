@@ -31,9 +31,9 @@ public class NotificationClient {
 
     /**
      * URL base del endpoint de notificaciones del Commerce Service ({@code /api/notifications}).
-     * El valor por defecto es {@code http://172.16.0.4:9003/api/notifications}.
+     * El valor por defecto es {@code http://api-gateway:8080/api/notifications} (a través del API Gateway).
      */
-    @Value("${services.commerce.url:http://172.16.0.4:9003/api/notifications}")
+    @Value("${services.commerce.url:http://api-gateway:8080/api/notifications}")
     private String notificationServiceUrl;
 
     /**
@@ -50,7 +50,8 @@ public class NotificationClient {
      */
     public boolean sendNotification(Long userId, String title, String message, String type) {
         try {
-            log.info("Sending notification to user {}: {}", userId, title);
+            log.info("📤 Sending notification to user {} (type: {}): {}", userId, type, title);
+            log.debug("Notification URL: {}", notificationServiceUrl);
 
             // 1. Preparar el cuerpo de la solicitud JSON
             Map<String, Object> notificationRequest = new HashMap<>();
@@ -71,20 +72,29 @@ public class NotificationClient {
                 notificationServiceUrl,
                 HttpMethod.POST,
                 request,
-                new ParameterizedTypeReference<Map<String, Object>>() {} 
+                new ParameterizedTypeReference<Map<String, Object>>() {}
             );
 
             if (response.getStatusCode().is2xxSuccessful()) {
-                log.info("Notification sent successfully to user {}", userId);
+                log.info("✅ Notification sent successfully to user {}", userId);
                 return true;
             } else {
-                log.warn("Failed to send notification to user {}. Status: {}",
+                log.warn("⚠️  Failed to send notification to user {}. Status: {}",
                     userId, response.getStatusCode());
                 return false;
             }
 
+        } catch (org.springframework.web.client.ResourceAccessException e) {
+            log.error("❌ Cannot reach notification service at {}. Is commerce-service running? Error: {}",
+                notificationServiceUrl, e.getMessage());
+            return false;
+        } catch (org.springframework.web.client.HttpClientErrorException e) {
+            log.error("❌ HTTP error sending notification to user {}. Status: {}, Response: {}",
+                userId, e.getStatusCode(), e.getResponseBodyAsString());
+            return false;
         } catch (Exception e) {
-            log.error("Error sending notification to user {}: {}", userId, e.getMessage());
+            log.error("❌ Unexpected error sending notification to user {}: {}", userId, e.getMessage());
+            log.debug("Full error:", e);
             return false;
         }
     }
