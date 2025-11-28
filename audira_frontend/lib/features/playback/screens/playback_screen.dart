@@ -836,6 +836,7 @@ class _ProgressSliderState extends State<_ProgressSlider> {
   // Variable local para gestionar el arrastre sin saltos
   double? _dragValue;
   bool _isDragging = false;
+  bool _isSeeking = false; // Para evitar seeks múltiples
 
   String _formatDuration(Duration duration) {
     String twoDigits(int n) => n.toString().padLeft(2, '0');
@@ -849,20 +850,18 @@ class _ProgressSliderState extends State<_ProgressSlider> {
     final totalDuration = widget.audioProvider.totalDuration;
     final currentPos = widget.audioProvider.currentPosition;
 
-    // Calculamos el progreso (0.0 a 1.0) asegurando que no dividimos por cero
+    // Solo actualizar si no estamos arrastrando ni haciendo seek
     double progress = 0.0;
     if (totalDuration.inMilliseconds > 0) {
       progress = currentPos.inMilliseconds / totalDuration.inMilliseconds;
     }
 
-    // LÓGICA CLAVE: Si el usuario está arrastrando (_dragValue != null),
-    // usamos ese valor para dibujar el slider. Si no, usamos el del Provider.
-    // Esto evita que el slider "tiemble" o salte hacia atrás mientras arrastras.
+    // LÓGICA CLAVE: Mostrar valor local mientras arrastra, si no mostrar el del provider
     final displayValue = _isDragging && _dragValue != null
         ? _dragValue!
         : progress.clamp(0.0, 1.0);
 
-    // Calculamos el tiempo a mostrar en texto (dinámico mientras arrastras)
+    // Tiempo a mostrar (dinámico mientras arrastras)
     final displayTime = _isDragging && _dragValue != null
         ? Duration(
             milliseconds: (_dragValue! * totalDuration.inMilliseconds).round())
@@ -870,10 +869,9 @@ class _ProgressSliderState extends State<_ProgressSlider> {
 
     return Column(
       children: [
-        // Usamos SliderTheme para hacerlo más fino y elegante
         SliderTheme(
           data: SliderThemeData(
-            trackHeight: 2, // Fino
+            trackHeight: 2,
             thumbShape: const RoundSliderThumbShape(
                 enabledThumbRadius: 6, pressedElevation: 8),
             overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
@@ -887,39 +885,57 @@ class _ProgressSliderState extends State<_ProgressSlider> {
             value: displayValue,
             min: 0.0,
             max: 1.0,
-            // Solo permitimos interaction si la duración es válida
-            onChanged: (totalDuration.inMilliseconds > 0)
+            onChanged: (totalDuration.inMilliseconds > 0 && !_isSeeking)
                 ? (value) {
-                    // Actualizamos SOLO el estado local mientras arrastra
-                    setState(() {
-                      _dragValue = value.clamp(0.0, 1.0);
-                    });
+                    // Actualizar SOLO el estado local mientras arrastra
+                    if (mounted) {
+                      setState(() {
+                        _dragValue = value.clamp(0.0, 1.0);
+                      });
+                    }
                   }
                 : null,
-            onChangeStart: (_) {
+            onChangeStart: (value) {
               // Marcar que estamos arrastrando
-              setState(() {
-                _isDragging = true;
-              });
+              if (mounted) {
+                setState(() {
+                  _isDragging = true;
+                  _dragValue = value.clamp(0.0, 1.0);
+                });
+              }
             },
             onChangeEnd: (value) async {
+              // Evitar seeks múltiples
+              if (_isSeeking) return;
+
+              if (mounted) {
+                setState(() {
+                  _isSeeking = true;
+                });
+              }
+
               try {
-                // Al soltar, enviamos el comando de seek
                 final clampedValue = value.clamp(0.0, 1.0);
                 final newPos = Duration(
                     milliseconds:
                         (clampedValue * totalDuration.inMilliseconds).round());
 
+                debugPrint(
+                    '📍 Slider: Solicitando seek a ${newPos.inSeconds}s');
+
                 // Realizar el seek
                 await widget.audioProvider.seek(newPos);
+
+                debugPrint('📍 Slider: Seek completado');
               } catch (e) {
-                debugPrint('Error en seek desde slider: $e');
+                debugPrint('❌ Error en seek desde slider: $e');
               } finally {
-                // Limpiamos el valor de arrastre para volver a escuchar al provider
+                // Limpiar estado
                 if (mounted) {
                   setState(() {
                     _isDragging = false;
                     _dragValue = null;
+                    _isSeeking = false;
                   });
                 }
               }
