@@ -90,17 +90,17 @@
 
  
 
-|        Rol       |       Descripción      |                         Capacidades                         |
+| Rol | Descripción | Capacidades |
 
-|------------------|------------------------|-------------------------------------------------------------|
+|------|------------------|-------------------|
 
-|     **Guest**    | Usuario no autenticado |          Navegar catálogo público, buscar música            |
+| **Guest** | Usuario no autenticado | Navegar catálogo público, buscar música |
 
-| **Regular User** |   Usuario registrado   |      Comprar, crear playlists, valorar, seguir artistas     |
+| **Regular User** | Usuario registrado | Comprar, crear playlists, valorar, seguir artistas |
 
-|    **Artist**    |  Creador de contenido  | Todo lo de User + subir canciones/álbumes, ver estadísticas |
+| **Artist** | Creador de contenido | Todo lo de User + subir canciones/álbumes, ver estadísticas |
 
-|     **Admin**    |      Administrador     |   Todo lo anterior + moderar contenido, gestionar usuarios  |
+| **Admin** | Administrador | Todo lo anterior + moderar contenido, gestionar usuarios |
 
  
 
