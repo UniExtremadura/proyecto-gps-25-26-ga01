@@ -11,38 +11,103 @@ import java.time.LocalDateTime;
 import java.util.Set;
 
 /**
- * DTO for Song entity with artist name included
+ * DTO completo que representa el estado detallado de una canción (Track).
+ * <p>
+ * Incluye metadatos técnicos, información comercial, estado de moderación y
+ * datos enriquecidos externamente (como el nombre del artista).
+ * </p>
  */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class SongDTO {
+    // --- Identificación ---
+    /** ID único de la canción. */
     private Long id;
+
+    /** Título de la obra. */
     private String title;
+
+    /** ID del artista principal (Propietario). */
     private Long artistId;
+
+    /**
+     * Nombre del artista principal.
+     * <p>Dato inyectado desde el {@code User Service}, no almacenado en la tabla de canciones.</p>
+     */
     private String artistName;
+
+    // --- Metadatos Comerciales y Visuales ---
+    /** Precio de venta individual. */
     private BigDecimal price;
+
+    /** URL de la imagen de portada (Cover Art). */
     private String coverImageUrl;
+
+    /** Descripción o notas de producción. */
     private String description;
+
+    // --- Auditoría ---
+    /** Fecha de subida. */
     private LocalDateTime createdAt;
+
+    /** Fecha de última modificación. */
     private LocalDateTime updatedAt;
+
+    // --- Relaciones y Clasificación ---
+    /** ID del álbum al que pertenece (puede ser nulo si es un Single). */
     private Long albumId;
+
+    /** Conjunto de géneros musicales asociados. */
     private Set<Long> genreIds;
-    private Integer duration;
-    private String audioUrl;
-    private String lyrics;
-    private Integer trackNumber;
-    private Long plays;
+
+    /** Categoría del contenido (ej: MUSIC, PODCAST). */
     private String category;
+
+    // --- Metadatos Técnicos (File Service) ---
+    /** Duración en segundos. */
+    private Integer duration;
+
+    /** URL pública para el streaming del archivo de audio. */
+    private String audioUrl;
+
+    /** Letra de la canción. */
+    private String lyrics;
+
+    /** Número de pista dentro del álbum. */
+    private Integer trackNumber;
+
+    // --- Estadísticas y Estado ---
+    /** Contador histórico de reproducciones. */
+    private Long plays;
+
+    /** Indica si la canción es visible para el público. */
     private boolean published;
+
+    // --- Moderación (Admin) ---
+    /** Estado actual de revisión (PENDING, APPROVED, REJECTED). */
     private String moderationStatus;
+
+    /** Motivo del rechazo (si aplica). */
     private String rejectionReason;
+
+    /** ID del administrador que moderó la canción. */
     private Long moderatedBy;
+
+    /** Fecha de la moderación. */
     private LocalDateTime moderatedAt;
 
     /**
-     * Create a SongDTO from a Song entity and artist name
+     * Método de fábrica para convertir una entidad {@link Song} en un DTO enriquecido.
+     * <p>
+     * Permite desacoplar el modelo de persistencia de la vista API, inyectando
+     * dependencias externas como el {@code artistName}.
+     * </p>
+     *
+     * @param song La entidad persistida.
+     * @param artistName El nombre del artista resuelto.
+     * @return DTO listo para ser enviado al cliente.
      */
     public static SongDTO fromSong(Song song, String artistName) {
         return SongDTO.builder()

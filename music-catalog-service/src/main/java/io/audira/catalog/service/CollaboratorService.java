@@ -17,8 +17,15 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Service for managing collaborations
- * GA01-154: Añadir/aceptar colaboradores
+ * Servicio encargado de la lógica de negocio para la gestión de colaboradores y reparto de regalías.
+ * <p>
+ * Centraliza todas las operaciones relacionadas con:
+ * <ul>
+ * <li><b>GA01-154:</b> Gestión del ciclo de vida de las colaboraciones (Invitación -> Aceptación/Rechazo).</li>
+ * <li><b>GA01-155:</b> Cálculo y validación de porcentajes de ingresos (Revenue Splits).</li>
+ * </ul>
+ * Maneja la integridad de datos tanto para colaboraciones en Canciones individuales como en Álbumes completos.
+ * </p>
  */
 @Service
 public class CollaboratorService {
@@ -28,31 +35,86 @@ public class CollaboratorService {
     @Autowired
     private CollaboratorRepository collaboratorRepository;
 
+    /**
+     * Recupera el listado completo de todas las colaboraciones registradas en el sistema.
+     * <p>Utilizado principalmente para propósitos administrativos o de auditoría global.</p>
+     *
+     * @return Lista completa de entidades {@link Collaborator}.
+     */
     public List<Collaborator> getAllCollaborators() {
         return collaboratorRepository.findAll();
     }
 
+    /**
+     * Busca una colaboración específica por su identificador único.
+     *
+     * @param id ID de la colaboración.
+     * @return Un {@link Optional} que contiene la colaboración si existe.
+     */
     public Optional<Collaborator> getCollaboratorById(Long id) {
         return collaboratorRepository.findById(id);
     }
 
+    /**
+     * Obtiene todos los colaboradores asociados a una canción, independientemente de su estado.
+     *
+     * @param songId ID de la canción.
+     * @return Lista de colaboradores (pendientes, aceptados y rechazados).
+     */
     public List<Collaborator> getCollaboratorsBySongId(Long songId) {
         return collaboratorRepository.findBySongId(songId);
     }
-
+    
+    /**
+     * Obtiene todos los colaboradores asociados a un artista, independientemente de su estado.
+     *
+     * @param artistId ID del artista.
+     * @return Lista de colaboradores del artista.
+     */
     public List<Collaborator> getCollaboratorsByArtistId(Long artistId) {
         return collaboratorRepository.findByArtistId(artistId);
     }
 
+    /**
+     * Crea un registro de colaborador directamente (Uso administrativo/interno).
+     * <p>
+     * A diferencia de {@link #inviteCollaborator}, este método no necesariamente sigue
+     * el flujo de invitación y puede crear colaboradores ya aceptados si se requiere.
+     * </p>
+     *
+     * @param collaborator La entidad a persistir.
+     * @return El colaborador guardado.
+     */
     public Collaborator createCollaborator(Collaborator collaborator) {
         return collaboratorRepository.save(collaborator);
     }
 
+    /**
+     * Crea múltiples registros de colaboradores en una sola transacción (Batch).
+     * <p>
+     * Útil durante la importación de catálogos o duplicación de créditos entre canciones.
+     * </p>
+     *
+     * @param collaborators Lista de entidades a guardar.
+     * @return Lista de colaboradores persistidos.
+     */
     @Transactional
     public List<Collaborator> createCollaborators(List<Collaborator> collaborators) {
         return collaboratorRepository.saveAll(collaborators);
     }
 
+    /**
+     * Actualiza la información básica de un colaborador (Rol, Instrumento, etc.).
+     * <p>
+     * No permite modificar campos sensibles como el estado o el porcentaje de regalías,
+     * que tienen sus propios métodos con validaciones específicas.
+     * </p>
+     *
+     * @param id ID de la colaboración a modificar.
+     * @param updatedData Objeto con los nuevos datos.
+     * @return La colaboración actualizada.
+     * @throws RuntimeException Si la colaboración no existe.
+     */
     public Collaborator updateCollaborator(Long id, Collaborator collaboratorDetails) {
         Collaborator collaborator = collaboratorRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Collaborator not found with id: " + id));
@@ -64,22 +126,45 @@ public class CollaboratorService {
         return collaboratorRepository.save(collaborator);
     }
 
+    /**
+     * Elimina un registro de colaboración específico.
+     * <p>
+     * Esto revoca el acceso a créditos y regalías para ese usuario en esa obra.
+     * </p>
+     *
+     * @param id ID de la colaboración a borrar.
+     */
     public void deleteCollaborator(Long id) {
         collaboratorRepository.deleteById(id);
     }
 
+    /**
+     * Elimina masivamente todos los colaboradores asociados a una canción.
+     * <p>
+     * Se debe invocar cuando se elimina una canción del sistema para mantener la integridad referencial.
+     * </p>
+     *
+     * @param songId ID de la canción.
+     */
     @Transactional
     public void deleteCollaboratorsBySongId(Long songId) {
         collaboratorRepository.deleteBySongId(songId);
     }
 
     /**
-     * Invite an artist to collaborate on a song or album
-     * GA01-154: Añadir/aceptar colaboradores
+     * Inicia el proceso de colaboración enviando una invitación.
+     * <p>
+     * 1. Valida que se especifique una canción O un álbum (XOR lógico).<br>
+     * 2. Crea la entidad con estado {@code PENDING} y porcentaje 0.<br>
+     * 3. (Opcional) Debería disparar una notificación al usuario invitado.
+     * </p>
+     *
+     * @param request DTO con los datos de la invitación (email/ID artista, rol, obra).
+     * @return La colaboración creada en estado pendiente.
+     * @throws IllegalArgumentException Si falta el ID de la obra o del artista.
      */
     @Transactional
     public Collaborator inviteCollaborator(CollaborationRequest request, Long inviterId) {
-        // Validate that either songId or albumId is provided
         if (request.getSongId() == null && request.getAlbumId() == null) {
             throw new IllegalArgumentException("Either songId or albumId must be provided");
         }
@@ -87,7 +172,6 @@ public class CollaboratorService {
             throw new IllegalArgumentException("Cannot specify both songId and albumId");
         }
 
-        // Check if collaboration already exists
         List<Collaborator> existing;
         if (request.getSongId() != null) {
             existing = collaboratorRepository.findBySongId(request.getSongId());
@@ -120,22 +204,26 @@ public class CollaboratorService {
 
         return saved;
     }
-
+    
     /**
-     * Accept a collaboration invitation
-     * GA01-154: Añadir/aceptar colaboradores
+     * Acepta una invitación de colaboración.
+     * <p>
+     * Cambia el estado a {@code ACCEPTED}, haciendo que el colaborador sea visible
+     * en los créditos públicos y elegible para recibir regalías.
+     * </p>
+     *
+     * @param id ID de la colaboración.
+     * @return Colaboración actualizada.
      */
     @Transactional
     public Collaborator acceptCollaboration(Long collaborationId, Long artistId) {
         Collaborator collaborator = collaboratorRepository.findById(collaborationId)
                 .orElseThrow(() -> new RuntimeException("Collaboration not found with id: " + collaborationId));
 
-        // Verify the artist is the one being invited
         if (!collaborator.getArtistId().equals(artistId)) {
             throw new IllegalArgumentException("You are not authorized to accept this collaboration");
         }
 
-        // Verify status is PENDING
         if (collaborator.getStatus() != CollaborationStatus.PENDING) {
             throw new IllegalArgumentException("Collaboration is not in pending status");
         }
@@ -152,20 +240,24 @@ public class CollaboratorService {
     }
 
     /**
-     * Reject a collaboration invitation
-     * GA01-154: Añadir/aceptar colaboradores
+     * Rechaza una invitación de colaboración.
+     * <p>
+     * Cambia el estado a {@code REJECTED}. El registro se mantiene por historial,
+     * pero el porcentaje de regalías debe asegurarse en 0%.
+     * </p>
+     *
+     * @param id ID de la colaboración.
+     * @return Colaboración actualizada.
      */
     @Transactional
     public Collaborator rejectCollaboration(Long collaborationId, Long artistId) {
         Collaborator collaborator = collaboratorRepository.findById(collaborationId)
                 .orElseThrow(() -> new RuntimeException("Collaboration not found with id: " + collaborationId));
 
-        // Verify the artist is the one being invited
         if (!collaborator.getArtistId().equals(artistId)) {
             throw new IllegalArgumentException("You are not authorized to reject this collaboration");
         }
 
-        // Verify status is PENDING
         if (collaborator.getStatus() != CollaborationStatus.PENDING) {
             throw new IllegalArgumentException("Collaboration is not in pending status");
         }
@@ -182,48 +274,71 @@ public class CollaboratorService {
     }
 
     /**
-     * Get pending collaboration invitations for an artist
-     * GA01-154: Añadir/aceptar colaboradores
+     * Recupera las invitaciones que un usuario tiene pendientes de respuesta.
+     * <p>
+     * Fundamental para el dashboard del artista, donde ve las solicitudes entrantes.
+     * </p>
+     *
+     * @param userId ID del usuario (artista invitado).
+     * @return Lista de colaboraciones donde {@code artistId == userId} y {@code status == PENDING}.
      */
     public List<Collaborator> getPendingInvitations(Long artistId) {
         return collaboratorRepository.findByArtistIdAndStatus(artistId, CollaborationStatus.PENDING);
     }
 
     /**
-     * Get collaborations by album ID
-     * GA01-154: Añadir/aceptar colaboradores
+     * Obtiene todos los colaboradores asociados a un álbum, independientemente de su estado.
+     *
+     * @param albumId ID del álbum.
+     * @return Lista de colaboradores del proyecto.
      */
     public List<Collaborator> getCollaboratorsByAlbumId(Long albumId) {
         return collaboratorRepository.findByAlbumId(albumId);
     }
 
     /**
-     * Get accepted collaborations for a song
-     * GA01-154: Añadir/aceptar colaboradores
+     * Obtiene únicamente los colaboradores activos (Aceptados) de una canción.
+     * <p>
+     * Utilizado para calcular la hoja de reparto de regalías (Split Sheet) y mostrar los créditos públicos.
+     * </p>
+     *
+     * @param songId ID de la canción.
+     * @return Lista de colaboradores con estado {@code ACCEPTED}.
      */
     public List<Collaborator> getAcceptedCollaboratorsBySongId(Long songId) {
         return collaboratorRepository.findBySongIdAndStatus(songId, CollaborationStatus.ACCEPTED);
     }
 
     /**
-     * Get accepted collaborations for an album
-     * GA01-154: Añadir/aceptar colaboradores
+     * Obtiene únicamente los colaboradores activos (Aceptados) de un álbum.
+     *
+     * @param albumId ID del álbum.
+     * @return Lista de colaboradores con estado {@code ACCEPTED}.
      */
     public List<Collaborator> getAcceptedCollaboratorsByAlbumId(Long albumId) {
         return collaboratorRepository.findByAlbumIdAndStatus(albumId, CollaborationStatus.ACCEPTED);
     }
 
     /**
-     * Get collaborations created by a user
-     * GA01-154: Añadir/aceptar colaboradores
+     * Lista las colaboraciones iniciadas por un usuario específico.
+     * <p>
+     * Permite al dueño del contenido ver a quién ha invitado y el estado de esas invitaciones.
+     * </p>
+     *
+     * @param inviterId ID del usuario que envió las invitaciones.
+     * @return Lista de colaboraciones gestionadas por este usuario.
      */
     public List<Collaborator> getCollaborationsByInviter(Long inviterId) {
         return collaboratorRepository.findByInvitedBy(inviterId);
     }
 
     /**
-     * Delete collaborations by album ID
-     * GA01-154: Añadir/aceptar colaboradores
+     * Elimina masivamente todos los colaboradores asociados a un álbum.
+     * <p>
+     * Se debe invocar al eliminar un álbum.
+     * </p>
+     *
+     * @param albumId ID del álbum.
      */
     @Transactional
     public void deleteCollaboratorsByAlbumId(Long albumId) {
@@ -231,25 +346,31 @@ public class CollaboratorService {
     }
 
     /**
-     * Update revenue percentage for a collaboration
-     * GA01-155: Definir porcentaje de ganancias
+     * Actualiza el porcentaje de regalías de un colaborador.
+     * <p>
+     * <b>Validación Crítica:</b> Verifica que la suma del nuevo porcentaje más los porcentajes
+     * de los otros colaboradores existentes no exceda el 100.00%.
+     * </p>
+     *
+     * @param id ID de la colaboración.
+     * @param request Nuevo porcentaje solicitado.
+     * @param userId ID del usuario que solicita el cambio (seguridad).
+     * @return Colaboración actualizada.
+     * @throws IllegalArgumentException Si la suma total supera el 100%.
      */
     @Transactional
     public Collaborator updateRevenuePercentage(Long collaborationId, UpdateRevenueRequest request, Long userId) {
         Collaborator collaborator = collaboratorRepository.findById(collaborationId)
                 .orElseThrow(() -> new RuntimeException("Collaboration not found with id: " + collaborationId));
 
-        // Verify the user is the one who created the invitation
         if (!collaborator.getInvitedBy().equals(userId)) {
             throw new IllegalArgumentException("Only the creator can update revenue percentage");
         }
 
-        // Verify collaboration is accepted
         if (collaborator.getStatus() != CollaborationStatus.ACCEPTED) {
             throw new IllegalArgumentException("Can only set revenue percentage for accepted collaborations");
         }
 
-        // Validate total revenue percentage doesn't exceed 100%
         BigDecimal currentTotal = calculateTotalRevenuePercentage(
                 collaborator.getSongId(),
                 collaborator.getAlbumId(),
@@ -274,8 +395,16 @@ public class CollaboratorService {
     }
 
     /**
-     * Calculate total revenue percentage for a song or album (excluding specific collaboration)
-     * GA01-155: Definir porcentaje de ganancias
+     * Calcula la suma total de porcentajes asignados en una obra.
+     * <p>
+     * Se utiliza internamente para validaciones y externamente para mostrar
+     * al usuario cuánto "pastel" queda disponible para repartir.
+     * </p>
+     *
+     * @param songId ID de la canción (opcional).
+     * @param albumId ID del álbum (opcional).
+     * @param excludeCollaborationId ID a excluir de la suma (útil durante actualizaciones).
+     * @return Suma total como BigDecimal.
      */
     private BigDecimal calculateTotalRevenuePercentage(Long songId, Long albumId, Long excludeCollaborationId) {
         List<Collaborator> collaborators;
@@ -295,16 +424,20 @@ public class CollaboratorService {
     }
 
     /**
-     * Get total revenue percentage for a song
-     * GA01-155: Definir porcentaje de ganancias
+     * Calcula el porcentaje total de regalías asignado actualmente a una canción.
+     *
+     * @param songId ID de la canción.
+     * @return Suma de porcentajes (BigDecimal).
      */
     public BigDecimal getTotalRevenuePercentageForSong(Long songId) {
         return calculateTotalRevenuePercentage(songId, null, null);
     }
 
     /**
-     * Get total revenue percentage for an album
-     * GA01-155: Definir porcentaje de ganancias
+     * Calcula el porcentaje total de regalías asignado actualmente a un álbum.
+     *
+     * @param albumId ID del álbum.
+     * @return Suma de porcentajes (BigDecimal).
      */
     public BigDecimal getTotalRevenuePercentageForAlbum(Long albumId) {
         return calculateTotalRevenuePercentage(null, albumId, null);

@@ -16,7 +16,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * REST client for communication with Community Service (User management)
+ * Cliente REST para la comunicación con el Servicio de Usuarios (Community/User Service).
+ * <p>
+ * Permite hidratar los objetos del catálogo con información personal del usuario
+ * (nombre, avatar) y gestionar relaciones sociales (seguidores).
+ * </p>
  */
 @Component
 @RequiredArgsConstructor
@@ -29,10 +33,10 @@ public class UserServiceClient {
     private String userServiceUrl;
 
     /**
-     * Get user/artist information by ID
+     * Obtiene la información pública de un usuario o artista por su ID.
      *
-     * @param userId User ID
-     * @return UserDTO with user information
+     * @param userId ID del usuario.
+     * @return DTO con la información del usuario, o un usuario "dummy" (Fallback) si falla la petición.
      */
     public UserDTO getUserById(Long userId) {
         String url = userServiceUrl + "/" + userId;
@@ -67,11 +71,10 @@ public class UserServiceClient {
     }
 
     /**
-     * Get list of artist IDs that a user follows
-     * GA01-117: For recommendations based on followed artists
+     * Obtiene la lista de IDs de los usuarios que siguen a un artista.
      *
-     * @param userId User ID
-     * @return List of artist IDs
+     * @param artistId ID del artista.
+     * @return Lista de IDs de seguidores, o lista vacía si hay error.
      */
     public List<Long> getFollowedArtistIds(Long userId) {
         String url = userServiceUrl + "/" + userId + "/following/artists";
@@ -113,11 +116,19 @@ public class UserServiceClient {
     }
 
     /**
-     * Get list of user IDs that follow a specific artist
-     * Used for notifying followers about new content
+     * Obtiene la lista de identificadores (IDs) de los seguidores de un usuario.
+     * <p>
+     * Este método consulta al Servicio de Usuarios (Community Service) para recuperar
+     * las relaciones sociales. Es fundamental para funcionalidades de difusión masiva,
+     * como notificar nuevos lanzamientos a toda la base de fans.
+     * </p>
+     * <p>
+     * Implementa tolerancia a fallos: si el servicio de usuarios no responde, retorna
+     * una lista vacía para evitar que el proceso de notificación rompa el flujo principal.
+     * </p>
      *
-     * @param artistId Artist ID
-     * @return List of follower user IDs
+     * @param userId El ID del usuario (generalmente un artista) del cual se buscan los seguidores.
+     * @return Una lista de {@link Long} conteniendo los IDs de los seguidores. Retorna lista vacía si hay error.
      */
     public List<Long> getFollowerIds(Long artistId) {
         String url = userServiceUrl + "/" + artistId + "/followers";
@@ -159,7 +170,14 @@ public class UserServiceClient {
     }
 
     /**
-     * Create a fallback user when the service is unavailable
+     * Crea un usuario temporal de respaldo (Fallback User).
+     * <p>
+     * Se utiliza cuando el servicio de usuarios no responde, permitiendo que la aplicación
+     * muestre al menos el ID o un nombre genérico en lugar de fallar.
+     * </p>
+     *
+     * @param userId ID del usuario solicitado.
+     * @return UserDTO con datos genéricos ("User #123").
      */
     private UserDTO createFallbackUser(Long userId) {
         return UserDTO.builder()

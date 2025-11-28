@@ -14,6 +14,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Controlador para las funcionalidades de exploración y descubrimiento de música.
+ * <p>
+ * Incluye tendencias, búsqueda avanzada y motores de recomendación personalizados.
+ * </p>
+ */
 @RestController
 @RequestMapping("/api/discovery")
 @RequiredArgsConstructor
@@ -21,12 +27,34 @@ public class DiscoveryController {
 
     private final DiscoveryService discoveryService;
 
+    /**
+     * Obtiene una lista de canciones en tendencia.
+     *
+     * @param limit Límite de resultados a mostrar.
+     * @return Lista de canciones populares actualmente.
+     */
     @GetMapping("/trending/songs")
     public ResponseEntity<List<Song>> getTrendingSongs(@RequestParam(defaultValue = "20") int limit) {
         List<Song> songs = discoveryService.getTrendingSongs();
         return ResponseEntity.ok(songs.stream().limit(limit).toList());
     }
 
+    /**
+     * Motor de búsqueda avanzado para canciones.
+     * <p>
+     * Permite filtrar por texto, género y rango de precios, además de ordenar los resultados.
+     * Implementa paginación.
+     * </p>
+     *
+     * @param query Texto a buscar (título, artista).
+     * @param genreId (Opcional) Filtro por género.
+     * @param minPrice (Opcional) Precio mínimo.
+     * @param maxPrice (Opcional) Precio máximo.
+     * @param sortBy Criterio de ordenación ("recent", "price_asc", "price_desc").
+     * @param page Número de página.
+     * @param size Tamaño de página.
+     * @return Mapa con la lista de canciones y metadatos de paginación.
+     */
     @GetMapping("/search/songs")
     public ResponseEntity<Map<String, Object>> searchSongs(
             @RequestParam("query") String query,
@@ -50,6 +78,22 @@ public class DiscoveryController {
         return ResponseEntity.ok(response);
     }
 
+    /**
+     * Motor de búsqueda avanzado para álbumes.
+     * <p>
+     * Permite filtrar por texto, género y rango de precios, además de ordenar los resultados.
+     * Implementa paginación.
+     * </p>
+     *
+     * @param query Texto a buscar (título, artista).
+     * @param genreId (Opcional) Filtro por género.
+     * @param minPrice (Opcional) Precio mínimo.
+     * @param maxPrice (Opcional) Precio máximo.
+     * @param sortBy Criterio de ordenación ("recent", "price_asc", "price_desc").
+     * @param page Número de página.
+     * @param size Tamaño de página.
+     * @return Mapa con la lista de álbumes y metadatos de paginación.
+     */
     @GetMapping("/search/albums")
     public ResponseEntity<Map<String, Object>> searchAlbums(
             @RequestParam("query") String query,
@@ -74,18 +118,20 @@ public class DiscoveryController {
     }
 
     /**
-     * Get personalized recommendations for a user
-     * GA01-117: Módulo básico de recomendaciones (placeholder)
+     * Obtiene recomendaciones personalizadas para un usuario.
+     * <p>
+     * GA01-117: Módulo básico de recomendaciones.
+     * </p>
      *
-     * @param userId User ID (can be path variable or query param)
-     * @return Personalized recommendations categorized by type
+     * @param userId ID del usuario (query param).
+     * @param id ID del usuario (path variable opcional).
+     * @return Objeto con recomendaciones categorizadas.
      */
     @GetMapping("/recommendations")
     public ResponseEntity<RecommendationsResponse> getRecommendations(
             @RequestParam(required = false) Long userId,
             @PathVariable(required = false) Long id) {
 
-        // Support both query param and path variable for flexibility
         Long targetUserId = userId != null ? userId : id;
 
         if (targetUserId == null) {
@@ -97,8 +143,10 @@ public class DiscoveryController {
     }
 
     /**
-     * Alternative endpoint with userId as path variable
-     * GA01-117: Módulo básico de recomendaciones (placeholder)
+     * Endpoint alternativo para obtener recomendaciones usando el ID en la ruta.
+     *
+     * @param userId ID del usuario.
+     * @return Recomendaciones personalizadas.
      */
     @GetMapping("/recommendations/{userId}")
     public ResponseEntity<RecommendationsResponse> getRecommendationsByPath(@PathVariable Long userId) {

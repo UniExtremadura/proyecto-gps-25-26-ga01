@@ -14,9 +14,10 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Controller for managing featured content
- * GA01-156: Seleccionar/ordenar contenido destacado
- * GA01-157: Programación de destacados
+ * Controlador para la gestión de contenido destacado (carruseles y banners).
+ * <p>
+ * Permite a los administradores seleccionar qué contenido aparece en la página principal.
+ * </p>
  */
 @RestController
 @RequiredArgsConstructor
@@ -25,9 +26,9 @@ public class FeaturedContentController {
     private final FeaturedContentService featuredContentService;
 
     /**
-     * Get all featured content (admin)
-     * GA01-156
-     * GET /api/featured-content
+     * Obtiene todo el contenido destacado configurado (Vista Admin).
+     *
+     * @return Lista completa de destacados (activos e inactivos).
      */
     @GetMapping("/api/featured-content")
     public ResponseEntity<List<FeaturedContentResponse>> getAllFeaturedContent() {
@@ -35,9 +36,9 @@ public class FeaturedContentController {
     }
 
     /**
-     * Get active featured content (public)
-     * GA01-157
-     * GET /api/featured-content/active
+     * Obtiene solo el contenido destacado activo (Vista Usuario).
+     *
+     * @return Lista de destacados activos.
      */
     @GetMapping("/api/featured-content/active")
     public ResponseEntity<List<FeaturedContentResponse>> getActiveFeaturedContent() {
@@ -45,9 +46,10 @@ public class FeaturedContentController {
     }
 
     /**
-     * Get featured content by ID (admin)
-     * GA01-156
-     * GET /api/featured-content/{id}
+     * Obtiene un elemento destacado por su ID.
+     *
+     * @param id ID del registro.
+     * @return El contenido destacado correspondiente.
      */
     @GetMapping("/api/featured-content/{id}")
     public ResponseEntity<?> getFeaturedContentById(@PathVariable Long id) {
@@ -61,9 +63,10 @@ public class FeaturedContentController {
     }
 
     /**
-     * Create new featured content (admin)
-     * GA01-156, GA01-157
-     * POST /api/featured-content
+     * Crea un nuevo elemento destacado.
+     *
+     * @param request DTO con los datos del contenido a destacar (ID, tipo, fechas).
+     * @return El contenido destacado creado.
      */
     @PostMapping("/api/featured-content")
     public ResponseEntity<?> createFeaturedContent(@RequestBody FeaturedContentRequest request) {
@@ -78,9 +81,11 @@ public class FeaturedContentController {
     }
 
     /**
-     * Update featured content (admin)
-     * GA01-156, GA01-157
-     * PUT /api/featured-content/{id}
+     * Actualiza un elemento destacado existente.
+     *
+     * @param id ID del registro de destacado.
+     * @param request Datos a actualizar.
+     * @return El elemento actualizado.
      */
     @PutMapping("/api/featured-content/{id}")
     public ResponseEntity<?> updateFeaturedContent(
@@ -96,9 +101,10 @@ public class FeaturedContentController {
     }
 
     /**
-     * Delete featured content (admin)
-     * GA01-156
-     * DELETE /api/featured-content/{id}
+     * Elimina un elemento de la lista de destacados.
+     *
+     * @param id ID del registro.
+     * @return 204 No Content.
      */
     @DeleteMapping("/api/featured-content/{id}")
     public ResponseEntity<?> deleteFeaturedContent(@PathVariable Long id) {
@@ -113,9 +119,10 @@ public class FeaturedContentController {
     }
 
     /**
-     * Reorder featured content (admin)
-     * GA01-156
-     * PUT /api/featured-content/reorder
+     * Reordena la lista de contenidos destacados.
+     *
+     * @param request DTO que contiene el nuevo orden de los IDs.
+     * @return Lista reordenada.
      */
     @PutMapping("/api/featured-content/reorder")
     public ResponseEntity<?> reorderFeaturedContent(@RequestBody ReorderRequest request) {
@@ -129,9 +136,11 @@ public class FeaturedContentController {
     }
 
     /**
-     * Toggle active status (admin)
-     * GA01-156
-     * PATCH /api/featured-content/{id}/toggle-active
+     * Activa o desactiva rápidamente un contenido destacado.
+     *
+     * @param id ID del registro.
+     * @param body Mapa con la clave "isActive" (booleano).
+     * @return El elemento actualizado.
      */
     @PatchMapping("/api/featured-content/{id}/toggle-active")
     public ResponseEntity<?> toggleActive(
