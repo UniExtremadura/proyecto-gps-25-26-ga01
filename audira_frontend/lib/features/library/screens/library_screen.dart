@@ -13,7 +13,6 @@ import '../../../core/models/song.dart';
 import '../../../core/models/album.dart';
 import '../../../core/models/downloaded_song.dart';
 
-// Enums (Lógica original mantenida)
 enum SortCriterion { name, date }
 
 enum SortOrder { asc, desc }
@@ -41,7 +40,7 @@ class _LibraryScreenState extends State<LibraryScreen>
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
   final List<int> _selectedGenreIds = [];
-  bool _showGenreFilter = false; // Para expandir/colapsar filtros
+  bool _showGenreFilter = false;
 
   // Estado de Ordenación
   SortCriterion _currentSortCriterion = SortCriterion.name;
@@ -50,11 +49,9 @@ class _LibraryScreenState extends State<LibraryScreen>
   @override
   void initState() {
     super.initState();
-    // 5 pestañas como solicitaste
     _tabController = TabController(length: 5, vsync: this);
     _tabController.addListener(_handleTabChange);
 
-    // Carga de datos inicial optimizada (no bloquea la UI)
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadAllData();
     });
@@ -62,13 +59,11 @@ class _LibraryScreenState extends State<LibraryScreen>
 
   void _handleTabChange() {
     if (_tabController.indexIsChanging && mounted) {
-      // Limpiar filtros al cambiar de pestaña para evitar confusión visual
       setState(() {
         _searchQuery = '';
         _searchController.clear();
         _selectedGenreIds.clear();
         _showGenreFilter = false;
-        // Reseteamos orden por defecto
         _currentSortCriterion = SortCriterion.name;
         _currentSortOrder = SortOrder.asc;
       });
@@ -91,11 +86,11 @@ class _LibraryScreenState extends State<LibraryScreen>
     if (authProvider.currentUser != null) {
       final userId = authProvider.currentUser!.id;
 
-      // Cargar biblioteca principal
-      libraryProvider.loadLibrary(userId);
-
-      // Cargar playlists y géneros en paralelo
+      // Cargas paralelas de todos los datos necesarios
       await Future.wait([
+        libraryProvider.loadLibrary(userId),
+        libraryProvider
+            .loadFavorites(userId), // <--- AGREGADA CARGA DE FAVORITOS
         _loadPlaylists(userId),
         _loadGenres(),
       ]);
@@ -131,9 +126,6 @@ class _LibraryScreenState extends State<LibraryScreen>
     }
   }
 
-  // =========================================================================
-  // ** LÓGICA CENTRAL DE FILTRADO Y ORDENACIÓN (MANTENIDA EXACTA)**
-  // =========================================================================
   List<T> _applyFiltersAndSort<T>(
     List<T> items,
     String Function(T) getName,
@@ -142,18 +134,15 @@ class _LibraryScreenState extends State<LibraryScreen>
   ) {
     if (items.isEmpty) return [];
 
-    // 1. Filtrar
     Iterable<T> filteredItems = items.where((item) {
       final query = _searchQuery.toLowerCase();
       final name = getName(item).toLowerCase();
       final artist = getArtist(item).toLowerCase();
 
-      // Filtro Texto
       final matchesQuery =
           query.isEmpty || name.contains(query) || artist.contains(query);
       if (!matchesQuery) return false;
 
-      // Filtro Género (Solo para Song y Album)
       if (_selectedGenreIds.isNotEmpty) {
         if (item is Song) {
           return item.genreIds.any((id) => _selectedGenreIds.contains(id));
@@ -161,13 +150,11 @@ class _LibraryScreenState extends State<LibraryScreen>
         if (item is Album) {
           return item.genreIds.any((id) => _selectedGenreIds.contains(id));
         }
-        // Playlists y Downloads ignoran género según lógica original
         return true;
       }
       return true;
     }).toList();
 
-    // 2. Ordenar
     if (filteredItems.isNotEmpty) {
       filteredItems = filteredItems.toList()
         ..sort((a, b) {
@@ -196,31 +183,20 @@ class _LibraryScreenState extends State<LibraryScreen>
     return filteredItems.toList();
   }
 
-  // =========================================================================
-  // ** UI PRINCIPAL **
-  // =========================================================================
-
   @override
   Widget build(BuildContext context) {
     final currentContext = context;
     return Scaffold(
       backgroundColor: AppTheme.backgroundBlack,
-      // Usamos SafeArea para eliminar el AppBar clásico y usar espacio real
       body: SafeArea(
         child: Column(
           children: [
-            // 1. BARRA SUPERIOR PERSONALIZADA (Búsqueda + Filtros)
             _buildTopControlBar(),
-
-            // 2. LISTA DE GÉNEROS (Expandible)
-            if (_showGenreFilter &&
-                _tabController.index != 2) // Ocultar en playlists
+            if (_showGenreFilter && _tabController.index != 2)
               _buildGenreFilterBar()
                   .animate()
                   .fadeIn()
                   .slideY(begin: -0.2, end: 0),
-
-            // 3. TAB BAR (Estilo Minimalista)
             Container(
               height: 48,
               width: double.infinity,
@@ -248,23 +224,21 @@ class _LibraryScreenState extends State<LibraryScreen>
                 ],
               ),
             ),
-
-            // 4. CONTENIDO (VISTAS)
             Expanded(
               child: Consumer2<LibraryProvider, DownloadProvider>(
                 builder: (context, libProvider, downProvider, child) {
                   return TabBarView(
                     controller: _tabController,
                     children: [
-                      // Pestaña Canciones
                       _buildSongsList(libProvider.purchasedSongs),
-                      // Pestaña Álbumes
                       _buildAlbumsList(libProvider.purchasedAlbums),
-                      // Pestaña Playlists
                       _buildPlaylistsList(),
-                      // Pestaña Favoritos
-                      _buildFavoritesList(libProvider),
-                      // Pestaña Descargas
+                      // Verificamos si está cargando favoritos
+                      libProvider.isFavoritesLoading
+                          ? const Center(
+                              child: CircularProgressIndicator(
+                                  color: AppTheme.primaryBlue))
+                          : _buildFavoritesList(libProvider),
                       _buildDownloadsList(downProvider.downloadedSongs),
                     ],
                   );
@@ -274,7 +248,6 @@ class _LibraryScreenState extends State<LibraryScreen>
           ],
         ),
       ),
-      // FAB solo para Playlists
       floatingActionButton: Padding(
         padding: const EdgeInsets.only(bottom: 80.0),
         child: ValueListenableBuilder(
@@ -304,8 +277,6 @@ class _LibraryScreenState extends State<LibraryScreen>
     );
   }
 
-  // --- WIDGETS DE CONTROL (HEADER) ---
-
   Widget _buildTopControlBar() {
     final hasActiveFilters =
         _searchQuery.isNotEmpty || _selectedGenreIds.isNotEmpty;
@@ -314,7 +285,6 @@ class _LibraryScreenState extends State<LibraryScreen>
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
       child: Row(
         children: [
-          // Barra de Búsqueda Estilizada
           Expanded(
             child: Container(
               height: 45,
@@ -354,22 +324,17 @@ class _LibraryScreenState extends State<LibraryScreen>
             ),
           ),
           const SizedBox(width: 12),
-
-          // Botón Toggle Filtros (Géneros)
           _buildIconButton(
             icon: Icons.filter_list_rounded,
             isActive: _showGenreFilter || _selectedGenreIds.isNotEmpty,
             onTap: () => setState(() => _showGenreFilter = !_showGenreFilter),
           ),
           const SizedBox(width: 8),
-
-          // Botón Sort (Despliega menú modal simple)
           _buildIconButton(
             icon: _currentSortOrder == SortOrder.asc
                 ? Icons.arrow_upward
                 : Icons.arrow_downward,
-            isActive: _currentSortCriterion ==
-                SortCriterion.date, // Activo si ordena por fecha
+            isActive: _currentSortCriterion == SortCriterion.date,
             onTap: _showSortMenu,
           ),
         ],
@@ -516,8 +481,6 @@ class _LibraryScreenState extends State<LibraryScreen>
     );
   }
 
-  // --- BUILDERS DE LISTAS (VISTAS) ---
-
   Widget _buildSongsList(List<Song> songs) {
     final filtered = _applyFiltersAndSort<Song>(
         songs, (s) => s.name, (s) => s.artistName, (s) => s.createdAt);
@@ -614,7 +577,6 @@ class _LibraryScreenState extends State<LibraryScreen>
   }
 
   Widget _buildFavoritesList(LibraryProvider libProvider) {
-    // Favoritos combina canciones y álbumes, procesamos ambos
     final favSongs = _applyFiltersAndSort<Song>(libProvider.favoriteSongs,
         (s) => s.name, (s) => s.artistName, (s) => s.createdAt);
     final favAlbums = _applyFiltersAndSort<Album>(libProvider.favoriteAlbums,
@@ -695,16 +657,13 @@ class _LibraryScreenState extends State<LibraryScreen>
                     .deleteDownload(download.songId),
           ),
           onTap: () {
-            // Lógica de reproducción offline o navegación si existe ruta
-            Navigator.pushNamed(
-                context, '/downloads'); // Ruta original que mencionaste tener
+            Navigator.pushNamed(context, '/downloads');
           },
         ).animate().fadeIn(delay: (30 * index).ms).slideX();
       },
     );
   }
 
-  // --- TILE GENÉRICO BONITO ---
   Widget _buildGenericTile({
     required String title,
     required String subtitle,
@@ -754,7 +713,6 @@ class _LibraryScreenState extends State<LibraryScreen>
     );
   }
 
-  // --- EMPTY STATES ---
   Widget _buildEmptyState(String type, IconData icon) {
     return Center(
       child: Column(

@@ -16,8 +16,8 @@ class LibraryProvider with ChangeNotifier {
   final MusicService _musicService = MusicService();
   final FavoriteService _favoriteService = FavoriteService();
 
-  final List<Song> _favoriteSongs = [];
-  final List<Album> _favoriteAlbums = [];
+  List<Song> _favoriteSongs = [];
+  List<Album> _favoriteAlbums = [];
   bool _isFavoritesLoading = false;
 
   List<Playlist> _playlists = [];
@@ -32,6 +32,7 @@ class LibraryProvider with ChangeNotifier {
   List<Playlist> get playlists => _playlists;
   List<Song> get purchasedSongs => _purchasedSongs;
   List<Album> get purchasedAlbums => _purchasedAlbums;
+
   bool get isFavoritesLoading => _isFavoritesLoading;
   bool get isPlaylistsLoading => _isPlaylistsLoading;
   bool get isLibraryLoading => _isLibraryLoading;
@@ -41,62 +42,61 @@ class LibraryProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      debugPrint('Loading favorites from server for user: $userId');
       final response = await _favoriteService.getUserFavorites(userId);
 
       if (response.success && response.data != null) {
         final favorites = response.data!;
-        debugPrint(
-            'Favorites loaded from server: ${favorites.totalFavorites} items');
 
-        // Clear current lists
-        _favoriteSongs.clear();
-        _favoriteAlbums.clear();
+        // Listas temporales para carga paralela
+        List<Song> tempSongs = [];
+        List<Album> tempAlbums = [];
 
-        // Load full song details for each favorite song
-        for (var favoriteItem in favorites.songs) {
-          final songResponse =
-              await _musicService.getSongById(favoriteItem.itemId);
-          if (songResponse.success && songResponse.data != null) {
-            var song = songResponse.data!;
-
-            // Cargar el nombre del artista
-            final artistResponse =
-                await _musicService.getArtistById(song.artistId);
-            if (artistResponse.success && artistResponse.data != null) {
+        // 1. Cargar Canciones en paralelo
+        final songFutures = favorites.songs.map((favItem) async {
+          final songRes = await _musicService.getSongById(favItem.itemId);
+          if (songRes.success && songRes.data != null) {
+            var song = songRes.data!;
+            // Cargar Artista
+            final artistRes = await _musicService.getArtistById(song.artistId);
+            if (artistRes.success && artistRes.data != null) {
               song = song.copyWith(
-                  artistName: artistResponse.data!.artistName ??
-                      artistResponse.data!.username);
+                  artistName:
+                      artistRes.data!.artistName ?? artistRes.data!.username);
             }
-
-            _favoriteSongs.add(song);
+            return song;
           }
-        }
+          return null;
+        });
 
-        // Load full album details for each favorite album
-        for (var favoriteItem in favorites.albums) {
-          final albumResponse =
-              await _musicService.getAlbumById(favoriteItem.itemId);
-          if (albumResponse.success && albumResponse.data != null) {
-            var album = albumResponse.data!;
-
-            // Cargar el nombre del artista
-            final artistResponse =
-                await _musicService.getArtistById(album.artistId);
-            if (artistResponse.success && artistResponse.data != null) {
+        // 2. Cargar Álbumes en paralelo
+        final albumFutures = favorites.albums.map((favItem) async {
+          final albumRes = await _musicService.getAlbumById(favItem.itemId);
+          if (albumRes.success && albumRes.data != null) {
+            var album = albumRes.data!;
+            // Cargar Artista
+            final artistRes = await _musicService.getArtistById(album.artistId);
+            if (artistRes.success && artistRes.data != null) {
               album = album.copyWith(
-                  artistName: artistResponse.data!.artistName ??
-                      artistResponse.data!.username);
+                  artistName:
+                      artistRes.data!.artistName ?? artistRes.data!.username);
             }
-
-            _favoriteAlbums.add(album);
+            return album;
           }
-        }
+          return null;
+        });
 
-        debugPrint(
-            'Favorites loaded: ${_favoriteSongs.length} songs, ${_favoriteAlbums.length} albums');
+        // Esperar a que todo termine
+        final songsResults = await Future.wait(songFutures);
+        final albumsResults = await Future.wait(albumFutures);
+
+        // Filtrar nulos y actualizar listas principales
+        tempSongs = songsResults.whereType<Song>().toList();
+        tempAlbums = albumsResults.whereType<Album>().toList();
+
+        _favoriteSongs = tempSongs;
+        _favoriteAlbums = tempAlbums;
       } else {
-        debugPrint('Failed to load favorites from server: ${response.error}');
+        debugPrint('Failed to load favorites: ${response.error}');
       }
     } catch (e) {
       debugPrint('Error loading favorites: $e');
@@ -116,7 +116,6 @@ class LibraryProvider with ChangeNotifier {
 
   Future<void> toggleSongFavorite(int userId, Song song) async {
     try {
-      // Call the API to toggle favorite
       final response = await _favoriteService.toggleFavorite(
         userId,
         AppConstants.itemTypeSong,
@@ -127,21 +126,22 @@ class LibraryProvider with ChangeNotifier {
         final isFavorite = response.data!;
 
         if (isFavorite) {
-          // Added to favorites
-          // Cargar el nombre del artista antes de agregar
-          final artistResponse =
-              await _musicService.getArtistById(song.artistId);
-          if (artistResponse.success && artistResponse.data != null) {
-            song = song.copyWith(
-                artistName: artistResponse.data!.artistName ??
-                    artistResponse.data!.username);
+          // Si no tiene nombre de artista, intentar cargarlo rápido
+          if (song.artistName.isEmpty || song.artistName == 'Unknown Artist') {
+            final artistResponse =
+                await _musicService.getArtistById(song.artistId);
+            if (artistResponse.success && artistResponse.data != null) {
+              song = song.copyWith(
+                  artistName: artistResponse.data!.artistName ??
+                      artistResponse.data!.username);
+            }
           }
-          _favoriteSongs.add(song);
+          if (!_favoriteSongs.any((s) => s.id == song.id)) {
+            _favoriteSongs.add(song);
+          }
         } else {
-          // Removed from favorites
           _favoriteSongs.removeWhere((s) => s.id == song.id);
         }
-
         notifyListeners();
       }
     } catch (e) {
@@ -152,7 +152,6 @@ class LibraryProvider with ChangeNotifier {
 
   Future<void> toggleAlbumFavorite(int userId, Album album) async {
     try {
-      // Call the API to toggle favorite
       final response = await _favoriteService.toggleFavorite(
         userId,
         AppConstants.itemTypeAlbum,
@@ -163,21 +162,22 @@ class LibraryProvider with ChangeNotifier {
         final isFavorite = response.data!;
 
         if (isFavorite) {
-          // Added to favorites
-          // Cargar el nombre del artista antes de agregar
-          final artistResponse =
-              await _musicService.getArtistById(album.artistId);
-          if (artistResponse.success && artistResponse.data != null) {
-            album = album.copyWith(
-                artistName: artistResponse.data!.artistName ??
-                    artistResponse.data!.username);
+          if (album.artistName.isEmpty ||
+              album.artistName == 'Unknown Artist') {
+            final artistResponse =
+                await _musicService.getArtistById(album.artistId);
+            if (artistResponse.success && artistResponse.data != null) {
+              album = album.copyWith(
+                  artistName: artistResponse.data!.artistName ??
+                      artistResponse.data!.username);
+            }
           }
-          _favoriteAlbums.add(album);
+          if (!_favoriteAlbums.any((a) => a.id == album.id)) {
+            _favoriteAlbums.add(album);
+          }
         } else {
-          // Removed from favorites
           _favoriteAlbums.removeWhere((a) => a.id == album.id);
         }
-
         notifyListeners();
       }
     } catch (e) {
@@ -186,10 +186,11 @@ class LibraryProvider with ChangeNotifier {
     }
   }
 
+  // --- PLAYLIST LOGIC ---
+
   Future<void> loadPlaylists(int userId) async {
     _isPlaylistsLoading = true;
     notifyListeners();
-
     try {
       final response = await _playlistService.getUserPlaylists(userId);
       if (response.success && response.data != null) {
@@ -216,18 +217,14 @@ class LibraryProvider with ChangeNotifier {
         'description': description,
         'isPublic': isPublic,
       };
-
       final response = await _playlistService.createPlaylist(playlistData);
-
       if (response.success && response.data != null) {
         _playlists.add(response.data!);
         notifyListeners();
         return response.data;
       }
-
       return null;
     } catch (e) {
-      debugPrint('Error creating playlist: $e');
       rethrow;
     }
   }
@@ -245,7 +242,6 @@ class LibraryProvider with ChangeNotifier {
         description: description,
         isPublic: isPublic,
       );
-
       if (response.success && response.data != null) {
         final index = _playlists.indexWhere((p) => p.id == playlistId);
         if (index != -1) {
@@ -254,7 +250,6 @@ class LibraryProvider with ChangeNotifier {
         }
       }
     } catch (e) {
-      debugPrint('Error updating playlist: $e');
       rethrow;
     }
   }
@@ -262,24 +257,19 @@ class LibraryProvider with ChangeNotifier {
   Future<void> deletePlaylist(int playlistId) async {
     try {
       final response = await _playlistService.deletePlaylist(playlistId);
-
       if (response.success) {
         _playlists.removeWhere((p) => p.id == playlistId);
         notifyListeners();
       }
     } catch (e) {
-      debugPrint('Error deleting playlist: $e');
       rethrow;
     }
   }
 
   Future<void> addSongToPlaylist(int playlistId, int songId) async {
     try {
-      final response = await _playlistService.addSongToPlaylist(
-        playlistId,
-        songId,
-      );
-
+      final response =
+          await _playlistService.addSongToPlaylist(playlistId, songId);
       if (response.success) {
         final playlistResponse =
             await _playlistService.getPlaylistById(playlistId);
@@ -292,18 +282,14 @@ class LibraryProvider with ChangeNotifier {
         }
       }
     } catch (e) {
-      debugPrint('Error adding song to playlist: $e');
       rethrow;
     }
   }
 
   Future<void> removeSongFromPlaylist(int playlistId, int songId) async {
     try {
-      final response = await _playlistService.removeSongFromPlaylist(
-        playlistId,
-        songId,
-      );
-
+      final response =
+          await _playlistService.removeSongFromPlaylist(playlistId, songId);
       if (response.success) {
         final index = _playlists.indexWhere((p) => p.id == playlistId);
         if (index != -1) {
@@ -312,66 +298,51 @@ class LibraryProvider with ChangeNotifier {
         }
       }
     } catch (e) {
-      debugPrint('Error removing song from playlist: $e');
       rethrow;
     }
   }
 
-  // Save purchased content to local storage
+  // --- LIBRARY / PURCHASED CONTENT LOGIC ---
+
   Future<void> _savePurchasedContentToLocal(int userId) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-
-      // Save songs
       final songsJson =
           jsonEncode(_purchasedSongs.map((s) => s.toJson()).toList());
       await prefs.setString('purchased_songs_$userId', songsJson);
-
-      // Save albums
       final albumsJson =
           jsonEncode(_purchasedAlbums.map((a) => a.toJson()).toList());
       await prefs.setString('purchased_albums_$userId', albumsJson);
-
-      debugPrint('Purchased content saved to local storage');
     } catch (e) {
-      debugPrint('Error saving purchased content to local storage: $e');
+      debugPrint('Error saving local content: $e');
     }
   }
 
-  // Load purchased content from local storage
   Future<void> _loadPurchasedContentFromLocal(int userId) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-
-      // Load songs
       final songsJson = prefs.getString('purchased_songs_$userId');
       if (songsJson != null) {
         final songsList = jsonDecode(songsJson) as List;
         _purchasedSongs = songsList.map((s) => Song.fromJson(s)).toList();
       }
-
-      // Load albums
       final albumsJson = prefs.getString('purchased_albums_$userId');
       if (albumsJson != null) {
         final albumsList = jsonDecode(albumsJson) as List;
         _purchasedAlbums = albumsList.map((a) => Album.fromJson(a)).toList();
       }
-
-      debugPrint(
-          'Purchased content loaded from local storage: ${_purchasedSongs.length} songs, ${_purchasedAlbums.length} albums');
     } catch (e) {
-      debugPrint('Error loading purchased content from local storage: $e');
+      debugPrint('Error loading local content: $e');
     }
   }
 
-  // Clear purchased content from local storage
   Future<void> _clearPurchasedContentFromLocal(int userId) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('purchased_songs_$userId');
       await prefs.remove('purchased_albums_$userId');
     } catch (e) {
-      debugPrint('Error clearing purchased content from local storage: $e');
+      debugPrint('Error clearing local content: $e');
     }
   }
 
@@ -380,70 +351,58 @@ class LibraryProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      // Load from local storage first (for offline capability)
       await _loadPurchasedContentFromLocal(userId);
 
-      // Sync with server to get the latest purchased items
-      debugPrint('Loading library from server for user: $userId');
       final response = await _libraryService.getUserLibrary(userId);
-
       if (response.success && response.data != null) {
         final library = response.data!;
-        debugPrint('Library loaded from server: ${library.totalItems} items');
 
-        // Clear current lists
-        _purchasedSongs.clear();
-        _purchasedAlbums.clear();
+        // Listas temporales
+        List<Song> tempSongs = [];
+        List<Album> tempAlbums = [];
 
-        // Load full song and album details for each purchased item
-        for (var item in library.songs) {
-          final songResponse = await _musicService.getSongById(item.itemId);
-          if (songResponse.success && songResponse.data != null) {
-            var song = songResponse.data!;
-
-            // Cargar el nombre del artista
-            final artistResponse =
-                await _musicService.getArtistById(song.artistId);
-            if (artistResponse.success && artistResponse.data != null) {
+        // Carga paralela para Library
+        final songFutures = library.songs.map((item) async {
+          final sRes = await _musicService.getSongById(item.itemId);
+          if (sRes.success && sRes.data != null) {
+            var song = sRes.data!;
+            final aRes = await _musicService.getArtistById(song.artistId);
+            if (aRes.success && aRes.data != null) {
               song = song.copyWith(
-                  artistName: artistResponse.data!.artistName ??
-                      artistResponse.data!.username);
+                  artistName: aRes.data!.artistName ?? aRes.data!.username);
             }
-
-            _purchasedSongs.add(song);
+            return song;
           }
-        }
+          return null;
+        });
 
-        for (var item in library.albums) {
-          final albumResponse = await _musicService.getAlbumById(item.itemId);
-          if (albumResponse.success && albumResponse.data != null) {
-            var album = albumResponse.data!;
-
-            // Cargar el nombre del artista
-            final artistResponse =
-                await _musicService.getArtistById(album.artistId);
-            if (artistResponse.success && artistResponse.data != null) {
+        final albumFutures = library.albums.map((item) async {
+          final aRes = await _musicService.getAlbumById(item.itemId);
+          if (aRes.success && aRes.data != null) {
+            var album = aRes.data!;
+            final arRes = await _musicService.getArtistById(album.artistId);
+            if (arRes.success && arRes.data != null) {
               album = album.copyWith(
-                  artistName: artistResponse.data!.artistName ??
-                      artistResponse.data!.username);
+                  artistName: arRes.data!.artistName ?? arRes.data!.username);
             }
-
-            _purchasedAlbums.add(album);
+            return album;
           }
-        }
+          return null;
+        });
 
-        // Save to local storage as backup
+        final sResults = await Future.wait(songFutures);
+        final aResults = await Future.wait(albumFutures);
+
+        tempSongs = sResults.whereType<Song>().toList();
+        tempAlbums = aResults.whereType<Album>().toList();
+
+        _purchasedSongs = tempSongs;
+        _purchasedAlbums = tempAlbums;
+
         await _savePurchasedContentToLocal(userId);
-
-        debugPrint(
-            'Library loaded: ${_purchasedSongs.length} songs, ${_purchasedAlbums.length} albums');
-      } else {
-        debugPrint('Failed to load library from server: ${response.error}');
-        // Keep using the local cache if server fails
       }
     } catch (e) {
       debugPrint('Error loading library: $e');
-      // Keep using the local cache if error occurs
     } finally {
       _isLibraryLoading = false;
       notifyListeners();
@@ -452,7 +411,6 @@ class LibraryProvider with ChangeNotifier {
 
   Future<void> addPurchasedSong(Song song, {int? userId}) async {
     if (!_purchasedSongs.any((s) => s.id == song.id)) {
-      // Cargar el nombre del artista
       final artistResponse = await _musicService.getArtistById(song.artistId);
       if (artistResponse.success && artistResponse.data != null) {
         song = song.copyWith(
@@ -460,27 +418,21 @@ class LibraryProvider with ChangeNotifier {
                 artistResponse.data!.username);
       }
       _purchasedSongs.add(song);
-      if (userId != null) {
-        await _savePurchasedContentToLocal(userId);
-      }
+      if (userId != null) await _savePurchasedContentToLocal(userId);
       notifyListeners();
     }
   }
 
   Future<void> addPurchasedAlbum(Album album, {int? userId}) async {
     if (!_purchasedAlbums.any((a) => a.id == album.id)) {
-      // Cargar el nombre del artista
       final artistResponse = await _musicService.getArtistById(album.artistId);
       if (artistResponse.success && artistResponse.data != null) {
         album = album.copyWith(
             artistName: artistResponse.data!.artistName ??
                 artistResponse.data!.username);
       }
-
       _purchasedAlbums.add(album);
-      if (userId != null) {
-        await _savePurchasedContentToLocal(userId);
-      }
+      if (userId != null) await _savePurchasedContentToLocal(userId);
       notifyListeners();
     }
   }
@@ -501,20 +453,15 @@ class LibraryProvider with ChangeNotifier {
       }
     }
     if (changed) {
-      if (userId != null) {
-        await _savePurchasedContentToLocal(userId);
-      }
+      if (userId != null) await _savePurchasedContentToLocal(userId);
       notifyListeners();
     }
   }
 
-  bool isSongPurchased(int songId) {
-    return _purchasedSongs.any((song) => song.id == songId);
-  }
-
-  bool isAlbumPurchased(int albumId) {
-    return _purchasedAlbums.any((album) => album.id == albumId);
-  }
+  bool isSongPurchased(int songId) =>
+      _purchasedSongs.any((s) => s.id == songId);
+  bool isAlbumPurchased(int albumId) =>
+      _purchasedAlbums.any((a) => a.id == albumId);
 
   Future<void> clearLibrary({int? userId}) async {
     _favoriteSongs.clear();
@@ -522,9 +469,7 @@ class LibraryProvider with ChangeNotifier {
     _playlists.clear();
     _purchasedSongs.clear();
     _purchasedAlbums.clear();
-    if (userId != null) {
-      await _clearPurchasedContentFromLocal(userId);
-    }
+    if (userId != null) await _clearPurchasedContentFromLocal(userId);
     notifyListeners();
   }
 }
