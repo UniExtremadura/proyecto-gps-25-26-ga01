@@ -17,8 +17,10 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
- * GA01-162 y GA01-163: Controlador para moderación de contenido
- * Endpoints para que los administradores revisen, aprueben o rechacen contenido
+ * Controlador para la moderación de contenido (GA01-162, GA01-163).
+ * <p>
+ * Permite a los administradores revisar, aprobar o rechazar canciones y álbumes subidos por artistas.
+ * </p>
  */
 @RestController
 @RequestMapping("/api/moderation")
@@ -27,10 +29,12 @@ public class ModerationController {
 
     private final ModerationService moderationService;
 
-    // ============= GA01-162: Endpoints de Aprobación/Rechazo =============
-
     /**
-     * Aprobar una canción
+     * Aprueba una canción pendiente de revisión.
+     *
+     * @param id ID de la canción.
+     * @param request Datos de la moderación (notas, moderador).
+     * @return La canción aprobada.
      */
     @PostMapping("/songs/{id}/approve")
     public ResponseEntity<?> approveSong(@PathVariable Long id,
@@ -46,7 +50,11 @@ public class ModerationController {
     }
 
     /**
-     * Rechazar una canción
+     * Rechaza una canción indicando el motivo.
+     *
+     * @param id ID de la canción.
+     * @param request Datos del rechazo (razón obligatoria).
+     * @return La canción rechazada.
      */
     @PostMapping("/songs/{id}/reject")
     public ResponseEntity<?> rejectSong(@PathVariable Long id,
@@ -63,7 +71,11 @@ public class ModerationController {
     }
 
     /**
-     * Aprobar un álbum
+     * Aprueba un álbum completo.
+     *
+     * @param id ID del álbum.
+     * @param request Datos de moderación.
+     * @return El álbum aprobado.
      */
     @PostMapping("/albums/{id}/approve")
     public ResponseEntity<?> approveAlbum(@PathVariable Long id,
@@ -79,7 +91,11 @@ public class ModerationController {
     }
 
     /**
-     * Rechazar un álbum
+     * Rechaza un álbum completo.
+     *
+     * @param id ID del álbum.
+     * @param request Datos del rechazo.
+     * @return El álbum rechazado.
      */
     @PostMapping("/albums/{id}/reject")
     public ResponseEntity<?> rejectAlbum(@PathVariable Long id,
@@ -96,7 +112,8 @@ public class ModerationController {
     }
 
     /**
-     * Obtener todas las canciones pendientes de moderación
+     * Obtiene la cola de canciones pendientes de moderación.
+     * @return Lista de canciones en estado PENDING_REVIEW.
      */
     @GetMapping("/songs/pending")
     public ResponseEntity<List<Song>> getPendingSongs() {
@@ -104,7 +121,8 @@ public class ModerationController {
     }
 
     /**
-     * Obtener todos los álbumes pendientes de moderación
+     * Obtiene la cola de álbumes pendientes de moderación.
+     * @return Lista de álbumes en estado PENDING_REVIEW.
      */
     @GetMapping("/albums/pending")
     public ResponseEntity<List<Album>> getPendingAlbums() {
@@ -112,7 +130,10 @@ public class ModerationController {
     }
 
     /**
-     * Obtener canciones por estado de moderación
+     * Obtiene canciones filtradas por estado de moderación.
+     *
+     * @param status Estado de moderación (PENDING_REVIEW, APPROVED, REJECTED).
+     * @return Lista de canciones con el estado especificado.
      */
     @GetMapping("/songs/status/{status}")
     public ResponseEntity<List<Song>> getSongsByStatus(@PathVariable String status) {
@@ -125,7 +146,10 @@ public class ModerationController {
     }
 
     /**
-     * Obtener álbumes por estado de moderación
+     * Obtiene álbumes filtrados por estado de moderación.
+     *
+     * @param status Estado de moderación (PENDING_REVIEW, APPROVED, REJECTED).
+     * @return Lista de álbumes con el estado especificado.
      */
     @GetMapping("/albums/status/{status}")
     public ResponseEntity<List<Album>> getAlbumsByStatus(@PathVariable String status) {
@@ -137,10 +161,10 @@ public class ModerationController {
         }
     }
 
-    // ============= GA01-163: Endpoints de Historial =============
-
     /**
-     * Obtener historial completo de moderaciones
+     * Consulta el historial completo de moderaciones.
+     *
+     * @return Lista histórica de aprobaciones y rechazos.
      */
     @GetMapping("/history")
     public ResponseEntity<List<ModerationHistoryResponse>> getModerationHistory() {
@@ -152,7 +176,11 @@ public class ModerationController {
     }
 
     /**
-     * Obtener historial de un producto específico
+     * Consulta el historial de moderaciones de un producto específico (canción o álbum).
+     *
+     * @param productType Tipo de producto ("song" o "album").
+     * @param productId   ID del producto.
+     * @return Lista histórica de aprobaciones y rechazos.
      */
     @GetMapping("/history/{productType}/{productId}")
     public ResponseEntity<List<ModerationHistoryResponse>> getProductHistory(
@@ -167,7 +195,10 @@ public class ModerationController {
     }
 
     /**
-     * Obtener historial de moderaciones de un artista
+     * Consulta el historial de moderaciones de un artista específico.
+     *
+     * @param artistId ID del artista.
+     * @return Lista histórica de aprobaciones y rechazos.
      */
     @GetMapping("/history/artist/{artistId}")
     public ResponseEntity<List<ModerationHistoryResponse>> getArtistHistory(
@@ -179,7 +210,6 @@ public class ModerationController {
         return ResponseEntity.ok(response);
     }
 
-    // Helper method to convert ModerationHistory to Response DTO
     private ModerationHistoryResponse toResponse(ModerationHistory history) {
         return ModerationHistoryResponse.builder()
                 .id(history.getId())

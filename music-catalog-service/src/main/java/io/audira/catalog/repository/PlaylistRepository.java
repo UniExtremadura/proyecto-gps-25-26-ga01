@@ -7,38 +7,51 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 /**
- * Repository for Playlist entity
- * GA01-113: Crear lista con nombre
- * GA01-114: Añadir/eliminar canciones
- * GA01-115: Editar nombre / eliminar lista
+ * Repositorio JPA para la entidad {@link Playlist}.
+ * <p>
+ * Soporta los requisitos de gestión de listas:
+ * <ul>
+ * <li><b>GA01-113:</b> Visualización de listas propias.</li>
+ * <li><b>GA01-115:</b> Eliminación y búsqueda de listas públicas.</li>
+ * </ul>
+ * </p>
  */
 @Repository
 public interface PlaylistRepository extends JpaRepository<Playlist, Long> {
 
     /**
-     * Find all playlists created by a specific user
-     * @param userId User ID
-     * @return List of playlists
+     * Encuentra todas las listas de reproducción creadas por un usuario específico.
+     *
+     * @param userId ID del usuario creador.
+     * @return Lista de playlists del usuario.
      */
     List<Playlist> findByUserId(Long userId);
 
     /**
-     * Find all public playlists
-     * @return List of public playlists
+     * Encuentra todas las listas de reproducción marcadas como públicas.
+     * <p>Utilizado en la sección de descubrimiento o comunidad.</p>
+     *
+     * @return Lista de todas las playlists públicas del sistema.
      */
     List<Playlist> findByIsPublicTrue();
 
     /**
-     * Find playlists by user and public status
-     * @param userId User ID
-     * @param isPublic Public status
-     * @return List of playlists
+     * Encuentra playlists de un usuario filtrando por visibilidad.
+     * <p>Ej: Ver solo las listas públicas de otro usuario en su perfil.</p>
+     *
+     * @param userId ID del usuario.
+     * @param isPublic Estado de visibilidad (true/false).
+     * @return Lista filtrada.
      */
     List<Playlist> findByUserIdAndIsPublic(Long userId, Boolean isPublic);
 
     /**
-     * Delete all playlists created by a specific user
-     * @param userId User ID
+     * Elimina todas las listas de reproducción de un usuario.
+     * <p>
+     * Se ejecuta típicamente cuando un usuario elimina su cuenta (Derecho al olvido/GDPR).
+     * </p>
+     *
+     * @param userId ID del usuario.
      */
     void deleteByUserId(Long userId);
 }

@@ -12,10 +12,16 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Service for managing playlists
- * GA01-113: Crear lista con nombre
- * GA01-114: Añadir/eliminar canciones
- * GA01-115: Editar nombre / eliminar lista
+ * Servicio para la gestión de listas de reproducción (Playlists).
+ * <p>
+ * Encapsula la lógica de negocio para crear, modificar, eliminar y organizar
+ * listas de reproducción de usuarios. Implementa los requisitos funcionales:
+ * <ul>
+ * <li><b>GA01-113:</b> Crear lista con nombre y descripción.</li>
+ * <li><b>GA01-114:</b> Añadir y eliminar canciones de las listas.</li>
+ * <li><b>GA01-115:</b> Editar nombre, visibilidad y eliminar listas completas.</li>
+ * </ul>
+ * </p>
  */
 @Service
 public class PlaylistService {
@@ -26,18 +32,25 @@ public class PlaylistService {
     private PlaylistRepository playlistRepository;
 
     /**
-     * Get all playlists
-     * @return List of all playlists
+     * Recupera todas las listas de reproducción existentes en el sistema.
+     * <p>
+     * Utilizado principalmente para propósitos administrativos o de depuración.
+     * </p>
+     *
+     * @return Una lista completa de todas las entidades {@link Playlist}.
      */
     public List<Playlist> getAllPlaylists() {
         return playlistRepository.findAll();
     }
 
     /**
-     * Get playlist by ID
-     * GA01-113: View playlist details
-     * @param id Playlist ID
-     * @return Playlist if found
+     * Busca una lista de reproducción por su identificador único.
+     * <p>
+     * Soporta el requisito <b>GA01-113: Ver detalles de playlist</b>.
+     * </p>
+     *
+     * @param id El ID de la playlist a buscar.
+     * @return Un {@link Optional} que contiene la playlist si se encuentra.
      */
     public Optional<Playlist> getPlaylistById(Long id) {
         return playlistRepository.findById(id);
@@ -54,22 +67,29 @@ public class PlaylistService {
     }
 
     /**
-     * Get all public playlists
-     * @return List of public playlists
+     * Recupera todas las listas de reproducción marcadas como públicas en el sistema.
+     * <p>
+     * Estas listas son visibles para cualquier usuario en la sección de comunidad o descubrimiento.
+     * </p>
+     *
+     * @return Lista de playlists con {@code isPublic = true}.
      */
     public List<Playlist> getPublicPlaylists() {
         return playlistRepository.findByIsPublicTrue();
     }
 
     /**
-     * Create a new playlist
-     * GA01-113: Crear lista con nombre
-     * @param playlist Playlist to create
-     * @return Created playlist
+     * Crea una nueva lista de reproducción.
+     * <p>
+     * Valida que el nombre no esté vacío antes de guardar.
+     * </p>
+     *
+     * @param playlist La entidad {@link Playlist} con los datos iniciales.
+     * @return La playlist creada y persistida.
+     * @throws IllegalArgumentException Si el nombre de la playlist es nulo o está vacío.
      */
     @Transactional
     public Playlist createPlaylist(Playlist playlist) {
-        // Validate playlist data
         if (playlist.getName() == null || playlist.getName().trim().isEmpty()) {
             throw new IllegalArgumentException("Playlist name is required");
         }
@@ -82,13 +102,15 @@ public class PlaylistService {
     }
 
     /**
-     * Update playlist information
-     * GA01-115: Editar nombre / eliminar lista
-     * @param id Playlist ID
-     * @param name New name (optional)
-     * @param description New description (optional)
-     * @param isPublic New public status (optional)
-     * @return Updated playlist
+     * Actualiza los metadatos de una lista de reproducción existente.
+     * <p>
+     * Permite modificar el nombre, la descripción y la visibilidad (pública/privada).
+     * </p>
+     *
+     * @param id El ID de la playlist a modificar.
+     * @param playlistDetails Objeto con los nuevos valores a aplicar.
+     * @return La playlist actualizada.
+     * @throws RuntimeException Si la playlist no existe.
      */
     @Transactional
     public Playlist updatePlaylist(Long id, String name, String description, Boolean isPublic) {
@@ -110,9 +132,12 @@ public class PlaylistService {
     }
 
     /**
-     * Delete a playlist
-     * GA01-115: Editar nombre / eliminar lista
-     * @param id Playlist ID
+     * Elimina una lista de reproducción del sistema.
+     * <p>
+     * <b>GA01-115:</b> Borrado permanente de una lista.
+     * </p>
+     *
+     * @param id El ID de la playlist a eliminar.
      */
     @Transactional
     public void deletePlaylist(Long id) {
@@ -124,11 +149,16 @@ public class PlaylistService {
     }
 
     /**
-     * Add a song to a playlist
-     * GA01-114: Añadir/eliminar canciones
-     * @param playlistId Playlist ID
-     * @param songId Song ID to add
-     * @return Updated playlist
+     * Añade una canción a una lista de reproducción.
+     * <p>
+     * <b>GA01-114:</b> Verifica primero si la playlist existe y delega la lógica de adición
+     * (y control de duplicados) a la entidad {@link Playlist}.
+     * </p>
+     *
+     * @param playlistId El ID de la playlist destino.
+     * @param songId El ID de la canción a añadir.
+     * @return La playlist actualizada con la nueva canción.
+     * @throws RuntimeException Si la playlist no se encuentra.
      */
     @Transactional
     public Playlist addSongToPlaylist(Long playlistId, Long songId) {
@@ -146,11 +176,15 @@ public class PlaylistService {
     }
 
     /**
-     * Remove a song from a playlist
-     * GA01-114: Añadir/eliminar canciones
-     * @param playlistId Playlist ID
-     * @param songId Song ID to remove
-     * @return Updated playlist
+     * Elimina una canción específica de una lista de reproducción.
+     * <p>
+     * <b>GA01-114:</b> Elimina la referencia a la canción manteniendo el resto de la lista intacta.
+     * </p>
+     *
+     * @param playlistId El ID de la playlist.
+     * @param songId El ID de la canción a remover.
+     * @return La playlist actualizada.
+     * @throws RuntimeException Si la playlist no se encuentra.
      */
     @Transactional
     public Playlist removeSongFromPlaylist(Long playlistId, Long songId) {
@@ -168,25 +202,33 @@ public class PlaylistService {
     }
 
     /**
-     * Reorder songs in a playlist
-     * GA01-114: Manage playlist song order
-     * @param playlistId Playlist ID
-     * @param songIds New ordered list of song IDs
-     * @return Updated playlist
+     * Reordena las canciones dentro de una lista de reproducción.
+     * <p>
+     * Recibe una nueva lista de IDs que representa el orden deseado.
+     * Realiza validaciones estrictas para asegurar la integridad de datos:
+     * <ol>
+     * <li>Todas las canciones en la nueva lista deben pertenecer a la playlist original.</li>
+     * <li>La cantidad de canciones debe coincidir (no se puede añadir/borrar canciones en este método).</li>
+     * </ol>
+     * </p>
+     *
+     * @param playlistId El ID de la playlist a reordenar.
+     * @param songIds La lista de IDs de canciones en el nuevo orden.
+     * @return La playlist con el orden actualizado.
+     * @throws IllegalArgumentException Si la lista proporcionada no coincide en contenido con la playlist actual.
+     * @throws RuntimeException Si la playlist no existe.
      */
     @Transactional
     public Playlist reorderPlaylistSongs(Long playlistId, List<Long> songIds) {
         Playlist playlist = playlistRepository.findById(playlistId)
                 .orElseThrow(() -> new RuntimeException("Playlist not found with id: " + playlistId));
 
-        // Validate that all provided song IDs are in the playlist
         for (Long songId : songIds) {
             if (!playlist.containsSong(songId)) {
                 throw new IllegalArgumentException("Song " + songId + " is not in the playlist");
             }
         }
 
-        // Validate that all playlist songs are in the provided list
         if (songIds.size() != playlist.getSongCount()) {
             throw new IllegalArgumentException("Song count mismatch. Expected " +
                     playlist.getSongCount() + " songs, but got " + songIds.size());
@@ -198,10 +240,14 @@ public class PlaylistService {
     }
 
     /**
-     * Check if user owns a playlist
-     * @param playlistId Playlist ID
-     * @param userId User ID
-     * @return true if user owns the playlist
+     * Verifica si un usuario es el propietario legítimo de una playlist.
+     * <p>
+     * Utilizado en los controladores para validar permisos de edición o borrado.
+     * </p>
+     *
+     * @param playlistId El ID de la playlist.
+     * @param userId El ID del usuario a verificar.
+     * @return {@code true} si el usuario es el dueño, {@code false} en caso contrario.
      */
     public boolean isPlaylistOwner(Long playlistId, Long userId) {
         Optional<Playlist> playlist = playlistRepository.findById(playlistId);
@@ -209,10 +255,14 @@ public class PlaylistService {
     }
 
     /**
-     * Get playlists that contain a specific song
-     * @param userId User ID
-     * @param songId Song ID
-     * @return List of playlists containing the song
+     * Busca en qué listas de reproducción de un usuario aparece una canción específica.
+     * <p>
+     * Permite al usuario saber rápidamente si ya ha guardado una canción y en qué listas.
+     * </p>
+     *
+     * @param userId El ID del usuario.
+     * @param songId El ID de la canción.
+     * @return Lista de playlists del usuario que contienen la canción dada.
      */
     public List<Playlist> getPlaylistsContainingSong(Long userId, Long songId) {
         return playlistRepository.findByUserId(userId).stream()

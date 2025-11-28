@@ -27,6 +27,14 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
+/**
+ * Servicio encargado de la lógica de descubrimiento y recomendación.
+ * <p>
+ * Agrega información de múltiples dominios (Catálogo, Comercio, Usuarios) para generar
+ * listas de reproducción sugeridas, tendencias y resultados de búsqueda enriquecidos.
+ * Implementa el requisito <b>GA01-117: Módulo básico de recomendaciones</b>.
+ * </p>
+ */
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -42,41 +50,71 @@ public class DiscoveryService {
 
     private static final int RECOMMENDATIONS_PER_CATEGORY = 10;
 
+    /**
+     * Obtiene una lista de canciones que son tendencia actualmente.
+     * <p>
+     * Se basa en el número de reproducciones o popularidad reciente.
+     * </p>
+     *
+     * @param limit El número máximo de canciones a recuperar (por defecto 20).
+     * @return Una lista de objetos {@link Song} que representan las canciones en tendencia.
+     */
     public List<Song> getTrendingSongs() {
         return songRepository.findTopByPlays();
     }
 
+    /**
+     * Obtiene una lista de álbumes que son tendencia actualmente.
+     * <p>
+     * Se basa en la fecha de creación o popularidad reciente.
+     * </p>
+     *
+     * @return Una lista de objetos {@link Album} que representan los álbumes en tendencia.
+     */
     public List<Album> getTrendingAlbums() {
-        // Por ahora devuelve los álbumes más recientes
         return albumRepository.findTop20ByOrderByCreatedAtDesc();
     }
 
-    // ============= ADVANCED SEARCH METHODS (User's Implementation) =============
-
     /**
-     * Simple search - searches by query only
+     * Búsqueda simplificada de canciones por texto.
+     * <p>
+     * Sobrecarga del método de búsqueda principal que utiliza valores por defecto para los filtros.
+     * Útil para la barra de búsqueda rápida del encabezado.
+     * </p>
+     *
+     * @param query Texto de búsqueda (título o artista).
+     * @param pageable Configuración de paginación.
+     * @return Página de canciones coincidentes.
+     * @see #searchSongs(String, Long, Double, Double, String, Pageable)
      */
     public Page<Song> searchSongs(String query, Pageable pageable) {
         if (query == null || query.trim().isEmpty()) {
             return Page.empty(pageable);
         }
 
-        // Get artist IDs matching the query from community-service
         List<Long> artistIds = getArtistIdsByName(query);
 
-        // Search by title and/or artist IDs
         if (artistIds.isEmpty()) {
-            // Only search by title
             return songRepository.searchByTitle(query, pageable);
         } else {
-            // Search by both title and artist IDs
             return songRepository.searchByTitleOrArtistIds(query, artistIds, pageable);
         }
     }
 
     /**
-     * Advanced search for songs with filters
-     * Full implementation with genreId, price range, and sorting
+     * Realiza una búsqueda avanzada de canciones aplicando múltiples filtros.
+     * <p>
+     * Permite buscar por texto libre (título o artista) y refinar por género y rango de precios.
+     * Soporta paginación y ordenamiento dinámico.
+     * </p>
+     *
+     * @param query    Texto de búsqueda para coincidencia en título o nombre del artista.
+     * @param genreId  (Opcional) ID del género para filtrar.
+     * @param minPrice (Opcional) Precio mínimo.
+     * @param maxPrice (Opcional) Precio máximo.
+     * @param sortBy   Criterio de ordenación ("recent", "price_asc", "price_desc", "popularity").
+     * @param pageable Configuración de paginación (página y tamaño).
+     * @return Una página {@link Page} de canciones que cumplen con los criterios.
      */
     public Page<Song> searchSongs(String query, Long genreId, Double minPrice, Double maxPrice, String sortBy, Pageable pageable) {
         log.debug("Advanced search - query: {}, genreId: {}, minPrice: {}, maxPrice: {}, sortBy: {}",
@@ -85,7 +123,6 @@ public class DiscoveryService {
         boolean hasQuery = query != null && !query.trim().isEmpty();
         boolean hasFilters = genreId != null || minPrice != null || maxPrice != null;
 
-        // Determine sort order
         Sort sort = Sort.by(Sort.Direction.DESC, "createdAt"); // Default: newest first
         if ("price_asc".equals(sortBy)) {
             sort = Sort.by(Sort.Direction.ASC, "price");
@@ -97,62 +134,71 @@ public class DiscoveryService {
             sort = Sort.by(Sort.Direction.DESC, "createdAt");
         }
 
-        // Create new pageable with sort
         Pageable sortedPageable = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), sort);
 
-        // Case 1: Only filters, no search query
         if (!hasQuery && hasFilters) {
             log.debug("Searching with filters only");
             return songRepository.searchPublishedByFiltersOnly(genreId, minPrice, maxPrice, sortedPageable);
         }
 
-        // Case 2: Search query with optional filters
         if (hasQuery) {
             String searchQuery = query.trim();
             List<Long> artistIds = getArtistIdsByName(searchQuery);
 
-            // Case 2a: Search by title only (no artist matches) with filters
             if (artistIds.isEmpty()) {
                 log.debug("Searching by title with filters: {}", searchQuery);
                 return songRepository.searchPublishedByTitleAndFilters(searchQuery, genreId, minPrice, maxPrice, sortedPageable);
             }
 
-            // Case 2b: Search by title AND artist with filters
             log.debug("Searching by title or artist IDs with filters: {}, artistIds: {}", searchQuery, artistIds);
             return songRepository.searchPublishedByTitleOrArtistIdsAndFilters(searchQuery, artistIds, genreId, minPrice, maxPrice, sortedPageable);
         }
 
-        // Case 3: No query and no filters - return empty
         log.debug("No query and no filters provided, returning empty page");
         return Page.empty(sortedPageable);
-    }
+    }   
 
     /**
-     * Simple album search
+     * Busca álbumes que coincidan con el criterio de texto.
+     * <p>
+     * Permite a los usuarios encontrar álbumes por título o por nombre del artista.
+     * Delega en el {@link AlbumRepository} la ejecución de la consulta.
+     * </p>
+     *
+     * @param query Texto de búsqueda.
+     * @param pageable Configuración de paginación.
+     * @return Página de álbumes coincidentes.
      */
     public Page<Album> searchAlbums(String query, Pageable pageable) {
         if (query == null || query.trim().isEmpty()) {
             return Page.empty(pageable);
         }
 
-        // Get artist IDs matching the query from community-service
         List<Long> artistIds = getArtistIdsByName(query);
 
-        // Search by title and/or artist IDs
         if (artistIds.isEmpty()) {
-            // Only search by title
             return albumRepository.searchByTitle(query, pageable);
         } else {
-            // Search by both title and artist IDs
             return albumRepository.searchByTitleOrArtistIds(query, artistIds, pageable);
         }
     }
 
     /**
-     * Advanced search for albums with filters
+     * Realiza una búsqueda avanzada de álbumes aplicando múltiples filtros.
+     * <p>
+     * Permite buscar por texto libre (título o artista) y refinar por género y rango de precios.
+     * Soporta paginación y ordenamiento dinámico.
+     * </p>
+     *
+     * @param query    Texto de búsqueda para coincidencia en título o nombre del artista.
+     * @param genreId  (Opcional) ID del género para filtrar.
+     * @param minPrice (Opcional) Precio mínimo.
+     * @param maxPrice (Opcional) Precio máximo.
+     * @param sortBy   Criterio de ordenación ("recent", "price_asc", "price_desc", "popularity").
+     * @param pageable Configuración de paginación (página y tamaño).
+     * @return Una página {@link Page} de álbumes que cumplen con los criterios.
      */
     public Page<Album> searchAlbums(String query, Long genreId, Double minPrice, Double maxPrice, String sortBy, Pageable pageable) {
-        // Permitir búsqueda si hay query, genreId o rango de precio
         boolean hasQuery = query != null && !query.trim().isEmpty();
         boolean hasFilters = genreId != null || minPrice != null || maxPrice != null;
         
@@ -175,7 +221,6 @@ public class DiscoveryService {
         log.info("DEBUG SEARCH ALBUMS -> Query: {}, GenreID: {}, MinPrice: {}, MaxPrice: {}, SortBy: {}", 
                  searchQuery, genreId, minPrice, maxPrice, sortBy);
         
-        // Si no hay query de texto, solo filtrar por género y/o precio
         if (searchQuery.isEmpty()) {
             return albumRepository.searchPublishedByFiltersOnly(genreId, minPrice, maxPrice, sortedPageable);
         }
@@ -191,7 +236,14 @@ public class DiscoveryService {
     }
 
     /**
-     * Get artist IDs by name from community-service
+     * Método auxiliar para resolver IDs de artistas a partir de un nombre.
+     * <p>
+     * Consulta al {@code UserServiceClient} para buscar usuarios con rol 'ARTIST'
+     * cuyo nombre coincida parcialmente con la query.
+     * </p>
+     *
+     * @param name Nombre o fragmento del nombre del artista.
+     * @return Lista de IDs de artistas encontrados.
      */
     private List<Long> getArtistIdsByName(String query) {
         try {
@@ -209,27 +261,20 @@ public class DiscoveryService {
             return response.getBody() != null ? response.getBody() : new ArrayList<>();
         } catch (Exception e) {
             log.warn("Failed to get artist IDs from community-service: {}", e.getMessage());
-            // If community-service is unavailable, just return empty list
-            // This allows searching by title only
             return new ArrayList<>();
         }
     }
 
-    // ============= RECOMMENDATIONS METHODS =============
-
     /**
-     * Generate personalized recommendations for a user
-     * GA01-117: Módulo básico de recomendaciones (placeholder)
+     * Genera un conjunto de recomendaciones personalizadas para un usuario específico.
+     * <p>
+     * Orquesta la obtención de datos de contexto (como el historial de pedidos) y aplica
+     * diversas estrategias de recomendación (tendencias, historial, artistas seguidos) para
+     * construir una respuesta completa y categorizada.
+     * </p>
      *
-     * This is a basic placeholder implementation. Future improvements could include:
-     * - Machine learning algorithms
-     * - Collaborative filtering
-     * - Content-based filtering
-     * - Real-time listening history tracking
-     * - User behavior analysis
-     *
-     * @param userId User ID
-     * @return Recommendations response with categorized song lists
+     * @param userId El ID del usuario para el cual se generan las recomendaciones.
+     * @return Un objeto {@link RecommendationsResponse} que contiene listas de canciones sugeridas agrupadas por categoría.
      */
     public RecommendationsResponse getRecommendationsForUser(Long userId) {
         log.info("Generating recommendations for user {}", userId);
@@ -241,35 +286,24 @@ public class DiscoveryService {
                 .build();
 
         try {
-            // 1. NEW: By purchased genres - Most specific genre-based recommendations
             response.setByPurchasedGenres(getRecommendationsByPurchasedGenres(userId));
 
-            // 2. NEW: By purchased artists - Songs from artists you bought from
             response.setByPurchasedArtists(getRecommendationsByPurchasedArtists(userId));
 
-            // 3. NEW: By liked songs - Based on 4-5 star ratings
             response.setByLikedSongs(getRecommendationsByLikedSongs(userId));
 
-            // 4. From followed artists
             response.setFromFollowedArtists(getRecommendationsFromFollowedArtists(userId));
 
-            // 5. Based on purchase history (general - kept for backward compatibility)
             response.setBasedOnPurchases(getRecommendationsFromPurchaseHistory(userId));
 
-            // 6. Trending songs
             response.setTrending(getTrendingRecommendations());
 
-            // 7. New releases
             response.setNewReleases(getNewReleasesRecommendations());
 
-            // 8. Similar to favorites (same as purchase-based for now)
             response.setSimilarToFavorites(getRecommendationsFromPurchaseHistory(userId));
 
-            // Note: basedOnListeningHistory would require a listening history tracking system
-            // For now, we'll leave it empty as a placeholder
             response.setBasedOnListeningHistory(new ArrayList<>());
 
-            // Calculate total recommendations
             int total = safeListSize(response.getByPurchasedGenres())
                     + safeListSize(response.getByPurchasedArtists())
                     + safeListSize(response.getByLikedSongs())
@@ -293,7 +327,6 @@ public class DiscoveryService {
 
         } catch (Exception e) {
             log.error("Error generating recommendations for user {}", userId, e);
-            // Return empty recommendations in case of error
             response.setByPurchasedGenres(new ArrayList<>());
             response.setByPurchasedArtists(new ArrayList<>());
             response.setByLikedSongs(new ArrayList<>());
@@ -310,16 +343,20 @@ public class DiscoveryService {
     }
 
     /**
-     * CRITICAL FIX: Get recommendations based on user's purchase history
-     * Analyzes genres from purchased songs and recommends similar songs
-     * NOW ONLY counts DELIVERED orders (successfully paid)
+     * Genera recomendaciones basadas en el historial de compras general.
+     * <p>
+     * Analiza patrones de compra para sugerir contenido complementario.
+     * A diferencia de los métodos específicos de género/artista, este método busca
+     * correlaciones más amplias (ej: "Usuarios que compraron lo que tú compraste, también compraron...").
+     * </p>
+     *
+     * @param userId ID del usuario.
+     * @return Lista de canciones recomendadas.
      */
     private List<RecommendedSong> getRecommendationsFromPurchaseHistory(Long userId) {
         try {
-            // Get user's orders
             List<OrderDTO> orders = commerceServiceClient.getUserOrders(userId);
 
-            // CRITICAL FIX: Only count DELIVERED orders (successfully paid)
             Set<Long> purchasedSongIds = orders.stream()
                     .filter(order -> order.getStatus() != null && "DELIVERED".equals(order.getStatus()))
                     .flatMap(order -> order.getItems().stream())
@@ -332,10 +369,8 @@ public class DiscoveryService {
                 return new ArrayList<>();
             }
 
-            // Get purchased songs to analyze their genres
             List<Song> purchasedSongs = songRepository.findAllById(purchasedSongIds);
 
-            // Collect all genres from purchased songs
             Set<Long> favoriteGenres = purchasedSongs.stream()
                     .flatMap(song -> song.getGenreIds().stream())
                     .collect(Collectors.toSet());
@@ -344,7 +379,6 @@ public class DiscoveryService {
                 return new ArrayList<>();
             }
 
-            // Find songs with similar genres that user hasn't purchased
             List<Song> recommendations = new ArrayList<>();
             for (Long genreId : favoriteGenres) {
                 List<Song> genreSongs = songRepository.findPublishedByGenreId(genreId);
@@ -354,13 +388,11 @@ public class DiscoveryService {
                         .collect(Collectors.toList()));
             }
 
-            // Remove duplicates and limit
             List<Song> limitedRecommendations = recommendations.stream()
                     .distinct()
                     .limit(RECOMMENDATIONS_PER_CATEGORY)
                     .collect(Collectors.toList());
 
-            // Convert to RecommendedSong with real artist names
             return enrichWithArtistNames(limitedRecommendations, "Based on your purchase history", 0.85);
 
         } catch (Exception e) {
@@ -370,11 +402,17 @@ public class DiscoveryService {
     }
 
     /**
-     * Get recommendations from artists the user follows
+     * Obtiene los últimos lanzamientos de los artistas que el usuario sigue.
+     * <p>
+     * Consulta el grafo social (Seguidores) y filtra el contenido publicado recientemente
+     * por esos artistas. Prioridad alta en el feed del usuario.
+     * </p>
+     *
+     * @param userId ID del usuario seguidor.
+     * @return Lista de nuevas canciones de sus artistas favoritos.
      */
     private List<RecommendedSong> getRecommendationsFromFollowedArtists(Long userId) {
         try {
-            // Get artists that user follows
             List<Long> followedArtistIds = userServiceClient.getFollowedArtistIds(userId);
 
             if (followedArtistIds.isEmpty()) {
@@ -382,7 +420,6 @@ public class DiscoveryService {
                 return new ArrayList<>();
             }
 
-            // Get songs from followed artists
             List<Song> artistSongs = new ArrayList<>();
             for (Long artistId : followedArtistIds) {
                 List<Song> songs = songRepository.findByArtistId(artistId).stream()
@@ -396,7 +433,6 @@ public class DiscoveryService {
                     .limit(RECOMMENDATIONS_PER_CATEGORY)
                     .collect(Collectors.toList());
 
-            // Convert to RecommendedSong with real artist names
             return enrichWithArtistNames(limitedSongs, "From artists you follow", 0.9);
 
         } catch (Exception e) {
@@ -406,7 +442,13 @@ public class DiscoveryService {
     }
 
     /**
-     * Get trending song recommendations
+     * Obtiene las recomendaciones de tendencia general.
+     * <p>
+     * Wrapper sobre {@link #getTrendingSongs(int)} que devuelve el objeto enriquecido
+     * {@link RecommendedSong} listo para la UI.
+     * </p>
+     *
+     * @return Lista de canciones en tendencia con metadatos.
      */
     private List<RecommendedSong> getTrendingRecommendations() {
         try {
@@ -414,7 +456,6 @@ public class DiscoveryService {
                     .limit(RECOMMENDATIONS_PER_CATEGORY)
                     .collect(Collectors.toList());
 
-            // Convert to RecommendedSong with real artist names
             return enrichWithArtistNames(trendingSongs, "Trending now", 0.7);
 
         } catch (Exception e) {
@@ -424,7 +465,12 @@ public class DiscoveryService {
     }
 
     /**
-     * Get new releases recommendations
+     * Obtiene recomendaciones de nuevos lanzamientos globales.
+     * <p>
+     * Filtra las canciones publicadas en la última semana, ordenadas por fecha.
+     * </p>
+     *
+     * @return Lista de novedades ("New Releases").
      */
     private List<RecommendedSong> getNewReleasesRecommendations() {
         try {
@@ -432,7 +478,6 @@ public class DiscoveryService {
                     .limit(RECOMMENDATIONS_PER_CATEGORY)
                     .collect(Collectors.toList());
 
-            // Convert to RecommendedSong with real artist names
             return enrichWithArtistNames(newSongs, "New release", 0.75);
 
         } catch (Exception e) {
@@ -442,14 +487,20 @@ public class DiscoveryService {
     }
 
     /**
-     * NEW: Get recommendations by genres from purchased songs
-     * More specific than purchase history - focuses only on genre matching
+     * Genera recomendaciones basadas en los géneros de música que el usuario ha comprado previamente.
+     * <p>
+     * Analiza el historial de pedidos para identificar los géneros más frecuentes y busca
+     * canciones populares de esos mismos géneros que el usuario no haya comprado aún.
+     * </p>
+     *
+     * @param userId     ID del usuario.
+     * @param userOrders Historial de pedidos del usuario (para evitar rellamadas).
+     * @return Lista de canciones recomendadas por afinidad de género.
      */
     private List<RecommendedSong> getRecommendationsByPurchasedGenres(Long userId) {
         try {
             List<OrderDTO> orders = commerceServiceClient.getUserOrders(userId);
 
-            // Only DELIVERED orders
             Set<Long> purchasedSongIds = orders.stream()
                     .filter(order -> order.getStatus() != null && "DELIVERED".equals(order.getStatus()))
                     .flatMap(order -> order.getItems().stream())
@@ -470,7 +521,6 @@ public class DiscoveryService {
                 return new ArrayList<>();
             }
 
-            // Get songs from favorite genres
             List<Song> recommendations = new ArrayList<>();
             for (Long genreId : favoriteGenres) {
                 List<Song> genreSongs = songRepository.findPublishedByGenreId(genreId);
@@ -494,13 +544,19 @@ public class DiscoveryService {
     }
 
     /**
-     * NEW: Get recommendations from artists whose songs the user purchased
+     * Genera recomendaciones basadas en otros trabajos de los artistas que el usuario ha comprado.
+     * <p>
+     * Fomenta el descubrimiento de catálogo profundo (Deep Catalog) de artistas conocidos por el usuario.
+     * </p>
+     *
+     * @param userId     ID del usuario.
+     * @param userOrders Historial de pedidos del usuario.
+     * @return Lista de canciones recomendadas por afinidad de artista.
      */
     private List<RecommendedSong> getRecommendationsByPurchasedArtists(Long userId) {
         try {
             List<OrderDTO> orders = commerceServiceClient.getUserOrders(userId);
 
-            // Only DELIVERED orders
             Set<Long> purchasedSongIds = orders.stream()
                     .filter(order -> order.getStatus() != null && "DELIVERED".equals(order.getStatus()))
                     .flatMap(order -> order.getItems().stream())
@@ -512,13 +568,11 @@ public class DiscoveryService {
                 return new ArrayList<>();
             }
 
-            // Get artists from purchased songs
             List<Song> purchasedSongs = songRepository.findAllById(purchasedSongIds);
             Set<Long> purchasedArtistIds = purchasedSongs.stream()
                     .map(Song::getArtistId)
                     .collect(Collectors.toSet());
 
-            // Get other songs from these artists
             List<Song> recommendations = new ArrayList<>();
             for (Long artistId : purchasedArtistIds) {
                 List<Song> artistSongs = songRepository.findByArtistId(artistId).stream()
@@ -543,11 +597,17 @@ public class DiscoveryService {
     }
 
     /**
-     * NEW: Get recommendations based on songs the user liked (4-5 stars ratings)
+     * Genera recomendaciones basadas en canciones marcadas con "Me gusta".
+     * <p>
+     * Utiliza las canciones con alta valoración (4-5 estrellas) del usuario como semilla
+     * para encontrar contenido similar en términos de género o características de audio.
+     * </p>
+     *
+     * @param userId ID del usuario.
+     * @return Lista de canciones similares a los "Likes" del usuario.
      */
     private List<RecommendedSong> getRecommendationsByLikedSongs(Long userId) {
         try {
-            // Get user's ratings from community-service via REST call
             String url = communityServiceUrl + "/api/ratings/user/" + userId;
             ResponseEntity<List<Map<String, Object>>> response = restTemplate.exchange(
                     url,
@@ -560,7 +620,6 @@ public class DiscoveryService {
                 return new ArrayList<>();
             }
 
-            // Extract song IDs from high ratings (4-5 stars)
             Set<Long> likedSongIds = response.getBody().stream()
                     .filter(rating -> {
                         String entityType = (String) rating.get("entityType");
@@ -578,15 +637,12 @@ public class DiscoveryService {
                 return new ArrayList<>();
             }
 
-            // Get liked songs
             List<Song> likedSongs = songRepository.findAllById(likedSongIds);
 
-            // Get genres from liked songs
             Set<Long> likedGenres = likedSongs.stream()
                     .flatMap(song -> song.getGenreIds().stream())
                     .collect(Collectors.toSet());
 
-            // Recommend songs from same genres
             List<Song> recommendations = new ArrayList<>();
             for (Long genreId : likedGenres) {
                 List<Song> genreSongs = songRepository.findPublishedByGenreId(genreId);
@@ -610,21 +666,23 @@ public class DiscoveryService {
     }
 
     /**
-     * Enrich songs with real artist names from UserServiceClient
-     * GA01-117: Obtains real artist names instead of placeholders
+     * Método auxiliar privado para enriquecer una lista de canciones con nombres de artistas y metadatos de recomendación.
+     * <p>
+     * Transforma entidades {@link Song} en DTOs {@link RecommendedSong}. Realiza llamadas al servicio de usuarios
+     * para resolver los nombres de los artistas, utilizando un mecanismo de caché local para optimizar el rendimiento
+     * y un fallback en caso de error.
+     * </p>
      *
-     * @param songs List of songs to enrich
-     * @param reason Recommendation reason
-     * @param relevanceScore Relevance score
-     * @return List of RecommendedSong with real artist names
+     * @param songs          Lista de entidades de canciones a enriquecer.
+     * @param reason         La razón textual por la cual se recomiendan estas canciones.
+     * @param relevanceScore Puntuación de relevancia (0.0 a 1.0) asignada a este grupo de recomendaciones.
+     * @return Una lista de objetos {@link RecommendedSong} listos para ser consumidos por el cliente.
      */
     private List<RecommendedSong> enrichWithArtistNames(List<Song> songs, String reason, Double relevanceScore) {
-        // Build a map of artist IDs to artist names
         Map<Long, String> artistNamesCache = new HashMap<>();
 
         return songs.stream()
                 .map(song -> {
-                    // Get or fetch artist name
                     String artistName = artistNamesCache.computeIfAbsent(
                             song.getArtistId(),
                             artistId -> {
@@ -643,7 +701,13 @@ public class DiscoveryService {
     }
 
     /**
-     * Helper method to safely get list size
+     * Método utilitario para obtener el tamaño de una lista de forma segura (Null-safe).
+     * <p>
+     * Previene excepciones de puntero nulo al calcular totales para las estadísticas.
+     * </p>
+     *
+     * @param list La lista de la cual se quiere saber el tamaño.
+     * @return El tamaño de la lista, o 0 si la lista es nula.
      */
     private int safeListSize(List<?> list) {
         return list != null ? list.size() : 0;

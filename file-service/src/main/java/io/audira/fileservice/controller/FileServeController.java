@@ -17,6 +17,14 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 
+/**
+ * Controlador REST encargado de la distribución y descarga de archivos.
+ * <p>
+ * Su característica más importante es el soporte para <b>Range Requests</b> (RFC 7233).
+ * Esto permite a los clientes solicitar solo fragmentos de un archivo de audio,
+ * habilitando la funcionalidad de "seeking" (adelantar/retroceder) sin descargar el archivo entero.
+ * </p>
+ */
 @RestController
 @RequestMapping("/api/files")
 @RequiredArgsConstructor
@@ -25,6 +33,19 @@ public class FileServeController {
     @Value("${file.upload-dir:uploads}")
     private String uploadDir;
 
+/**
+     * Sirve un archivo específico almacenado en el sistema.
+     * <p>
+     * Determina dinámicamente si debe devolver el archivo completo (200 OK)
+     * o solo un fragmento (206 Partial Content) basándose en la cabecera {@code Range}
+     * y si el archivo es de tipo audio.
+     * </p>
+     *
+     * @param subDirectory Subdirectorio de categoría (ej: "audio-files", "images").
+     * @param fileName Nombre del archivo con su extensión.
+     * @param rangeHeader (Opcional) Cabecera HTTP {@code Range} indicando los bytes requeridos.
+     * @return Un {@link ResponseEntity} que contiene el recurso o un fragmento del mismo.
+     */    
     @GetMapping("/{subDirectory}/{fileName:.+}")
     public ResponseEntity<Resource> serveFile(
             @PathVariable String subDirectory,
@@ -61,6 +82,12 @@ public class FileServeController {
         }
     }
 
+/**
+     * Determina el tipo MIME (Content-Type) basado en la extensión del archivo.
+     *
+     * @param fileName Nombre del archivo.
+     * @return El tipo MIME detectado (ej: "audio/mpeg") o "application/octet-stream" por defecto.
+     */    
     private String determineContentType(String fileName) {
         String fileExtension = fileName.substring(fileName.lastIndexOf('.') + 1).toLowerCase();
         switch (fileExtension) {
@@ -87,12 +114,33 @@ public class FileServeController {
         }
     }
 
+/**
+     * Verifica si el archivo solicitado es un audio compatible.
+     *
+     * @param fileName Nombre del archivo a validar.
+     * @return {@code true} si la extensión es mp3, wav, flac, midi o mid.
+     */    
     private boolean isAudioFile(String fileName) {
         String extension = fileName.substring(fileName.lastIndexOf('.') + 1).toLowerCase();
         return extension.equals("mp3") || extension.equals("wav") ||
                extension.equals("flac") || extension.equals("midi") || extension.equals("mid");
     }
 
+    /**
+     * Maneja la lógica de las peticiones parciales (Streaming).
+     * <p>
+     * Calcula el inicio y fin del rango de bytes solicitado y configura la respuesta
+     * HTTP 206 con los headers {@code Content-Range} y {@code Content-Length} adecuados.
+     * </p>
+     *
+     * @param resource El recurso físico del archivo.
+     * @param rangeHeader El valor crudo del header Range (ej: "bytes=0-1024").
+     * @param fileSize Tamaño total del archivo en bytes.
+     * @param contentType Tipo MIME del archivo.
+     * @param fileName Nombre del archivo para el header Content-Disposition.
+     * @return Respuesta HTTP 206 (Partial Content) o 200 (OK) en caso de error de parsing.
+     * @throws IOException Si ocurre un error al leer el recurso.
+     */
     private ResponseEntity<Resource> handleRangeRequest(
             Resource resource, String rangeHeader, long fileSize,
             String contentType, String fileName) throws IOException {

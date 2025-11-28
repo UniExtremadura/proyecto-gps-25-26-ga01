@@ -13,10 +13,10 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * REST Controller for Playlist management
- * GA01-113: Crear lista con nombre
- * GA01-114: Añadir/eliminar canciones
- * GA01-115: Editar nombre / eliminar lista
+ * Controlador REST para la gestión de listas de reproducción (Playlists).
+ * <p>
+ * Implementa GA01-113, GA01-114 y GA01-115 (CRUD y gestión de canciones).
+ * </p>
  */
 @RestController
 @RequestMapping("/api/playlists")
@@ -26,8 +26,8 @@ public class PlaylistController {
     private final PlaylistService playlistService;
 
     /**
-     * Get all playlists
-     * @return List of all playlists
+     * Obtiene todas las listas de reproducción públicas.
+     * @return Lista de playlists.
      */
     @GetMapping
     public ResponseEntity<List<Playlist>> getAllPlaylists() {
@@ -35,10 +35,9 @@ public class PlaylistController {
     }
 
     /**
-     * Get playlist by ID
-     * GA01-113: View playlist details
-     * @param id Playlist ID
-     * @return Playlist details
+     * Obtiene el detalle de una playlist por ID.
+     * @param id ID de la playlist.
+     * @return Detalle de la playlist.
      */
     @GetMapping("/{id}")
     public ResponseEntity<?> getPlaylistById(@PathVariable Long id) {
@@ -53,10 +52,9 @@ public class PlaylistController {
     }
 
     /**
-     * Get all playlists for a user
-     * GA01-113: List user's playlists
-     * @param userId User ID
-     * @return List of user's playlists
+     * Obtiene todas las listas de reproducción de un usuario específico.
+     * @param userId ID del usuario.
+     * @return Lista de playlists del usuario.
      */
     @GetMapping("/user/{userId}")
     public ResponseEntity<List<Playlist>> getUserPlaylists(@PathVariable Long userId) {
@@ -64,8 +62,8 @@ public class PlaylistController {
     }
 
     /**
-     * Get all public playlists
-     * @return List of public playlists
+     * Obtiene todas las listas de reproducción públicas.
+     * @return Lista de playlists públicas.
      */
     @GetMapping("/public")
     public ResponseEntity<List<Playlist>> getPublicPlaylists() {
@@ -73,10 +71,9 @@ public class PlaylistController {
     }
 
     /**
-     * Create a new playlist
-     * GA01-113: Crear lista con nombre
-     * @param playlist Playlist data
-     * @return Created playlist
+     * Crea una nueva lista de reproducción.
+     * @param playlist Objeto playlist con nombre y descripción.
+     * @return Playlist creada.
      */
     @PostMapping
     public ResponseEntity<?> createPlaylist(@RequestBody Playlist playlist) {
@@ -91,11 +88,10 @@ public class PlaylistController {
     }
 
     /**
-     * Update playlist information
-     * GA01-115: Editar nombre / eliminar lista
-     * @param id Playlist ID
-     * @param updates Map with fields to update (name, description, isPublic)
-     * @return Updated playlist
+     * Actualiza el nombre o descripción de una playlist.
+     * @param id ID de la playlist.
+     * @param playlistDetails Nuevos datos.
+     * @return Playlist actualizada.
      */
     @PatchMapping("/{id}")
     public ResponseEntity<?> updatePlaylist(
@@ -116,10 +112,9 @@ public class PlaylistController {
     }
 
     /**
-     * Delete a playlist
-     * GA01-115: Editar nombre / eliminar lista
-     * @param id Playlist ID
-     * @return No content
+     * Elimina una playlist completa.
+     * @param id ID de la playlist.
+     * @return 204 No Content.
      */
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deletePlaylist(@PathVariable Long id) {
@@ -134,11 +129,10 @@ public class PlaylistController {
     }
 
     /**
-     * Add a song to a playlist
-     * GA01-114: Añadir/eliminar canciones
-     * @param id Playlist ID
-     * @param songId Song ID (from query parameter)
-     * @return Updated playlist
+     * Añade una canción a una playlist.
+     * @param id ID de la playlist.
+     * @param songId ID de la canción a añadir.
+     * @return Playlist actualizada.
      */
     @PostMapping("/{id}/songs")
     public ResponseEntity<?> addSongToPlaylist(
@@ -153,13 +147,12 @@ public class PlaylistController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
         }
     }
-
+    
     /**
-     * Remove a song from a playlist
-     * GA01-114: Añadir/eliminar canciones
-     * @param id Playlist ID
-     * @param songId Song ID to remove
-     * @return Updated playlist
+     * Elimina una canción de una playlist.
+     * @param id ID de la playlist.
+     * @param songId ID de la canción a eliminar.
+     * @return Playlist actualizada.
      */
     @DeleteMapping("/{id}/songs/{songId}")
     public ResponseEntity<?> removeSongFromPlaylist(
@@ -176,11 +169,10 @@ public class PlaylistController {
     }
 
     /**
-     * Reorder songs in a playlist
-     * GA01-114: Manage playlist song order
-     * @param id Playlist ID
-     * @param request Map with "songIds" list
-     * @return Updated playlist
+     * Reordena las canciones dentro de una playlist.
+     * @param id ID de la playlist.
+     * @param request Mapa con la lista "songIds" en el nuevo orden.
+     * @return Playlist actualizada.
      */
     @PutMapping("/{id}/songs/reorder")
     public ResponseEntity<?> reorderPlaylistSongs(
@@ -204,10 +196,10 @@ public class PlaylistController {
     }
 
     /**
-     * Get playlists containing a specific song
-     * @param userId User ID
-     * @param songId Song ID
-     * @return List of playlists containing the song
+     * Busca en qué playlists del usuario aparece una canción específica.
+     * @param userId ID del usuario.
+     * @param songId ID de la canción.
+     * @return Lista de playlists que contienen la canción.
      */
     @GetMapping("/user/{userId}/song/{songId}")
     public ResponseEntity<List<Playlist>> getPlaylistsContainingSong(
