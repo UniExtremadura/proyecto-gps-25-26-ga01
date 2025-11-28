@@ -24,6 +24,16 @@ jwt:
   secret: audira-secret-key-for-jwt-token-generation-should-be-at-least-512-bits
   expiration: 86400000  # 24 hours in milliseconds
 
+# Admin configuration
+admin:
+  user:
+    id: 70  # ID del usuario administrador que recibe notificaciones de tickets
+
+# Service URLs
+services:
+  commerce:
+    url: http://api-gateway:8080/api/notifications  # Commerce service notification endpoint (via API Gateway)
+
 file:
   upload-dir: uploads
   base-url: http://98.66.232.230
