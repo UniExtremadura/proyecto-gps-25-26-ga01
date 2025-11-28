@@ -18,7 +18,6 @@ import '../features/common/screens/faq_screen.dart';
 import '../features/common/screens/contact_screen.dart';
 import '../features/playback/screens/playback_screen.dart';
 import '../features/search/screens/search_screen.dart';
-import '../features/notifications/screens/notifications_screen.dart';
 import '../features/playlist/screens/create_playlist_screen.dart';
 import '../features/playlist/screens/playlist_detail_screen.dart';
 import '../features/profile/screens/edit_profile_screen.dart';
@@ -62,7 +61,6 @@ class AppRoutes {
   static const String followedArtists = '/profile/followed-artists';
   static const String changePassword = '/profile/change-password';
   static const String search = '/search';
-  static const String notifications = '/notifications';
   static const String purchaseHistory = '/profile/purchase-history';
   static const String library = '/library';
   static const String receipt = '/receipt';
@@ -134,9 +132,6 @@ class AppRoutes {
 
       case search:
         return MaterialPageRoute(builder: (_) => const SearchScreen());
-
-      case notifications:
-        return MaterialPageRoute(builder: (_) => const NotificationsScreen());
 
       case createPlaylist:
         return MaterialPageRoute(builder: (_) => const CreatePlaylistScreen());

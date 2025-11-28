@@ -235,72 +235,16 @@ class NotificationService {
         'notificationId': notification.id,
       });
 
-      switch (notification.type) {
-        case 'PAYMENT_SUCCESS':
-        case 'ORDER_CONFIRMATION':
-          await _localNotifications.showNotification(
-            id: notification.id,
-            title: notification.title,
-            body: notification.message,
-            payload: payload,
-            priority: NotificationPriority.high,
-          );
-          break;
+      // All notification types are now handled uniformly with high priority
+      await _localNotifications.showNotification(
+        id: notification.id,
+        title: notification.title,
+        body: notification.message,
+        payload: payload,
+        priority: NotificationPriority.high,
+      );
 
-        case 'PURCHASE_NOTIFICATION':
-          await _localNotifications.showNotification(
-            id: notification.id,
-            title: notification.title,
-            body: notification.message,
-            payload: payload,
-            priority: NotificationPriority.high,
-          );
-          break;
-
-        case 'NEW_PRODUCT':
-          await _localNotifications.showNotification(
-            id: notification.id,
-            title: notification.title,
-            body: notification.message,
-            payload: payload,
-            priority: NotificationPriority.high,
-          );
-          break;
-
-        case 'TICKET_CREATED':
-        case 'TICKET_RESPONSE':
-        case 'TICKET_RESOLVED':
-          await _localNotifications.showNotification(
-            id: notification.id,
-            title: notification.title,
-            body: notification.message,
-            payload: payload,
-            priority: NotificationPriority.high,
-          );
-          break;
-
-        case 'PRODUCT_PENDING_REVIEW':
-        case 'PRODUCT_APPROVED':
-        case 'PRODUCT_REJECTED':
-          await _localNotifications.showNotification(
-            id: notification.id,
-            title: notification.title,
-            body: notification.message,
-            payload: payload,
-            priority: NotificationPriority.high,
-          );
-          break;
-
-        default:
-          await _localNotifications.showNotification(
-            id: notification.id,
-            title: notification.title,
-            body: notification.message,
-            payload: payload,
-          );
-      }
-
-      debugPrint('Local notification shown: ${notification.title}');
+      debugPrint('Local notification shown: ${notification.title} (type: ${notification.type})');
     } catch (e) {
       debugPrint('Error showing local notification: $e');
     }
