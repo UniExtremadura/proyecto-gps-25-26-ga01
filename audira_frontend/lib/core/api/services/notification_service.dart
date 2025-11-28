@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:audira_frontend/core/api/api_client.dart';
 import 'package:audira_frontend/core/api/services/local_notification_service.dart';
 import 'package:flutter/foundation.dart';
@@ -10,7 +11,8 @@ class NotificationService {
   NotificationService._internal();
 
   final ApiClient _apiClient = ApiClient();
-  final LocalNotificationService _localNotifications = LocalNotificationService();
+  final LocalNotificationService _localNotifications =
+      LocalNotificationService();
 
   Timer? _pollingTimer;
   int? _currentUserId;
@@ -156,7 +158,8 @@ class NotificationService {
   }
 
   /// Start polling for new notifications
-  Future<void> startPolling(int userId, {Duration interval = const Duration(seconds: 30)}) async {
+  Future<void> startPolling(int userId,
+      {Duration interval = const Duration(seconds: 30)}) async {
     if (_isPolling && _currentUserId == userId) {
       debugPrint('Already polling for user $userId');
       return;
@@ -172,9 +175,11 @@ class NotificationService {
     await _localNotifications.requestPermissions();
 
     // Load initial notifications to populate seen IDs
-    final initialResponse = await getUserNotifications(userId, page: 0, size: 20);
+    final initialResponse =
+        await getUserNotifications(userId, page: 0, size: 20);
     if (initialResponse.success && initialResponse.data != null) {
-      final notifications = initialResponse.data!['notifications'] as List<NotificationModel>;
+      final notifications =
+          initialResponse.data!['notifications'] as List<NotificationModel>;
       _seenNotificationIds = notifications.map((n) => n.id).toSet();
     }
 
@@ -183,7 +188,8 @@ class NotificationService {
       await _checkForNewNotifications(userId);
     });
 
-    debugPrint('Started polling notifications for user $userId every ${interval.inSeconds}s');
+    debugPrint(
+        'Started polling notifications for user $userId every ${interval.inSeconds}s');
   }
 
   /// Stop polling for notifications
@@ -201,11 +207,13 @@ class NotificationService {
       final response = await getUserNotifications(userId, page: 0, size: 20);
 
       if (response.success && response.data != null) {
-        final notifications = response.data!['notifications'] as List<NotificationModel>;
+        final notifications =
+            response.data!['notifications'] as List<NotificationModel>;
 
         for (var notification in notifications) {
           // Only show notification if it's new and unread
-          if (!_seenNotificationIds.contains(notification.id) && !notification.isRead) {
+          if (!_seenNotificationIds.contains(notification.id) &&
+              !notification.isRead) {
             _seenNotificationIds.add(notification.id);
             await _showLocalNotification(notification);
           }
@@ -227,72 +235,16 @@ class NotificationService {
         'notificationId': notification.id,
       });
 
-      switch (notification.type) {
-        case 'PAYMENT_SUCCESS':
-        case 'ORDER_CONFIRMATION':
-          await _localNotifications.showNotification(
-            id: notification.id,
-            title: notification.title,
-            body: notification.message,
-            payload: payload,
-            priority: NotificationPriority.high,
-          );
-          break;
+      // All notification types are now handled uniformly with high priority
+      await _localNotifications.showNotification(
+        id: notification.id,
+        title: notification.title,
+        body: notification.message,
+        payload: payload,
+        priority: NotificationPriority.high,
+      );
 
-        case 'PURCHASE_NOTIFICATION':
-          await _localNotifications.showNotification(
-            id: notification.id,
-            title: notification.title,
-            body: notification.message,
-            payload: payload,
-            priority: NotificationPriority.high,
-          );
-          break;
-
-        case 'NEW_PRODUCT':
-          await _localNotifications.showNotification(
-            id: notification.id,
-            title: notification.title,
-            body: notification.message,
-            payload: payload,
-            priority: NotificationPriority.high,
-          );
-          break;
-
-        case 'TICKET_CREATED':
-        case 'TICKET_RESPONSE':
-        case 'TICKET_RESOLVED':
-          await _localNotifications.showNotification(
-            id: notification.id,
-            title: notification.title,
-            body: notification.message,
-            payload: payload,
-            priority: NotificationPriority.high,
-          );
-          break;
-
-        case 'PRODUCT_PENDING_REVIEW':
-        case 'PRODUCT_APPROVED':
-        case 'PRODUCT_REJECTED':
-          await _localNotifications.showNotification(
-            id: notification.id,
-            title: notification.title,
-            body: notification.message,
-            payload: payload,
-            priority: NotificationPriority.high,
-          );
-          break;
-
-        default:
-          await _localNotifications.showNotification(
-            id: notification.id,
-            title: notification.title,
-            body: notification.message,
-            payload: payload,
-          );
-      }
-
-      debugPrint('Local notification shown: ${notification.title}');
+      debugPrint('Local notification shown: ${notification.title} (type: ${notification.type})');
     } catch (e) {
       debugPrint('Error showing local notification: $e');
     }

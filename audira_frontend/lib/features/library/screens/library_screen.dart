@@ -5,6 +5,7 @@ import '../../../config/theme.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/providers/library_provider.dart';
 import '../../../core/providers/download_provider.dart';
+import '../../../core/providers/audio_provider.dart';
 import '../../../core/api/services/playlist_service.dart';
 import '../../../core/api/services/music_service.dart';
 import '../../../core/models/genre.dart';
@@ -13,7 +14,6 @@ import '../../../core/models/song.dart';
 import '../../../core/models/album.dart';
 import '../../../core/models/downloaded_song.dart';
 
-// Enums (Lógica original mantenida)
 enum SortCriterion { name, date }
 
 enum SortOrder { asc, desc }
@@ -41,7 +41,7 @@ class _LibraryScreenState extends State<LibraryScreen>
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
   final List<int> _selectedGenreIds = [];
-  bool _showGenreFilter = false; // Para expandir/colapsar filtros
+  bool _showGenreFilter = false;
 
   // Estado de Ordenación
   SortCriterion _currentSortCriterion = SortCriterion.name;
@@ -50,11 +50,9 @@ class _LibraryScreenState extends State<LibraryScreen>
   @override
   void initState() {
     super.initState();
-    // 5 pestañas como solicitaste
     _tabController = TabController(length: 5, vsync: this);
     _tabController.addListener(_handleTabChange);
 
-    // Carga de datos inicial optimizada (no bloquea la UI)
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadAllData();
     });
@@ -62,13 +60,11 @@ class _LibraryScreenState extends State<LibraryScreen>
 
   void _handleTabChange() {
     if (_tabController.indexIsChanging && mounted) {
-      // Limpiar filtros al cambiar de pestaña para evitar confusión visual
       setState(() {
         _searchQuery = '';
         _searchController.clear();
         _selectedGenreIds.clear();
         _showGenreFilter = false;
-        // Reseteamos orden por defecto
         _currentSortCriterion = SortCriterion.name;
         _currentSortOrder = SortOrder.asc;
       });
@@ -91,11 +87,11 @@ class _LibraryScreenState extends State<LibraryScreen>
     if (authProvider.currentUser != null) {
       final userId = authProvider.currentUser!.id;
 
-      // Cargar biblioteca principal
-      libraryProvider.loadLibrary(userId);
-
-      // Cargar playlists y géneros en paralelo
+      // Cargas paralelas de todos los datos necesarios
       await Future.wait([
+        libraryProvider.loadLibrary(userId),
+        libraryProvider
+            .loadFavorites(userId), // <--- AGREGADA CARGA DE FAVORITOS
         _loadPlaylists(userId),
         _loadGenres(),
       ]);
@@ -131,9 +127,6 @@ class _LibraryScreenState extends State<LibraryScreen>
     }
   }
 
-  // =========================================================================
-  // ** LÓGICA CENTRAL DE FILTRADO Y ORDENACIÓN (MANTENIDA EXACTA)**
-  // =========================================================================
   List<T> _applyFiltersAndSort<T>(
     List<T> items,
     String Function(T) getName,
@@ -142,18 +135,15 @@ class _LibraryScreenState extends State<LibraryScreen>
   ) {
     if (items.isEmpty) return [];
 
-    // 1. Filtrar
     Iterable<T> filteredItems = items.where((item) {
       final query = _searchQuery.toLowerCase();
       final name = getName(item).toLowerCase();
       final artist = getArtist(item).toLowerCase();
 
-      // Filtro Texto
       final matchesQuery =
           query.isEmpty || name.contains(query) || artist.contains(query);
       if (!matchesQuery) return false;
 
-      // Filtro Género (Solo para Song y Album)
       if (_selectedGenreIds.isNotEmpty) {
         if (item is Song) {
           return item.genreIds.any((id) => _selectedGenreIds.contains(id));
@@ -161,13 +151,11 @@ class _LibraryScreenState extends State<LibraryScreen>
         if (item is Album) {
           return item.genreIds.any((id) => _selectedGenreIds.contains(id));
         }
-        // Playlists y Downloads ignoran género según lógica original
         return true;
       }
       return true;
     }).toList();
 
-    // 2. Ordenar
     if (filteredItems.isNotEmpty) {
       filteredItems = filteredItems.toList()
         ..sort((a, b) {
@@ -196,31 +184,20 @@ class _LibraryScreenState extends State<LibraryScreen>
     return filteredItems.toList();
   }
 
-  // =========================================================================
-  // ** UI PRINCIPAL **
-  // =========================================================================
-
   @override
   Widget build(BuildContext context) {
     final currentContext = context;
     return Scaffold(
       backgroundColor: AppTheme.backgroundBlack,
-      // Usamos SafeArea para eliminar el AppBar clásico y usar espacio real
       body: SafeArea(
         child: Column(
           children: [
-            // 1. BARRA SUPERIOR PERSONALIZADA (Búsqueda + Filtros)
             _buildTopControlBar(),
-
-            // 2. LISTA DE GÉNEROS (Expandible)
-            if (_showGenreFilter &&
-                _tabController.index != 2) // Ocultar en playlists
+            if (_showGenreFilter && _tabController.index != 2)
               _buildGenreFilterBar()
                   .animate()
                   .fadeIn()
                   .slideY(begin: -0.2, end: 0),
-
-            // 3. TAB BAR (Estilo Minimalista)
             Container(
               height: 48,
               width: double.infinity,
@@ -248,23 +225,21 @@ class _LibraryScreenState extends State<LibraryScreen>
                 ],
               ),
             ),
-
-            // 4. CONTENIDO (VISTAS)
             Expanded(
               child: Consumer2<LibraryProvider, DownloadProvider>(
                 builder: (context, libProvider, downProvider, child) {
                   return TabBarView(
                     controller: _tabController,
                     children: [
-                      // Pestaña Canciones
                       _buildSongsList(libProvider.purchasedSongs),
-                      // Pestaña Álbumes
                       _buildAlbumsList(libProvider.purchasedAlbums),
-                      // Pestaña Playlists
                       _buildPlaylistsList(),
-                      // Pestaña Favoritos
-                      _buildFavoritesList(libProvider),
-                      // Pestaña Descargas
+                      // Verificamos si está cargando favoritos
+                      libProvider.isFavoritesLoading
+                          ? const Center(
+                              child: CircularProgressIndicator(
+                                  color: AppTheme.primaryBlue))
+                          : _buildFavoritesList(libProvider),
                       _buildDownloadsList(downProvider.downloadedSongs),
                     ],
                   );
@@ -274,34 +249,34 @@ class _LibraryScreenState extends State<LibraryScreen>
           ],
         ),
       ),
-      // FAB solo para Playlists
-      floatingActionButton: ValueListenableBuilder(
-        valueListenable: _tabController.animation!,
-        builder: (context, value, child) {
-          return _tabController.index == 2
-              ? FloatingActionButton.extended(
-                  onPressed: () async {
-                    final result =
-                        await Navigator.pushNamed(context, '/playlist/create');
-                    if (result == true) {
-                      if (!currentContext.mounted) return;
-                      _loadPlaylists(Provider.of<AuthProvider>(currentContext,
-                              listen: false)
-                          .currentUser!
-                          .id);
-                    }
-                  },
-                  backgroundColor: AppTheme.primaryBlue,
-                  icon: const Icon(Icons.add_rounded),
-                  label: const Text("Nueva Playlist"),
-                ).animate().scale()
-              : const SizedBox.shrink();
-        },
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(bottom: 80.0),
+        child: ValueListenableBuilder(
+          valueListenable: _tabController.animation!,
+          builder: (context, value, child) {
+            return _tabController.index == 2
+                ? FloatingActionButton.extended(
+                    onPressed: () async {
+                      final result = await Navigator.pushNamed(
+                          context, '/playlist/create');
+                      if (result == true) {
+                        if (!currentContext.mounted) return;
+                        _loadPlaylists(Provider.of<AuthProvider>(currentContext,
+                                listen: false)
+                            .currentUser!
+                            .id);
+                      }
+                    },
+                    backgroundColor: AppTheme.primaryBlue,
+                    icon: const Icon(Icons.add_rounded),
+                    label: const Text("Nueva Playlist"),
+                  ).animate().scale()
+                : const SizedBox.shrink();
+          },
+        ),
       ),
     );
   }
-
-  // --- WIDGETS DE CONTROL (HEADER) ---
 
   Widget _buildTopControlBar() {
     final hasActiveFilters =
@@ -311,7 +286,6 @@ class _LibraryScreenState extends State<LibraryScreen>
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
       child: Row(
         children: [
-          // Barra de Búsqueda Estilizada
           Expanded(
             child: Container(
               height: 45,
@@ -351,22 +325,17 @@ class _LibraryScreenState extends State<LibraryScreen>
             ),
           ),
           const SizedBox(width: 12),
-
-          // Botón Toggle Filtros (Géneros)
           _buildIconButton(
             icon: Icons.filter_list_rounded,
             isActive: _showGenreFilter || _selectedGenreIds.isNotEmpty,
             onTap: () => setState(() => _showGenreFilter = !_showGenreFilter),
           ),
           const SizedBox(width: 8),
-
-          // Botón Sort (Despliega menú modal simple)
           _buildIconButton(
             icon: _currentSortOrder == SortOrder.asc
                 ? Icons.arrow_upward
                 : Icons.arrow_downward,
-            isActive: _currentSortCriterion ==
-                SortCriterion.date, // Activo si ordena por fecha
+            isActive: _currentSortCriterion == SortCriterion.date,
             onTap: _showSortMenu,
           ),
         ],
@@ -513,8 +482,6 @@ class _LibraryScreenState extends State<LibraryScreen>
     );
   }
 
-  // --- BUILDERS DE LISTAS (VISTAS) ---
-
   Widget _buildSongsList(List<Song> songs) {
     final filtered = _applyFiltersAndSort<Song>(
         songs, (s) => s.name, (s) => s.artistName, (s) => s.createdAt);
@@ -524,7 +491,7 @@ class _LibraryScreenState extends State<LibraryScreen>
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16 + 120),
       itemCount: filtered.length,
       itemBuilder: (context, index) {
         final song = filtered[index];
@@ -533,14 +500,36 @@ class _LibraryScreenState extends State<LibraryScreen>
           subtitle: song.artistName,
           icon: Icons.music_note,
           color: AppTheme.primaryBlue,
-          trailing: Text('\$${song.price}',
-              style: const TextStyle(
-                  color: AppTheme.primaryBlue, fontWeight: FontWeight.bold)),
-          onTap: () =>
-              Navigator.pushNamed(context, '/song', arguments: song.id),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(width: 8),
+              const Icon(Icons.play_circle_outline,
+                  color: AppTheme.primaryBlue),
+            ],
+          ),
+          onTap: () => _playSongFromLibrary(filtered, index),
         ).animate().fadeIn(delay: (30 * index).ms).slideX();
       },
     );
+  }
+
+  void _playSongFromLibrary(List<Song> songs, int index) {
+    final authProvider = context.read<AuthProvider>();
+    final audioProvider = context.read<AudioProvider>();
+
+    // Reproducir la cola completa desde el índice seleccionado
+    audioProvider.playQueue(
+      songs,
+      startIndex: index,
+      isUserAuthenticated: authProvider.isAuthenticated,
+      userId: authProvider.currentUser?.id,
+      arePurchased:
+          true, // IMPORTANTE: Las canciones de biblioteca están compradas
+    );
+
+    // Navegar a la pantalla de reproducción
+    Navigator.pushNamed(context, '/playback');
   }
 
   Widget _buildAlbumsList(List<Album> albums) {
@@ -550,7 +539,7 @@ class _LibraryScreenState extends State<LibraryScreen>
     if (filtered.isEmpty) return _buildEmptyState("álbumes", Icons.album);
 
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16 + 120),
       itemCount: filtered.length,
       itemBuilder: (context, index) {
         final album = filtered[index];
@@ -584,7 +573,7 @@ class _LibraryScreenState extends State<LibraryScreen>
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16 + 120),
       itemCount: filtered.length,
       itemBuilder: (context, index) {
         final playlist = filtered[index];
@@ -611,7 +600,6 @@ class _LibraryScreenState extends State<LibraryScreen>
   }
 
   Widget _buildFavoritesList(LibraryProvider libProvider) {
-    // Favoritos combina canciones y álbumes, procesamos ambos
     final favSongs = _applyFiltersAndSort<Song>(libProvider.favoriteSongs,
         (s) => s.name, (s) => s.artistName, (s) => s.createdAt);
     final favAlbums = _applyFiltersAndSort<Album>(libProvider.favoriteAlbums,
@@ -622,7 +610,7 @@ class _LibraryScreenState extends State<LibraryScreen>
     }
 
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16 + 120),
       children: [
         if (favSongs.isNotEmpty) ...[
           const Padding(
@@ -634,14 +622,19 @@ class _LibraryScreenState extends State<LibraryScreen>
                     fontSize: 12,
                     letterSpacing: 1.5)),
           ),
-          ...favSongs.map((s) => _buildGenericTile(
-                title: s.name,
-                subtitle: s.artistName,
-                icon: Icons.favorite,
-                color: AppTheme.errorRed,
-                onTap: () =>
-                    Navigator.pushNamed(context, '/song', arguments: s.id),
-              )),
+          ...favSongs.asMap().entries.map((entry) {
+            final index = entry.key;
+            final song = entry.value;
+            return _buildGenericTile(
+              title: song.name,
+              subtitle: song.artistName,
+              icon: Icons.favorite,
+              color: AppTheme.errorRed,
+              trailing: const Icon(Icons.play_circle_outline,
+                  color: AppTheme.errorRed),
+              onTap: () => _playSongFromLibrary(favSongs, index),
+            );
+          }),
           const SizedBox(height: 16),
         ],
         if (favAlbums.isNotEmpty) ...[
@@ -676,7 +669,7 @@ class _LibraryScreenState extends State<LibraryScreen>
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16 + 120),
       itemCount: filtered.length,
       itemBuilder: (context, index) {
         final download = filtered[index];
@@ -685,23 +678,57 @@ class _LibraryScreenState extends State<LibraryScreen>
           subtitle: download.artistName,
           icon: Icons.download_done_rounded,
           color: AppTheme.successGreen,
-          trailing: IconButton(
-            icon: const Icon(Icons.delete_outline, color: AppTheme.errorRed),
-            onPressed: () =>
-                Provider.of<DownloadProvider>(context, listen: false)
-                    .deleteDownload(download.songId),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                icon:
+                    const Icon(Icons.delete_outline, color: AppTheme.errorRed),
+                onPressed: () =>
+                    Provider.of<DownloadProvider>(context, listen: false)
+                        .deleteDownload(download.songId),
+              ),
+              const Icon(Icons.play_circle_outline,
+                  color: AppTheme.successGreen),
+            ],
           ),
-          onTap: () {
-            // Lógica de reproducción offline o navegación si existe ruta
-            Navigator.pushNamed(
-                context, '/downloads'); // Ruta original que mencionaste tener
-          },
+          onTap: () => _playDownloadedSong(filtered, index),
         ).animate().fadeIn(delay: (30 * index).ms).slideX();
       },
     );
   }
 
-  // --- TILE GENÉRICO BONITO ---
+  void _playDownloadedSong(List<DownloadedSong> downloads, int index) {
+    final authProvider = context.read<AuthProvider>();
+    final audioProvider = context.read<AudioProvider>();
+
+    // Convertir DownloadedSong a Song
+    final songs = downloads
+        .map((d) => Song(
+              id: d.songId,
+              artistId: 0,
+              artistName: d.artistName,
+              name: d.songName,
+              duration: d.duration,
+              price: 0,
+              coverImageUrl: d.coverImageUrl,
+              audioUrl: d.localFilePath,
+            ))
+        .toList();
+
+    // Reproducir la cola completa desde el índice seleccionado, marcando como descargadas
+    audioProvider.playQueue(
+      songs,
+      startIndex: index,
+      isUserAuthenticated: authProvider.isAuthenticated,
+      userId: authProvider.currentUser?.id,
+      areDownloaded: true, // IMPORTANTE: marcar como descargadas
+    );
+
+    // Navegar a la pantalla de reproducción
+    Navigator.pushNamed(context, '/playback');
+  }
+
   Widget _buildGenericTile({
     required String title,
     required String subtitle,
@@ -751,7 +778,6 @@ class _LibraryScreenState extends State<LibraryScreen>
     );
   }
 
-  // --- EMPTY STATES ---
   Widget _buildEmptyState(String type, IconData icon) {
     return Center(
       child: Column(

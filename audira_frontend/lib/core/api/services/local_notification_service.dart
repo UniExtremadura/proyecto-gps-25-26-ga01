@@ -156,8 +156,6 @@ class LocalNotificationService {
     debugPrint('Notification tapped: ${response.payload}');
 
     if (response.payload == null || response.payload!.isEmpty) {
-      // If no payload, just navigate to notifications screen
-      _navigateToNotifications();
       return;
     }
 
@@ -169,15 +167,14 @@ class LocalNotificationService {
 
       debugPrint('Navigating based on type: $type, referenceId: $referenceId, referenceType: $referenceType');
 
-      _navigateBasedOnPayload(type, referenceId, referenceType);
+      navigateBasedOnPayload(type, referenceId, referenceType);
     } catch (e) {
       debugPrint('Error parsing notification payload: $e');
-      _navigateToNotifications();
     }
   }
 
   /// Navigate based on notification payload
-  void _navigateBasedOnPayload(String? type, int? referenceId, String? referenceType) {
+  void navigateBasedOnPayload(String? type, int? referenceId, String? referenceType) {
     final context = navigatorKey.currentContext;
     if (context == null) {
       debugPrint('Navigation context is null');
@@ -189,12 +186,22 @@ class LocalNotificationService {
       case 'PAYMENT_SUCCESS':
       case 'ORDER_CONFIRMATION':
       case 'PURCHASE_NOTIFICATION':
-        if (referenceId != null) {
-          // Navigate to purchase history or specific receipt
-          Navigator.pushNamed(context, '/profile/purchase-history');
-        } else {
-          _navigateToNotifications();
-        }
+        Navigator.pushNamed(context, '/profile/purchase-history');
+        break;
+
+      // Payment failed - Navigate to purchase history to see details
+      case 'PAYMENT_FAILED':
+        Navigator.pushNamed(context, '/profile/purchase-history');
+        break;
+
+      // New follower - Navigate to followed artists
+      case 'NEW_FOLLOWER':
+        Navigator.pushNamed(context, '/profile/followed-artists');
+        break;
+
+      // New rating - Could navigate to stats or profile
+      case 'NEW_RATING':
+        Navigator.pushNamed(context, '/stats');
         break;
 
       // New product notifications
@@ -207,11 +214,7 @@ class LocalNotificationService {
             case 'album':
               Navigator.pushNamed(context, '/album', arguments: referenceId);
               break;
-            default:
-              _navigateToNotifications();
           }
-        } else {
-          _navigateToNotifications();
         }
         break;
 
@@ -219,7 +222,6 @@ class LocalNotificationService {
       case 'TICKET_CREATED':
       case 'TICKET_RESPONSE':
       case 'TICKET_RESOLVED':
-        // Navigate to tickets screen
         Navigator.pushNamed(context, '/profile/tickets');
         break;
 
@@ -256,25 +258,15 @@ class LocalNotificationService {
             case 'album':
               Navigator.pushNamed(context, '/album', arguments: referenceId);
               break;
-            default:
-              _navigateToNotifications();
           }
-        } else {
-          _navigateToNotifications();
         }
         break;
 
-      // Default: Navigate to notifications screen
+      // System notifications - No specific navigation
+      case 'SYSTEM_NOTIFICATION':
       default:
-        _navigateToNotifications();
-    }
-  }
-
-  /// Navigate to notifications screen
-  void _navigateToNotifications() {
-    final context = navigatorKey.currentContext;
-    if (context != null) {
-      Navigator.pushNamed(context, '/notifications');
+        debugPrint('No specific navigation for notification type: $type');
+        break;
     }
   }
 

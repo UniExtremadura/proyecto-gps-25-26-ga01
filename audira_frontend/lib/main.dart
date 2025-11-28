@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:firebase_core/firebase_core.dart';
 
 // Config & Routes
 import 'config/theme.dart';
@@ -16,13 +17,23 @@ import 'core/providers/download_provider.dart';
 
 // Services
 import 'core/api/services/local_notification_service.dart';
+import 'core/api/services/notification_service.dart';
+import 'core/api/services/firebase_messaging_service.dart';
 
 // UI
 import 'features/home/screens/main_layout.dart';
 
-void main() {
+void main() async {
   // Aseguramos la inicialización de bindings para evitar errores de arranque
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize Firebase
+  try {
+    await Firebase.initializeApp();
+    debugPrint('Firebase initialized successfully');
+  } catch (e) {
+    debugPrint('Error initializing Firebase: $e');
+  }
 
   // Opcional: Forzar modo vertical y barra de estado transparente para look inmersivo
   SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
@@ -62,11 +73,19 @@ class _AudiraOrchestrator extends StatefulWidget {
 
 class _AudiraOrchestratorState extends State<_AudiraOrchestrator> {
   int? _lastUserId;
+  final NotificationService _notificationService = NotificationService();
+  final FirebaseMessagingService _fcmService = FirebaseMessagingService();
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     _syncUserData();
+  }
+
+  @override
+  void dispose() {
+    _notificationService.dispose();
+    super.dispose();
   }
 
   /// Sincroniza los carritos y librerías cuando cambia el usuario
@@ -92,6 +111,12 @@ class _AudiraOrchestratorState extends State<_AudiraOrchestrator> {
             libraryProvider.loadLibrary(currentUserId),
             downloadProvider.initialize(),
           ]);
+          // Inicializar Firebase Cloud Messaging
+          debugPrint("🔔 Inicializando Firebase Cloud Messaging...");
+          await _fcmService.initialize(userId: currentUserId);
+          // Iniciar polling de notificaciones para recibir notificaciones push
+          debugPrint("🔔 Iniciando polling de notificaciones para usuario ID: $currentUserId");
+          await _notificationService.startPolling(currentUserId);
         });
       }
     } else if (_lastUserId != null) {
@@ -105,6 +130,11 @@ class _AudiraOrchestratorState extends State<_AudiraOrchestrator> {
           libraryProvider.clearLibrary(userId: userIdToRemove),
           downloadProvider.initialize(),
         ]);
+        // Detener polling de notificaciones y eliminar token FCM al cerrar sesión
+        debugPrint("🔕 Deteniendo polling de notificaciones");
+        _notificationService.stopPolling();
+        debugPrint("🔕 Eliminando token FCM");
+        await _fcmService.deleteToken();
       });
     }
   }

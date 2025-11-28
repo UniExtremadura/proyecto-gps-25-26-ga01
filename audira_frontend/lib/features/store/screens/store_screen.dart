@@ -407,7 +407,7 @@ class _StoreContentTabState extends State<_StoreContentTab>
     }
     if (widget.isGrid) {
       return GridView.builder(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 16 + 120),
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 2,
             childAspectRatio: 0.75,
@@ -422,7 +422,7 @@ class _StoreContentTabState extends State<_StoreContentTab>
       );
     }
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16 + 120),
       itemCount: widget.items.length,
       itemBuilder: (context, index) => widget
           .itemBuilder(context, widget.items[index])

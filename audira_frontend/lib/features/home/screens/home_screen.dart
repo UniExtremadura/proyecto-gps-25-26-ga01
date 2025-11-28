@@ -269,12 +269,12 @@ class _HomeScreenState extends State<HomeScreen> {
             if (_featuredSongs.isNotEmpty)
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.only(bottom: 32),
+                  padding: const EdgeInsets.only(bottom: 120),
                   child: Column(
                     children: [
                       _buildSectionHeader(
                           'Selección Audira',
-                          'Canciones curadas para ti',
+                          'Canciones elegidas para ti',
                           Icons.star_border,
                           AppTheme.primaryBlue),
                       SizedBox(
@@ -299,7 +299,7 @@ class _HomeScreenState extends State<HomeScreen> {
             if (_featuredAlbums.isNotEmpty)
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.only(bottom: 100), // Espacio final
+                  padding: const EdgeInsets.only(bottom: 120), // Espacio final
                   child: Column(
                     children: [
                       _buildSectionHeader(

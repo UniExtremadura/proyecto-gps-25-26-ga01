@@ -5,7 +5,6 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../config/theme.dart';
 import '../../../core/providers/auth_provider.dart';
-import '../../auth/screens/login_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -38,7 +37,7 @@ class ProfileScreen extends StatelessWidget {
                     image: DecorationImage(
                       image: NetworkImage(user.bannerImageUrl ??
                           user.profileImageUrl ??
-                          'https://via.placeholder.com/800'),
+                          'https://static.vecteezy.com/system/resources/previews/001/906/862/large_2x/black-texture-background-free-photo.jpg'),
                       fit: BoxFit.cover,
                       colorFilter: ColorFilter.mode(
                           Colors.black.withValues(alpha: 0.4),
@@ -71,8 +70,6 @@ class ProfileScreen extends StatelessWidget {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // Espacio eliminado aquí para que pegue con el header del MainLayout
-
                       // Avatar Glowing
                       Container(
                         padding: const EdgeInsets.all(3),
@@ -227,10 +224,10 @@ class ProfileScreen extends StatelessWidget {
 
                 const SizedBox(height: 32),
 
-                // BOTÓN CERRAR SESIÓN
+                // BOTÓN CERRAR SESIÓN (CORREGIDO AQUÍ)
                 _buildLogoutButton(context, authProvider),
 
-                const SizedBox(height: 50), // Espacio final
+                const SizedBox(height: 120), // Espacio final
               ]),
             ),
           ),
@@ -467,10 +464,15 @@ class ProfileScreen extends StatelessWidget {
   Widget _buildLogoutButton(BuildContext context, AuthProvider authProvider) {
     return InkWell(
       onTap: () async {
+        // --- CORRECCIÓN CRÍTICA AQUÍ ---
         await authProvider.logout();
         if (context.mounted) {
-          Navigator.pushReplacement(
-              context, MaterialPageRoute(builder: (_) => const LoginScreen()));
+          // Usar pushNamedAndRemoveUntil para eliminar todo el historial
+          // y evitar que la pantalla de perfil intente reconstruirse sin usuario
+          Navigator.of(context).pushNamedAndRemoveUntil(
+            '/login', // Asegúrate de que esta ruta esté definida en tu main.dart
+            (route) => false, // Elimina todas las rutas anteriores
+          );
         }
       },
       borderRadius: BorderRadius.circular(12),

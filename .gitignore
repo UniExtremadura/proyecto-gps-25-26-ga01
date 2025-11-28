@@ -32,3 +32,6 @@
 
 # Docker volumes
 uploads/
+
+# Firebase Messaging
+commerce-service/src/main/resources/firebase-service-account.json

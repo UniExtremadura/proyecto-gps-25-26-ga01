@@ -48,7 +48,7 @@ class _PlaybackScreenState extends State<PlaybackScreen> {
         if (audioProvider.demoFinished) {
           // Usamos un microtask para evitar errores de construcción durante el renderizado
           Future.microtask(() {
-          if(!currentContext.mounted) return;
+            if (!currentContext.mounted) return;
             if (mounted && ModalRoute.of(currentContext)?.isCurrent == true) {
               _showDemoFinishedDialog(currentContext);
             }
@@ -292,8 +292,7 @@ class _PlaybackScreenState extends State<PlaybackScreen> {
             offset: const Offset(0, 10),
           ),
         ],
-        border:
-            Border.all(color: Colors.white.withValues(alpha: 0.1), width: 2),
+        border: Border.all(color: Colors.blue.withValues(alpha: 0.1), width: 2),
       ),
       child: ClipOval(
         child: song.coverImageUrl != null
@@ -343,7 +342,7 @@ class _PlaybackScreenState extends State<PlaybackScreen> {
         // Previous
         IconButton(
           icon: const Icon(Icons.skip_previous_rounded,
-              color: Colors.white, size: 42),
+              color: Colors.blue, size: 42),
           onPressed: () {
             HapticFeedback.lightImpact();
             provider.previous();
@@ -361,7 +360,7 @@ class _PlaybackScreenState extends State<PlaybackScreen> {
             height: 80,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: Colors.white, // Botón blanco clásico
+              color: Colors.blue, // Botón blanco clásico
               boxShadow: [
                 BoxShadow(
                   color: Colors.white.withValues(alpha: 0.3),
@@ -385,8 +384,8 @@ class _PlaybackScreenState extends State<PlaybackScreen> {
 
         // Next
         IconButton(
-          icon: const Icon(Icons.skip_next_rounded,
-              color: Colors.white, size: 42),
+          icon:
+              const Icon(Icons.skip_next_rounded, color: Colors.blue, size: 42),
           onPressed: () {
             HapticFeedback.lightImpact();
             provider.next();
@@ -740,6 +739,14 @@ class _PlaybackScreenState extends State<PlaybackScreen> {
   }
 
   void _showDemoFinishedDialog(BuildContext context) {
+    final audioProvider = context.read<AudioProvider>();
+    final authProvider = context.read<AuthProvider>();
+    final cartProvider = context.read<CartProvider>();
+    final currentSong = audioProvider.currentSong;
+
+    // Determinar si el usuario está autenticado
+    final isAuthenticated = authProvider.isAuthenticated;
+
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -753,9 +760,11 @@ class _PlaybackScreenState extends State<PlaybackScreen> {
             Text("Fin de la Demo", style: TextStyle(color: Colors.white)),
           ],
         ),
-        content: const Text(
-          "La vista previa de 10 segundos ha terminado.\n\nRegístrate o compra la canción para escucharla completa.",
-          style: TextStyle(color: Colors.white70),
+        content: Text(
+          isAuthenticated
+              ? "La vista previa de 10 segundos ha terminado.\n\nPara escuchar la canción completa, añádela al carrito y cómprala."
+              : "La vista previa de 10 segundos ha terminado.\n\nRegístrate o inicia sesión para comprar la canción y escucharla completa.",
+          style: const TextStyle(color: Colors.white70),
         ),
         actions: [
           TextButton(
@@ -765,27 +774,55 @@ class _PlaybackScreenState extends State<PlaybackScreen> {
             },
             child: const Text("Salir", style: TextStyle(color: Colors.grey)),
           ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.pop(context);
-              Navigator.pushNamed(context, '/register');
-            },
-            style:
-                ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryBlue),
-            child: const Text("Registrarse Gratis"),
-          ),
+          if (isAuthenticated && currentSong != null && currentSong.price > 0)
+            ElevatedButton.icon(
+              onPressed: () async {
+                try {
+                  final success = await cartProvider.addToCart(
+                    userId: authProvider.currentUser!.id,
+                    itemType: 'SONG',
+                    itemId: currentSong.id,
+                    price: currentSong.price,
+                    quantity: 1,
+                  );
+                  if (context.mounted) {
+                    Navigator.pop(context); // Cerrar diálogo
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                      content: Text(success
+                          ? 'Añadido al carrito'
+                          : 'Ya está en el carrito'),
+                      backgroundColor: success ? Colors.green : Colors.orange,
+                    ));
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context)
+                        .showSnackBar(SnackBar(content: Text('Error: $e')));
+                  }
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryBlue),
+              icon: const Icon(Icons.shopping_cart),
+              label: const Text("Añadir al Carrito"),
+            ),
+          if (!isAuthenticated)
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                Navigator.pop(context);
+                Navigator.pushNamed(context, '/register');
+              },
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryBlue),
+              child: const Text("Registrarse Gratis"),
+            ),
         ],
       ),
     );
   }
 }
 
-// -----------------------------------------------------------------------------
-// COMPONENTE ULTRA-OPTIMIZADO: SLIDER DE PROGRESO
-// -----------------------------------------------------------------------------
-// Este widget es la clave del rendimiento. Se redibuja independientemente
-// del resto de la pantalla compleja.
 class _ProgressSlider extends StatefulWidget {
   final AudioProvider audioProvider;
 
@@ -798,6 +835,8 @@ class _ProgressSlider extends StatefulWidget {
 class _ProgressSliderState extends State<_ProgressSlider> {
   // Variable local para gestionar el arrastre sin saltos
   double? _dragValue;
+  bool _isDragging = false;
+  bool _isSeeking = false; // Para evitar seeks múltiples
 
   String _formatDuration(Duration duration) {
     String twoDigits(int n) => n.toString().padLeft(2, '0');
@@ -811,64 +850,94 @@ class _ProgressSliderState extends State<_ProgressSlider> {
     final totalDuration = widget.audioProvider.totalDuration;
     final currentPos = widget.audioProvider.currentPosition;
 
-    // Calculamos el progreso (0.0 a 1.0) asegurando que no dividimos por cero
+    // Solo actualizar si no estamos arrastrando ni haciendo seek
     double progress = 0.0;
     if (totalDuration.inMilliseconds > 0) {
       progress = currentPos.inMilliseconds / totalDuration.inMilliseconds;
     }
 
-    // LÓGICA CLAVE: Si el usuario está arrastrando (_dragValue != null),
-    // usamos ese valor para dibujar el slider. Si no, usamos el del Provider.
-    // Esto evita que el slider "tiemble" o salte hacia atrás mientras arrastras.
-    final displayValue = _dragValue ?? progress.clamp(0.0, 1.0);
+    // LÓGICA CLAVE: Mostrar valor local mientras arrastra, si no mostrar el del provider
+    final displayValue = _isDragging && _dragValue != null
+        ? _dragValue!
+        : progress.clamp(0.0, 1.0);
 
-    // Calculamos el tiempo a mostrar en texto (dinámico mientras arrastras)
-    final displayTime = _dragValue != null
+    // Tiempo a mostrar (dinámico mientras arrastras)
+    final displayTime = _isDragging && _dragValue != null
         ? Duration(
-            milliseconds: (displayValue * totalDuration.inMilliseconds).round())
+            milliseconds: (_dragValue! * totalDuration.inMilliseconds).round())
         : currentPos;
 
     return Column(
       children: [
-        // Usamos SliderTheme para hacerlo más fino y elegante
         SliderTheme(
           data: SliderThemeData(
-            trackHeight: 2, // Fino
+            trackHeight: 2,
             thumbShape: const RoundSliderThumbShape(
                 enabledThumbRadius: 6, pressedElevation: 8),
             overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
-            activeTrackColor: Colors.white,
-            inactiveTrackColor: Colors.white.withValues(alpha: 0.2),
-            thumbColor: Colors.white,
-            overlayColor: Colors.white.withValues(alpha: 0.2),
+            activeTrackColor: Colors.blue,
+            inactiveTrackColor: Colors.blue.withValues(alpha: 0.2),
+            thumbColor: Colors.blue,
+            overlayColor: Colors.blue.withValues(alpha: 0.2),
             trackShape: const RectangularSliderTrackShape(),
           ),
           child: Slider(
             value: displayValue,
-            // Solo permitimos interaction si la duración es válida
-            onChanged: (totalDuration.inMilliseconds > 0)
+            min: 0.0,
+            max: 1.0,
+            onChanged: (totalDuration.inMilliseconds > 0 && !_isSeeking)
                 ? (value) {
-                    // Actualizamos SOLO el estado local mientras arrastra
-                    setState(() {
-                      _dragValue = value;
-                    });
+                    // Actualizar SOLO el estado local mientras arrastra
+                    if (mounted) {
+                      setState(() {
+                        _dragValue = value.clamp(0.0, 1.0);
+                      });
+                    }
                   }
                 : null,
-            onChangeStart: (_) {
-              // Opcional: pausar updates del provider si fuera necesario,
-              // pero con _dragValue local es suficiente.
-            },
-            onChangeEnd: (value) async {
-              // Al soltar, enviamos el comando de seek
-              final newPos = Duration(
-                  milliseconds: (value * totalDuration.inMilliseconds).round());
-              await widget.audioProvider.seek(newPos);
-
-              // Limpiamos el valor de arrastre para volver a escuchar al provider
+            onChangeStart: (value) {
+              // Marcar que estamos arrastrando
               if (mounted) {
                 setState(() {
-                  _dragValue = null;
+                  _isDragging = true;
+                  _dragValue = value.clamp(0.0, 1.0);
                 });
+              }
+            },
+            onChangeEnd: (value) async {
+              // Evitar seeks múltiples
+              if (_isSeeking) return;
+
+              if (mounted) {
+                setState(() {
+                  _isSeeking = true;
+                });
+              }
+
+              try {
+                final clampedValue = value.clamp(0.0, 1.0);
+                final newPos = Duration(
+                    milliseconds:
+                        (clampedValue * totalDuration.inMilliseconds).round());
+
+                debugPrint(
+                    '📍 Slider: Solicitando seek a ${newPos.inSeconds}s');
+
+                // Realizar el seek
+                await widget.audioProvider.seek(newPos);
+
+                debugPrint('📍 Slider: Seek completado');
+              } catch (e) {
+                debugPrint('❌ Error en seek desde slider: $e');
+              } finally {
+                // Limpiar estado
+                if (mounted) {
+                  setState(() {
+                    _isDragging = false;
+                    _dragValue = null;
+                    _isSeeking = false;
+                  });
+                }
               }
             },
           ),

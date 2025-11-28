@@ -356,48 +356,51 @@ class _CartScreenState extends State<CartScreen> {
             const SizedBox(height: 20),
 
             // Botón de Pago
-            SizedBox(
-              width: double.infinity,
-              height: 54,
-              child: ElevatedButton(
-                onPressed: _isCreatingOrder
-                    ? null
-                    : () => _proceedToCheckout(cartProvider, authProvider),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.primaryBlue,
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 80.0),
+              child: SizedBox(
+                width: double.infinity,
+                height: 54,
+                child: ElevatedButton(
+                  onPressed: _isCreatingOrder
+                      ? null
+                      : () => _proceedToCheckout(cartProvider, authProvider),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primaryBlue,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    shadowColor: AppTheme.primaryBlue.withValues(alpha: 0.4),
                   ),
-                  shadowColor: AppTheme.primaryBlue.withValues(alpha: 0.4),
-                ),
-                child: _isCreatingOrder
-                    ? const SizedBox(
-                        height: 24,
-                        width: 24,
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 2.5,
-                        ),
-                      )
-                    : const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.payment, size: 20),
-                          SizedBox(width: 8),
-                          Text(
-                            'PROCEDER AL PAGO',
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 1,
-                            ),
+                  child: _isCreatingOrder
+                      ? const SizedBox(
+                          height: 24,
+                          width: 24,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2.5,
                           ),
-                        ],
-                      ),
-              ),
-            ).animate().shimmer(duration: 2000.ms, delay: 1000.ms),
+                        )
+                      : const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.payment, size: 20),
+                            SizedBox(width: 8),
+                            Text(
+                              'PROCEDER AL PAGO',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 1,
+                              ),
+                            ),
+                          ],
+                        ),
+                ),
+              ).animate().shimmer(duration: 2000.ms, delay: 1000.ms),
+            ),
           ],
         ),
       ),

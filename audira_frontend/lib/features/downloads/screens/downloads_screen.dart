@@ -7,6 +7,7 @@ import 'package:timeago/timeago.dart' as timeago;
 // Mantenemos tus imports
 import '../../../core/providers/download_provider.dart';
 import '../../../core/providers/audio_provider.dart';
+import '../../../core/providers/auth_provider.dart';
 import '../../../core/models/downloaded_song.dart';
 import '../../../core/models/song.dart';
 import '../../../config/theme.dart';
@@ -52,6 +53,7 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
   // --- AQUÍ ESTÁ EL CAMBIO SOLICITADO ---
   Future<void> _playSong(DownloadedSong downloadedSong) async {
     final audioProvider = context.read<AudioProvider>();
+    final authProvider = context.read<AuthProvider>();
 
     // Verificamos si la canción pulsada es la que está cargada actualmente en el reproductor
     final isCurrentSong =
@@ -78,7 +80,13 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
         coverImageUrl: downloadedSong.coverImageUrl,
         audioUrl: downloadedSong.localFilePath,
       );
-      await audioProvider.playSong(song);
+      // IMPORTANTE: Marcar como descargada para que no se reproduzca en modo demo
+      await audioProvider.playSong(
+        song,
+        isDownloaded: true,
+        isUserAuthenticated: authProvider.isAuthenticated,
+        userId: authProvider.currentUser?.id,
+      );
     }
   }
 
