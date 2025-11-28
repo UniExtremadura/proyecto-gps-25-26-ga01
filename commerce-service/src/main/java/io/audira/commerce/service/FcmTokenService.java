@@ -11,6 +11,18 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * Servicio de lógica de negocio responsable de la gestión de tokens de Firebase Cloud Messaging (FCM).
+ * <p>
+ * Implementa las operaciones para registrar (añadir/actualizar), consultar y eliminar los tokens
+ * de dispositivos asociados a los usuarios, manteniendo la unicidad del token.
+ * </p>
+ *
+ * @author Grupo GA01
+ * @see FcmTokenRepository
+ * @see FcmToken
+ * 
+ */
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -19,7 +31,17 @@ public class FcmTokenService {
     private final FcmTokenRepository fcmTokenRepository;
 
     /**
-     * Register or update an FCM token for a user
+     * Registra o actualiza un token FCM para un usuario.
+     * <p>
+     * Si el token ya existe en la base de datos (incluso si estaba asociado a otro usuario),
+     * se actualiza para asociarlo al nuevo {@code userId} y la nueva {@code platform} (re-asociación).
+     * Si no existe, se crea un nuevo registro.
+     * </p>
+     *
+     * @param userId El ID del usuario al que se debe asociar el token.
+     * @param token El valor del token FCM único del dispositivo.
+     * @param platform La plataforma del dispositivo ({@link Platform}).
+     * @return La entidad {@link FcmToken} registrada o actualizada.
      */
     @Transactional
     public FcmToken registerToken(Long userId, String token, Platform platform) {
@@ -27,7 +49,7 @@ public class FcmTokenService {
         Optional<FcmToken> existing = fcmTokenRepository.findByToken(token);
 
         if (existing.isPresent()) {
-            // Update existing token
+            // Update existing token (re-associate it if necessary)
             FcmToken existingToken = existing.get();
             existingToken.setUserId(userId);
             existingToken.setPlatform(platform);
@@ -47,7 +69,13 @@ public class FcmTokenService {
     }
 
     /**
-     * Delete a specific token for a user
+     * Elimina un token específico asociado a un usuario.
+     * <p>
+     * La eliminación solo procede si el token existe y está asociado a la combinación de usuario y token proporcionada.
+     * </p>
+     *
+     * @param userId El ID del usuario.
+     * @param token El valor del token a eliminar.
      */
     @Transactional
     public void deleteToken(Long userId, String token) {
@@ -62,7 +90,12 @@ public class FcmTokenService {
     }
 
     /**
-     * Delete all tokens for a user
+     * Elimina todos los tokens FCM asociados a un usuario.
+     * <p>
+     * Utilizado, por ejemplo, cuando la cuenta de un usuario es desactivada o eliminada.
+     * </p>
+     *
+     * @param userId El ID del usuario cuyos tokens serán eliminados.
      */
     @Transactional
     public void deleteAllUserTokens(Long userId) {
@@ -71,14 +104,20 @@ public class FcmTokenService {
     }
 
     /**
-     * Get all tokens for a user
+     * Obtiene todos los tokens FCM registrados para un usuario específico.
+     *
+     * @param userId El ID del usuario.
+     * @return Una lista de entidades {@link FcmToken} del usuario.
      */
     public List<FcmToken> getUserTokens(Long userId) {
         return fcmTokenRepository.findByUserId(userId);
     }
 
     /**
-     * Get a specific token
+     * Obtiene un token FCM específico utilizando su valor (String).
+     *
+     * @param token El valor del token a buscar.
+     * @return Un {@link Optional} que contiene la entidad {@link FcmToken} si se encuentra.
      */
     public Optional<FcmToken> getToken(String token) {
         return fcmTokenRepository.findByToken(token);

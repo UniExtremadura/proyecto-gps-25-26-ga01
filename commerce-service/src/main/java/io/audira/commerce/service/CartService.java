@@ -16,6 +16,18 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * Servicio de lógica de negocio responsable de gestionar el ciclo de vida del carrito de compras ({@link Cart}).
+ * <p>
+ * Implementa las operaciones CRUD para el carrito y sus artículos ({@link CartItem}),
+ * gestionando la lógica de duplicados para productos digitales y el recálculo del total.
+ * </p>
+ *
+ * @author Grupo GA01
+ * @see CartRepository
+ * @see CartItemRepository
+ * 
+ */
 @Service
 @RequiredArgsConstructor
 public class CartService {
@@ -25,7 +37,10 @@ public class CartService {
     private final EntityManager entityManager;
 
     /**
-     * Get or create cart for a user
+     * Obtiene el carrito de compras de un usuario por su ID. Si no existe, crea un nuevo carrito.
+     *
+     * @param userId El ID del usuario (tipo {@link Long}).
+     * @return El objeto {@link CartDTO} del usuario.
      */
     @Transactional
     public CartDTO getCartByUserId(Long userId) {
@@ -35,7 +50,26 @@ public class CartService {
     }
 
     /**
-     * Add item to cart
+     * Añade un artículo al carrito de un usuario.
+     * <p>
+     * Lógica de manejo:
+     * <ul>
+     * <li>Si el carrito no existe, se crea.</li>
+     * <li>Si el artículo ya existe:
+     * <ul>
+     * <li>Para productos digitales (SONG, ALBUM), lanza una {@link RuntimeException}.</li>
+     * <li>Para otros productos (MERCHANDISE), incrementa la cantidad.</li>
+     * </ul>
+     * <li>Tras la adición/actualización, recarga el carrito y recalcula el monto total.</li>
+     * </p>
+     *
+     * @param userId El ID del usuario.
+     * @param itemType El tipo de artículo ({@link ItemType}).
+     * @param itemId El ID del artículo en el catálogo.
+     * @param price El precio unitario del artículo.
+     * @param quantity La cantidad a añadir.
+     * @return El {@link CartDTO} actualizado.
+     * @throws RuntimeException Si se intenta añadir un producto digital que ya existe.
      */
     @Transactional
     public CartDTO addItemToCart(Long userId, ItemType itemType, Long itemId, BigDecimal price, Integer quantity) {
@@ -77,7 +111,16 @@ public class CartService {
     }
 
     /**
-     * Update cart item quantity
+     * Actualiza la cantidad de un artículo existente en el carrito del usuario.
+     * <p>
+     * Si la cantidad es menor o igual a cero, el artículo es eliminado.
+     * </p>
+     *
+     * @param userId El ID del usuario.
+     * @param itemId El ID del artículo del carrito ({@link CartItem}) a actualizar.
+     * @param quantity La nueva cantidad deseada.
+     * @return El {@link CartDTO} actualizado.
+     * @throws RuntimeException Si no se encuentra el carrito o el artículo no pertenece al usuario.
      */
     @Transactional
     public CartDTO updateCartItemQuantity(Long userId, Long itemId, Integer quantity) {
@@ -108,7 +151,17 @@ public class CartService {
     }
 
     /**
-     * Remove item from cart
+     * Elimina un artículo específico del carrito de un usuario.
+     * <p>
+     * Nota: Utiliza un método de eliminación directo del repositorio seguido de
+     * {@code entityManager.clear()} y una recarga forzada para manejar posibles problemas de caché de JPA
+     * cuando se usan operaciones {@code @Modifying} dentro de una transacción.
+     * </p>
+     *
+     * @param userId El ID del usuario.
+     * @param itemId El ID del artículo del carrito ({@link CartItem}) a eliminar.
+     * @return El {@link CartDTO} actualizado.
+     * @throws RuntimeException Si no se encuentra el carrito o el artículo no pertenece al usuario.
      */
     @Transactional
     public CartDTO removeItemFromCart(Long userId, Long itemId) {
@@ -157,7 +210,10 @@ public class CartService {
     }
 
     /**
-     * Clear cart (remove all items)
+     * Vacía completamente el carrito de un usuario, eliminando todos los artículos.
+     *
+     * @param userId El ID del usuario cuyo carrito será limpiado.
+     * @throws RuntimeException Si no se encuentra el carrito.
      */
     @Transactional
     public void clearCart(Long userId) {
@@ -184,7 +240,10 @@ public class CartService {
     }
 
     /**
-     * Get cart item count
+     * Obtiene el número total de unidades de artículos en el carrito de un usuario.
+     *
+     * @param userId El ID del usuario.
+     * @return El conteo total de unidades, o 0 si el carrito no existe.
      */
     public Integer getCartItemCount(Long userId) {
         Cart cart = cartRepository.findByUserId(userId).orElse(null);
@@ -195,7 +254,13 @@ public class CartService {
     }
 
     /**
-     * Create a new cart for a user
+     * Crea y persiste una nueva entidad {@link Cart} para un usuario.
+     * <p>
+     * Método auxiliar privado.
+     * </p>
+     *
+     * @param userId El ID del usuario.
+     * @return El objeto {@link Cart} recién creado y persistido.
      */
     private Cart createNewCart(Long userId) {
         Cart cart = Cart.builder()
@@ -206,7 +271,13 @@ public class CartService {
     }
 
     /**
-     * Map Cart entity to CartDTO
+     * Mapea una entidad {@link Cart} a su respectivo Data Transfer Object (DTO) {@link CartDTO}.
+     * <p>
+     * Método auxiliar privado. Realiza la conversión de la lista de {@link CartItem} a {@link CartItemDTO}.
+     * </p>
+     *
+     * @param cart La entidad {@link Cart} de origen.
+     * @return El {@link CartDTO} resultante.
      */
     private CartDTO mapToDTO(Cart cart) {
         List<CartItemDTO> itemDTOs = cart.getItems().stream()

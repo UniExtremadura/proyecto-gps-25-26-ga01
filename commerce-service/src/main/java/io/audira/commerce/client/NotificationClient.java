@@ -6,30 +6,47 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 /**
- * Cliente para envío de notificaciones usando Firebase Cloud Messaging
- * Envía notificaciones push cuando se realizan compras y otros eventos
+ * Cliente de fachada para el envío de notificaciones push a través de Firebase Cloud Messaging (FCM).
+ * <p>
+ * Esta clase actúa como una capa de abstracción sobre {@link FirebaseMessagingService},
+ * proporcionando métodos específicos y de alto nivel para eventos comunes de comercio
+ * (compras, fallos y reembolsos).
+ * </p>
+ *
+ * @author Grupo GA01
+ * @see FirebaseMessagingService
+ * 
  */
 @Component
 @RequiredArgsConstructor
 @Slf4j
 public class NotificationClient {
 
+    /**
+     * Servicio subyacente responsable de la comunicación directa con la API de Firebase.
+     * Se inyecta automáticamente gracias a {@link RequiredArgsConstructor}.
+     */
     private final FirebaseMessagingService fcmService;
 
     /**
-     * Envía una notificación a un usuario usando Firebase Cloud Messaging
+     * Envía una notificación push genérica a un usuario usando Firebase Cloud Messaging (FCM).
+     * <p>
+     * Este es el método base de la clase. Captura cualquier excepción para evitar interrumpir
+     * el flujo principal de la aplicación (e.g., el procesamiento de la compra).
+     * </p>
      *
-     * @param userId ID del usuario destinatario
-     * @param title Título de la notificación
-     * @param message Mensaje de la notificación
-     * @param type Tipo de notificación (SUCCESS, INFO, WARNING, ERROR)
-     * @return true si se envió correctamente, false en caso contrario
+     * @param userId ID del usuario destinatario (tipo {@link Long}).
+     * @param title Título visible de la notificación.
+     * @param message Mensaje (cuerpo) de la notificación.
+     * @param type Tipo de notificación (e.g., "SUCCESS", "INFO", "WARNING", "ERROR", o un identificador custom).
+     * @return {@code true} si la llamada al servicio FCM fue exitosa o se manejó sin lanzar excepción, {@code false} en caso contrario.
      */
     public boolean sendNotification(Long userId, String title, String message, String type) {
         try {
             log.info("Sending FCM notification to user {}: {}", userId, title);
 
             // Enviar notificación FCM
+            // Nota: Los últimos dos parámetros (null, null) son campos de datos opcionales
             return fcmService.sendNotification(userId, title, message, type, null, null);
 
         } catch (Exception e) {
@@ -40,10 +57,21 @@ public class NotificationClient {
     }
 
     /**
-     * Notifica a un artista sobre una nueva compra
+     * Notifica a un artista sobre una nueva compra realizada de su producto.
+     * <p>
+     * Construye un mensaje detallado con información sobre el comprador, el producto y el monto.
+     * </p>
+     *
+     * @param artistId ID del artista (vendedor) destinatario (tipo {@link Long}).
+     * @param productType Tipo de producto comprado (e.g., "Álbum", "Pista", "Merchandise").
+     * @param productTitle Título del producto comprado.
+     * @param buyerName Nombre del usuario que realizó la compra.
+     * @param amount Monto total de la compra (tipo {@link Double}).
+     * @param orderNumber Número de identificación del pedido.
+     * @return {@code true} si el intento de envío de notificación fue exitoso, {@code false} en caso contrario.
      */
     public boolean notifyArtistPurchase(Long artistId, String productType, String productTitle,
-                                       String buyerName, Double amount, String orderNumber) {
+                                        String buyerName, Double amount, String orderNumber) {
         String title = "Nueva compra realizada";
         String message = String.format(
             "%s ha comprado tu %s \"%s\" por $%.2f. Pedido: %s",
@@ -58,7 +86,15 @@ public class NotificationClient {
     }
 
     /**
-     * Notifica a un usuario sobre una compra exitosa
+     * Notifica a un usuario sobre la confirmación y éxito de su compra.
+     * <p>
+     * Informa al usuario que el pedido ha sido procesado y que los productos están disponibles.
+     * </p>
+     *
+     * @param userId ID del usuario comprador (tipo {@link Long}).
+     * @param orderNumber Número de identificación del pedido.
+     * @param amount Monto total pagado (tipo {@link Double}).
+     * @return {@code true} si el intento de envío de notificación fue exitoso, {@code false} en caso contrario.
      */
     public boolean notifyUserPurchaseSuccess(Long userId, String orderNumber, Double amount) {
         String title = "Compra confirmada";
@@ -73,7 +109,15 @@ public class NotificationClient {
     }
 
     /**
-     * Notifica a un usuario sobre una compra fallida
+     * Notifica a un usuario sobre el fallo de su intento de compra.
+     * <p>
+     * Advierte al usuario sobre el problema y asegura que no se realizó ningún cargo.
+     * </p>
+     *
+     * @param userId ID del usuario comprador (tipo {@link Long}).
+     * @param orderNumber Número de identificación del pedido.
+     * @param reason Razón o descripción del fallo de la transacción.
+     * @return {@code true} si el intento de envío de notificación fue exitoso, {@code false} en caso contrario.
      */
     public boolean notifyUserPurchaseFailed(Long userId, String orderNumber, String reason) {
         String title = "Error en la compra";
@@ -88,7 +132,15 @@ public class NotificationClient {
     }
 
     /**
-     * Notifica a un usuario sobre un reembolso
+     * Notifica a un usuario (comprador) sobre un reembolso procesado.
+     * <p>
+     * Detalla el monto y el tiempo estimado para que el dinero sea devuelto al medio de pago.
+     * </p>
+     *
+     * @param userId ID del usuario comprador (tipo {@link Long}).
+     * @param orderNumber Número de identificación del pedido.
+     * @param amount Monto reembolsado (tipo {@link Double}).
+     * @return {@code true} si el intento de envío de notificación fue exitoso, {@code false} en caso contrario.
      */
     public boolean notifyUserRefund(Long userId, String orderNumber, Double amount) {
         String title = "Reembolso procesado";
@@ -103,7 +155,15 @@ public class NotificationClient {
     }
 
     /**
-     * Notifica al artista sobre un reembolso
+     * Notifica al artista (vendedor) sobre un reembolso procesado de su producto.
+     * <p>
+     * Advierte al artista que los fondos correspondientes serán deducidos de sus próximas ganancias.
+     * </p>
+     *
+     * @param artistId ID del artista (vendedor) destinatario (tipo {@link Long}).
+     * @param productTitle Título del producto reembolsado.
+     * @param orderNumber Número de identificación del pedido.
+     * @return {@code true} si el intento de envío de notificación fue exitoso, {@code false} en caso contrario.
      */
     public boolean notifyArtistRefund(Long artistId, String productTitle, String orderNumber) {
         String title = "Reembolso procesado";

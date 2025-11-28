@@ -16,22 +16,49 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Cliente para comunicarse con el servicio de catálogo de música
+ * Cliente REST para comunicarse con el servicio de catálogo de música (Music Catalog Service).
+ * <p>
+ * Esta clase se encarga de realizar llamadas HTTP al microservicio de catálogo para
+ * obtener información sobre álbumes y canciones. Utiliza {@link RestTemplate} para la
+ * comunicación síncrona.
+ * </p>
+ *
+ * @author Grupo GA01
+ * @see RestTemplate
+ * 
  */
 @Component
 @RequiredArgsConstructor
 @Slf4j
 public class MusicCatalogClient {
 
+    /**
+     * Cliente de Spring utilizado para realizar las llamadas HTTP síncronas.
+     * Se inyecta automáticamente gracias a la anotación {@link RequiredArgsConstructor} de Lombok.
+     */
     private final RestTemplate restTemplate;
 
+    /**
+     * URL base del microservicio de catálogo de música.
+     * <p>
+     * El valor por defecto es {@code http://172.16.0.4:9002/api} si la propiedad
+     * {@code services.catalog.url} no está definida en la configuración.
+     * </p>
+     */
     @Value("${services.catalog.url:http://172.16.0.4:9002/api}")
     private String catalogServiceUrl;
 
     /**
-     * Obtiene los IDs de todas las canciones de un álbum
-     * @param albumId ID del álbum
-     * @return Lista de IDs de canciones
+     * Obtiene los IDs de todas las canciones asociadas a un álbum específico.
+     * <p>
+     * Llama al endpoint {@code /songs/album/{albumId}} del servicio de catálogo.
+     * Implementa manejo de excepciones para errores de cliente (4xx) y fallos de conexión.
+     * </p>
+     *
+     * @param albumId ID del álbum (tipo {@link Long}) del que se quieren obtener las canciones.
+     * @return Una {@link List} de IDs de canciones ({@link Long}). Retorna una lista vacía si ocurre un error HTTP (4xx) o de conexión.
+     * @throws HttpClientErrorException Si la respuesta del servicio es un error de cliente (4xx), es capturada y se devuelve una lista vacía.
+     * @throws ResourceAccessException Si el servicio no está disponible o hay un fallo de red, es capturada y se devuelve una lista vacía.
      */
     public List<Long> getSongIdsByAlbum(Long albumId) {
         String url = catalogServiceUrl + "/songs/album/" + albumId;
@@ -78,9 +105,13 @@ public class MusicCatalogClient {
     }
 
     /**
-     * Obtiene información de una canción por ID
-     * @param songId ID de la canción
-     * @return Mapa con información de la canción (id, title, artistId, etc.)
+     * Obtiene la información detallada de una canción por su identificador.
+     * <p>
+     * Llama al endpoint {@code /songs/{songId}}. En caso de error, retorna {@code null}.
+     * </p>
+     *
+     * @param songId ID de la canción (tipo {@link Long}) a buscar.
+     * @return Un {@link Map} con los atributos de la canción (ej. id, title, artistId). Retorna {@code null} si hay un error de comunicación o si la canción no existe.
      */
     public Map<String, Object> getSongById(Long songId) {
         String url = catalogServiceUrl + "/songs/" + songId;
@@ -101,9 +132,13 @@ public class MusicCatalogClient {
     }
 
     /**
-     * Obtiene información de un álbum por ID
-     * @param albumId ID del álbum
-     * @return Mapa con información del álbum (id, title, artistId, etc.)
+     * Obtiene la información detallada de un álbum por su identificador.
+     * <p>
+     * Llama al endpoint {@code /albums/{albumId}}. En caso de error, retorna {@code null}.
+     * </p>
+     *
+     * @param albumId ID del álbum (tipo {@link Long}) a buscar.
+     * @return Un {@link Map} con los atributos del álbum (ej. id, title, artistId). Retorna {@code null} si hay un error de comunicación o si el álbum no existe.
      */
     public Map<String, Object> getAlbumById(Long albumId) {
         String url = catalogServiceUrl + "/albums/" + albumId;
