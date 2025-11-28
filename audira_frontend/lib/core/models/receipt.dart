@@ -5,6 +5,7 @@ import 'order.dart';
 class ReceiptItem extends Equatable {
   final String itemName;
   final String itemType;
+  final int? itemId;
   final int quantity;
   final double unitPrice;
   final double totalPrice;
@@ -12,6 +13,7 @@ class ReceiptItem extends Equatable {
   const ReceiptItem({
     required this.itemName,
     required this.itemType,
+    this.itemId,
     required this.quantity,
     required this.unitPrice,
     required this.totalPrice,
@@ -21,6 +23,7 @@ class ReceiptItem extends Equatable {
     return ReceiptItem(
       itemName: json['itemName'] as String,
       itemType: json['itemType'] as String,
+      itemId: json['itemId'] as int?,
       quantity: json['quantity'] as int,
       unitPrice: (json['unitPrice'] as num).toDouble(),
       totalPrice: (json['totalPrice'] as num).toDouble(),
@@ -31,14 +34,34 @@ class ReceiptItem extends Equatable {
     return {
       'itemName': itemName,
       'itemType': itemType,
+      'itemId': itemId,
       'quantity': quantity,
       'unitPrice': unitPrice,
       'totalPrice': totalPrice,
     };
   }
 
+  ReceiptItem copyWith({
+    String? itemName,
+    String? itemType,
+    int? itemId,
+    int? quantity,
+    double? unitPrice,
+    double? totalPrice,
+  }) {
+    return ReceiptItem(
+      itemName: itemName ?? this.itemName,
+      itemType: itemType ?? this.itemType,
+      itemId: itemId ?? this.itemId,
+      quantity: quantity ?? this.quantity,
+      unitPrice: unitPrice ?? this.unitPrice,
+      totalPrice: totalPrice ?? this.totalPrice,
+    );
+  }
+
   @override
-  List<Object?> get props => [itemName, itemType, quantity, unitPrice, totalPrice];
+  List<Object?> get props =>
+      [itemName, itemType, itemId, quantity, unitPrice, totalPrice];
 }
 
 class Receipt extends Equatable {
@@ -96,6 +119,32 @@ class Receipt extends Equatable {
       'issuedAt': issuedAt.toIso8601String(),
       'items': items.map((e) => e.toJson()).toList(),
     };
+  }
+
+  Receipt copyWith({
+    String? receiptNumber,
+    Payment? payment,
+    Order? order,
+    String? customerName,
+    String? customerEmail,
+    double? subtotal,
+    double? tax,
+    double? total,
+    DateTime? issuedAt,
+    List<ReceiptItem>? items,
+  }) {
+    return Receipt(
+      receiptNumber: receiptNumber ?? this.receiptNumber,
+      payment: payment ?? this.payment,
+      order: order ?? this.order,
+      customerName: customerName ?? this.customerName,
+      customerEmail: customerEmail ?? this.customerEmail,
+      subtotal: subtotal ?? this.subtotal,
+      tax: tax ?? this.tax,
+      total: total ?? this.total,
+      issuedAt: issuedAt ?? this.issuedAt,
+      items: items ?? this.items,
+    );
   }
 
   @override

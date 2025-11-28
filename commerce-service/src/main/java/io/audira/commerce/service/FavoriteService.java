@@ -13,6 +13,17 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * Servicio de lógica de negocio responsable de gestionar la lista de favoritos (wishlist) de los usuarios.
+ * <p>
+ * Implementa las operaciones CRUD, conteo y consulta para la entidad {@link Favorite},
+ * asegurando la unicidad de los registros por usuario y artículo.
+ * </p>
+ *
+ * @author Grupo GA01
+ * @see FavoriteRepository
+ * 
+ */
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -21,7 +32,13 @@ public class FavoriteService {
     private final FavoriteRepository favoriteRepository;
 
     /**
-     * Get all favorites for a user organized by type
+     * Obtiene todos los favoritos de un usuario, organizados por tipo de artículo.
+     * <p>
+     * La consulta se realiza en la base de datos y los resultados se mapean y categorizan en un objeto {@link UserFavoritesDTO}.
+     * </p>
+     *
+     * @param userId El ID del usuario (tipo {@link Long}).
+     * @return El objeto {@link UserFavoritesDTO} con las listas de favoritos categorizadas.
      */
     @Transactional(readOnly = true)
     public UserFavoritesDTO getUserFavorites(Long userId) {
@@ -51,7 +68,10 @@ public class FavoriteService {
     }
 
     /**
-     * Get all favorites for a user (flat list)
+     * Obtiene todos los favoritos de un usuario en una lista plana (sin categorizar).
+     *
+     * @param userId El ID del usuario.
+     * @return Una {@link List} plana de objetos {@link FavoriteDTO}.
      */
     @Transactional(readOnly = true)
     public List<FavoriteDTO> getAllFavorites(Long userId) {
@@ -64,7 +84,11 @@ public class FavoriteService {
     }
 
     /**
-     * Get favorites of a specific type
+     * Obtiene los favoritos de un usuario filtrados por un tipo de artículo específico.
+     *
+     * @param userId El ID del usuario.
+     * @param itemType El tipo de artículo ({@link ItemType}) por el cual filtrar.
+     * @return Una {@link List} de objetos {@link FavoriteDTO} que coinciden con el tipo.
      */
     @Transactional(readOnly = true)
     public List<FavoriteDTO> getFavoritesByType(Long userId, ItemType itemType) {
@@ -77,7 +101,12 @@ public class FavoriteService {
     }
 
     /**
-     * Check if an item is favorited
+     * Verifica si un artículo específico ya ha sido marcado como favorito por un usuario.
+     *
+     * @param userId El ID del usuario.
+     * @param itemType El tipo de artículo.
+     * @param itemId El ID del artículo.
+     * @return {@code true} si el artículo es favorito, {@code false} en caso contrario.
      */
     @Transactional(readOnly = true)
     public boolean isFavorite(Long userId, ItemType itemType, Long itemId) {
@@ -87,7 +116,15 @@ public class FavoriteService {
     }
 
     /**
-     * Add an item to favorites
+     * Agrega un artículo a la lista de favoritos del usuario.
+     * <p>
+     * Si el artículo ya existe, simplemente retorna el registro existente.
+     * </p>
+     *
+     * @param userId El ID del usuario.
+     * @param itemType El tipo de artículo.
+     * @param itemId El ID del artículo.
+     * @return El objeto {@link FavoriteDTO} creado o existente.
      */
     @Transactional
     public FavoriteDTO addFavorite(Long userId, ItemType itemType, Long itemId) {
@@ -96,6 +133,7 @@ public class FavoriteService {
         // Check if already exists
         if (favoriteRepository.existsByUserIdAndItemTypeAndItemId(userId, itemType, itemId)) {
             log.debug("Item {}/{} already in favorites for user {}", itemType, itemId, userId);
+            // Si existe, lo recuperamos y lo devolvemos
             return favoriteRepository.findByUserIdAndItemTypeAndItemId(userId, itemType, itemId)
                 .map(FavoriteDTO::fromEntity)
                 .orElseThrow();
@@ -109,7 +147,14 @@ public class FavoriteService {
     }
 
     /**
-     * Remove an item from favorites
+     * Elimina un artículo de la lista de favoritos del usuario.
+     * <p>
+     * Utiliza el método de eliminación por clave compuesta del repositorio.
+     * </p>
+     *
+     * @param userId El ID del usuario.
+     * @param itemType El tipo de artículo.
+     * @param itemId El ID del artículo.
      */
     @Transactional
     public void removeFavorite(Long userId, ItemType itemType, Long itemId) {
@@ -121,7 +166,12 @@ public class FavoriteService {
     }
 
     /**
-     * Toggle favorite status (add if not exists, remove if exists)
+     * Alterna el estado de favorito de un artículo: lo agrega si no existe, o lo elimina si ya es favorito.
+     *
+     * @param userId El ID del usuario.
+     * @param itemType El tipo de artículo.
+     * @param itemId El ID del artículo.
+     * @return {@code true} si el artículo es ahora favorito (fue añadido), {@code false} si ya no lo es (fue eliminado).
      */
     @Transactional
     public boolean toggleFavorite(Long userId, ItemType itemType, Long itemId) {
@@ -132,17 +182,20 @@ public class FavoriteService {
         if (exists) {
             favoriteRepository.deleteByUserIdAndItemTypeAndItemId(userId, itemType, itemId);
             log.info("Removed {}/{} from favorites for user {}", itemType, itemId, userId);
-            return false; // Now not a favorite
+            return false; // Ahora no es un favorito
         } else {
             Favorite favorite = new Favorite(userId, itemType, itemId);
             favoriteRepository.save(favorite);
             log.info("Added {}/{} to favorites for user {}", itemType, itemId, userId);
-            return true; // Now is a favorite
+            return true; // Ahora es un favorito
         }
     }
 
     /**
-     * Get favorite count for a user
+     * Obtiene el número total de artículos en la lista de favoritos de un usuario.
+     *
+     * @param userId El ID del usuario.
+     * @return El conteo total (tipo {@code long}).
      */
     @Transactional(readOnly = true)
     public long getFavoriteCount(Long userId) {
@@ -150,7 +203,11 @@ public class FavoriteService {
     }
 
     /**
-     * Get favorite count by type
+     * Obtiene el número de favoritos de un tipo específico para un usuario.
+     *
+     * @param userId El ID del usuario.
+     * @param itemType El tipo de artículo a contar.
+     * @return El conteo total por tipo (tipo {@code long}).
      */
     @Transactional(readOnly = true)
     public long getFavoriteCountByType(Long userId, ItemType itemType) {
@@ -158,7 +215,12 @@ public class FavoriteService {
     }
 
     /**
-     * Clear all favorites for a user (admin/testing purposes)
+     * Elimina todos los registros de favoritos de un usuario.
+     * <p>
+     * Utilizado para propósitos administrativos o de prueba.
+     * </p>
+     *
+     * @param userId El ID del usuario cuyos favoritos serán eliminados.
      */
     @Transactional
     public void clearUserFavorites(Long userId) {

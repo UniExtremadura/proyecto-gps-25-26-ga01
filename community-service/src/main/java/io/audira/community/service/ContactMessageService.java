@@ -10,6 +10,18 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
+/**
+ * Servicio de lógica de negocio responsable de gestionar los mensajes de contacto y tickets de soporte ({@link ContactMessage}).
+ * <p>
+ * Este servicio centraliza la creación, consulta, marcaje de lectura y actualización del estado de los mensajes.
+ * Orquesta la notificación a los administradores al recibir un nuevo ticket y al usuario cuando un ticket es resuelto.
+ * </p>
+ *
+ * @author Grupo GA01
+ * @see ContactMessageRepository
+ * @see io.audira.community.client.NotificationClient
+ * 
+ */
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -18,33 +30,84 @@ public class ContactMessageService {
     private final ContactMessageRepository contactMessageRepository;
     private final io.audira.community.client.NotificationClient notificationClient;
 
+    // --- Métodos de Consulta ---
+
+    /**
+     * Obtiene una lista de todos los mensajes de contacto, ordenados por fecha de creación descendente.
+     *
+     * @return Una {@link List} de todos los objetos {@link ContactMessage}.
+     */
     public List<ContactMessage> getAllMessages() {
         return contactMessageRepository.findAllByOrderByCreatedAtDesc();
     }
 
+    /**
+     * Obtiene una lista de todos los mensajes de contacto que aún no han sido marcados como leídos.
+     *
+     * @return Una {@link List} de mensajes no leídos.
+     */
     public List<ContactMessage> getUnreadMessages() {
         return contactMessageRepository.findByIsReadFalseOrderByCreatedAtDesc();
     }
 
+    /**
+     * Obtiene todos los mensajes de contacto enviados por un usuario específico.
+     *
+     * @param userId ID del usuario remitente (tipo {@link Long}).
+     * @return Una {@link List} de mensajes del usuario.
+     */
     public List<ContactMessage> getMessagesByUserId(Long userId) {
         return contactMessageRepository.findByUserIdOrderByCreatedAtDesc(userId);
     }
 
+    /**
+     * Obtiene todos los mensajes de contacto filtrados por un estado de ticket específico (ej. RESOLVED).
+     *
+     * @param status El estado del mensaje ({@link ContactStatus}) por el cual filtrar.
+     * @return Una {@link List} de mensajes que coinciden con el estado.
+     */
     public List<ContactMessage> getMessagesByStatus(ContactStatus status) {
         return contactMessageRepository.findByStatusOrderByCreatedAtDesc(status);
     }
 
+    /**
+     * Obtiene todos los mensajes que están en estado {@link ContactStatus#PENDING} o {@link ContactStatus#IN_PROGRESS}.
+     * <p>
+     * Se utiliza para ver los tickets activos o pendientes de revisión.
+     * </p>
+     *
+     * @return Una {@link List} de mensajes activos.
+     */
     public List<ContactMessage> getPendingAndInProgressMessages() {
         return contactMessageRepository.findByStatusInOrderByCreatedAtDesc(
                 List.of(ContactStatus.PENDING, ContactStatus.IN_PROGRESS)
         );
     }
 
+    /**
+     * Obtiene un mensaje de contacto específico por su ID.
+     *
+     * @param id ID del mensaje (tipo {@link Long}).
+     * @return El objeto {@link ContactMessage}.
+     * @throws RuntimeException si el mensaje no se encuentra.
+     */
     public ContactMessage getMessageById(Long id) {
         return contactMessageRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Mensaje de contacto no encontrado con id: " + id));
     }
 
+    // --- Métodos Transaccionales (Creación y Modificación) ---
+
+    /**
+     * Crea y persiste un nuevo mensaje de contacto.
+     * <p>
+     * Realiza validaciones básicas de campos obligatorios y notifica al administrador sobre el nuevo ticket.
+     * </p>
+     *
+     * @param message El objeto {@link ContactMessage} a crear.
+     * @return El mensaje persistido.
+     * @throws IllegalArgumentException si faltan campos obligatorios.
+     */
     @Transactional
     public ContactMessage createMessage(ContactMessage message) {
         if (message.getName() == null || message.getName().trim().isEmpty()) {
@@ -69,8 +132,8 @@ public class ContactMessageService {
         ContactMessage savedMessage = contactMessageRepository.save(message);
 
         // Notificar a administradores (usando un ID genérico o lista de admins)
-        // Por ahora notificamos a admin con ID 1
         try {
+            // Asume que el admin principal tiene ID 1
             notificationClient.notifyAdminNewTicket(1L, message.getName(), message.getSubject());
         } catch (Exception e) {
             log.error("Failed to send ticket notification to admin", e);
@@ -79,6 +142,12 @@ public class ContactMessageService {
         return savedMessage;
     }
 
+    /**
+     * Marca un mensaje de contacto como leído ({@code isRead = true}).
+     *
+     * @param id ID del mensaje (tipo {@link Long}).
+     * @return El mensaje actualizado.
+     */
     @Transactional
     public ContactMessage markAsRead(Long id) {
         ContactMessage message = getMessageById(id);
@@ -87,6 +156,16 @@ public class ContactMessageService {
         return contactMessageRepository.save(message);
     }
 
+    /**
+     * Actualiza el estado de procesamiento de un mensaje de contacto (ej. a IN_PROGRESS o RESOLVED).
+     * <p>
+     * Si el nuevo estado es {@link ContactStatus#RESOLVED}, notifica al usuario original (si el {@code userId} no es nulo).
+     * </p>
+     *
+     * @param id ID del mensaje (tipo {@link Long}).
+     * @param status El nuevo estado ({@link ContactStatus}).
+     * @return El mensaje actualizado.
+     */
     @Transactional
     public ContactMessage updateStatus(Long id, ContactStatus status) {
         ContactMessage message = getMessageById(id);
@@ -109,6 +188,12 @@ public class ContactMessageService {
         return updatedMessage;
     }
 
+    /**
+     * Elimina un mensaje de contacto del sistema.
+     *
+     * @param id ID del mensaje (tipo {@link Long}).
+     * @throws RuntimeException si el mensaje no se encuentra.
+     */
     @Transactional
     public void deleteMessage(Long id) {
         ContactMessage message = getMessageById(id);

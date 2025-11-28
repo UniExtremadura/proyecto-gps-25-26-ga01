@@ -10,6 +10,7 @@ import '../../../config/theme.dart';
 import '../../../core/models/playlist.dart';
 import '../../../core/models/song.dart';
 import '../../../core/api/services/playlist_service.dart';
+import '../../../core/api/services/music_service.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/providers/audio_provider.dart';
 import '../../../core/providers/library_provider.dart';
@@ -58,10 +59,14 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
           await _playlistService.getPlaylistWithSongs(widget.playlistId);
       if (response.success && response.data != null) {
         if (mounted) {
+          List<Song> tempSongs = response.data?['songs'] ?? [];
           setState(() {
             _playlist = response.data?['playlist'];
-            _songs = response.data?['songs'] ?? [];
+            _songs = tempSongs;
           });
+
+          // Enriquecer datos del artista
+          await _enrichSongData(tempSongs);
         }
       } else {
         if (mounted) {
@@ -73,6 +78,53 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  Future<void> _enrichSongData(List<Song> songs) async {
+    bool needsUpdate = false;
+    final Map<int, String> artistCache = {};
+
+    List<Song> enrichedSongs = List.from(songs);
+    for (int i = 0; i < enrichedSongs.length; i++) {
+      final s = enrichedSongs[i];
+      if (_needsEnrichment(s.artistName)) {
+        final realName = await _fetchArtistName(s.artistId, artistCache);
+        if (realName != null) {
+          enrichedSongs[i] = s.copyWith(artistName: realName);
+          needsUpdate = true;
+        }
+      }
+    }
+
+    if (needsUpdate && mounted) {
+      setState(() {
+        _songs = enrichedSongs;
+      });
+    }
+  }
+
+  bool _needsEnrichment(String name) {
+    return name == 'Artista Desconocido' ||
+        name.startsWith('Artist #') ||
+        name.startsWith('Artista #') ||
+        name.startsWith('user');
+  }
+
+  Future<String?> _fetchArtistName(int artistId, Map<int, String> cache) async {
+    if (cache.containsKey(artistId)) return cache[artistId];
+
+    try {
+      final response = await MusicService().getArtistById(artistId);
+      if (response.success && response.data != null) {
+        final artist = response.data!;
+        final name = artist.artistName ?? artist.displayName;
+        cache[artistId] = name;
+        return name;
+      }
+    } catch (e) {
+      debugPrint("Error fetching artist $artistId: $e");
+    }
+    return null;
   }
 
   // --- ACTIONS ---

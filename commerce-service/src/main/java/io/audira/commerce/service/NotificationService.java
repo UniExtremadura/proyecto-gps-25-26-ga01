@@ -17,6 +17,18 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
+/**
+ * Servicio de lógica de negocio responsable de la gestión de notificaciones de usuario y la orquestación
+ * del envío de mensajes push y la persistencia en la bandeja de entrada (inbox).
+ * <p>
+ * Centraliza la lógica para notificar sobre eventos clave (compras, errores de pago, cambios de estado).
+ * </p>
+ *
+ * @author Grupo GA01
+ * @see NotificationRepository
+ * @see NotificationClient
+ * 
+ */
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -27,6 +39,15 @@ public class NotificationService {
     private final NotificationRepository notificationRepository;
     private final io.audira.commerce.client.MusicCatalogClient musicCatalogClient;
 
+    /**
+     * Procesa una solicitud de notificación de compra exitosa recibida desde otro servicio.
+     * <p>
+     * Se encarga de recuperar la {@link Order} asociada y llama a los métodos de notificación del comprador y los artistas.
+     * </p>
+     *
+     * @param request La solicitud {@link PurchaseNotificationRequest} con los detalles de la compra.
+     * @throws RuntimeException si la orden referenciada no existe.
+     */
     @Transactional
     public void processPurchaseNotifications(PurchaseNotificationRequest request) {
         Order order = orderRepository.findById(request.getOrderId())
@@ -35,20 +56,32 @@ public class NotificationService {
         // Creamos un objeto Payment temporal para pasar los datos
         Payment payment = new Payment(); 
         payment.setAmount(request.getTotalAmount());
-        // Nota: Idealmente el request debería tener ID de pago real, pero esto funciona.
         
         notifySuccessfulPurchase(order, payment);
     }
 
     /**
-     * ✅ OPTIMIZADO: Paginación delegada a la base de datos.
-     * Ya no trae todas las notificaciones a memoria.
+     * Obtiene una lista paginada de todas las notificaciones para un usuario, ordenadas de la más reciente a la más antigua.
+     * <p>
+     * La paginación se delega a la base de datos (repositorio) para optimización.
+     * </p>
+     *
+     * @param userId El ID del usuario.
+     * @param pageable El objeto {@link Pageable} con los parámetros de paginación.
+     * @return Un objeto {@link Page} de {@link NotificationDTO}.
      */
     public Page<NotificationDTO> getUserNotifications(Long userId, Pageable pageable) {
         return notificationRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable)
-                .map(this::mapToDTO); // .map de Page convierte eficientemente cada elemento
+                .map(this::mapToDTO);
     }
 
+    /**
+     * Obtiene una lista de notificaciones de un usuario filtradas por un tipo específico.
+     *
+     * @param userId El ID del usuario.
+     * @param typeStr El tipo de notificación (String) a buscar.
+     * @return Una {@link List} de {@link NotificationDTO} del tipo especificado. Retorna una lista vacía si el tipo es inválido.
+     */
     public List<NotificationDTO> getNotificationsByType(Long userId, String typeStr) {
         try {
             NotificationType type = NotificationType.valueOf(typeStr.toUpperCase());
@@ -62,10 +95,23 @@ public class NotificationService {
         }
     }
 
+    /**
+     * Cuenta el número total de notificaciones no leídas para un usuario.
+     *
+     * @param userId El ID del usuario.
+     * @return El conteo total (tipo {@code Long}).
+     */
     public Long countUnreadNotifications(Long userId) {
         return notificationRepository.countByUserIdAndIsRead(userId, false);
     }
 
+    /**
+     * Marca una notificación específica como leída y registra la fecha de lectura.
+     *
+     * @param notificationId El ID de la notificación a actualizar.
+     * @return La {@link NotificationDTO} actualizada.
+     * @throws RuntimeException si la notificación no se encuentra.
+     */
     @Transactional
     public NotificationDTO markAsRead(Long notificationId) {
         Notification notification = notificationRepository.findById(notificationId)
@@ -81,10 +127,15 @@ public class NotificationService {
         return mapToDTO(saved);
     }
 
+    /**
+     * Marca todas las notificaciones no leídas de un usuario como leídas.
+     *
+     * @param userId El ID del usuario.
+     */
     @Transactional
     public void markAllAsRead(Long userId) {
         List<Notification> unread = notificationRepository.findByUserIdAndIsReadOrderByCreatedAtDesc(userId, false);
-        if (unread.isEmpty()) return; // Optimización pequeña
+        if (unread.isEmpty()) return;
 
         LocalDateTime now = LocalDateTime.now();
         unread.forEach(n -> {
@@ -94,17 +145,33 @@ public class NotificationService {
         notificationRepository.saveAll(unread);
     }
 
+    /**
+     * Elimina un registro de notificación específico.
+     *
+     * @param notificationId El ID de la notificación a eliminar.
+     */
     @Transactional
     public void deleteNotification(Long notificationId) {
         notificationRepository.deleteById(notificationId);
     }
 
     /**
-     * Create a new notification (called from other services)
+     * Crea y persiste una nueva notificación en la base de datos.
+     * <p>
+     * Utilizado para guardar el historial localmente. Asume que el envío push ya se ha manejado.
+     * </p>
+     *
+     * @param userId ID del usuario.
+     * @param title Título.
+     * @param message Mensaje.
+     * @param type Tipo de notificación.
+     * @param referenceId ID de referencia (opcional).
+     * @param referenceType Tipo de referencia (opcional).
+     * @return La {@link NotificationDTO} creada.
      */
     @Transactional
     public NotificationDTO createNotification(Long userId, String title, String message,
-                                             NotificationType type, Long referenceId, String referenceType) {
+                                              NotificationType type, Long referenceId, String referenceType) {
         Notification notification = Notification.builder()
                 .userId(userId)
                 .title(title)
@@ -115,7 +182,7 @@ public class NotificationService {
                 .isRead(false)
                 .isSent(true)
                 .sentAt(LocalDateTime.now())
-                .createdAt(LocalDateTime.now())
+                .createdAt(LocalDateTime.now()) 
                 .build();
 
         Notification saved = notificationRepository.save(notification);
@@ -124,13 +191,28 @@ public class NotificationService {
 
     // --- Métodos de Lógica de Notificación ---
 
+    /**
+     * Orquesta el envío de notificaciones (push y local) tras un pago exitoso.
+     * <p>
+     * Llama por separado a {@link #notifyBuyer(Order, Payment)} y {@link #notifyArtists(Order)}
+     * para asegurar que el fallo de una no detenga a las demás.
+     * </p>
+     *
+     * @param order La orden completada.
+     * @param payment El pago asociado.
+     */
     public void notifySuccessfulPurchase(Order order, Payment payment) {
         log.info("=== Sending purchase notifications for order: {} ===", order.getOrderNumber());
-        // Se llaman por separado para que un error en uno no detenga al otro
         notifyBuyer(order, payment);
         notifyArtists(order);
     }
 
+    /**
+     * Notifica al comprador sobre el éxito de su compra.
+     *
+     * @param order La orden completada.
+     * @param payment El pago asociado.
+     */
     private void notifyBuyer(Order order, Payment payment) {
         try {
             // Obtener nombres de productos comprados
@@ -162,6 +244,14 @@ public class NotificationService {
         }
     }
 
+    /**
+     * Notifica a cada artista/vendedor involucrado en la orden sobre la venta de sus productos.
+     * <p>
+     * Los ítems de la orden se agrupan por {@code artistId} para enviar una sola notificación por artista.
+     * </p>
+     *
+     * @param order La orden completada.
+     */
     private void notifyArtists(Order order) {
         Map<Long, List<OrderItem>> itemsByArtist = order.getItems().stream()
                 .collect(Collectors.groupingBy(OrderItem::getArtistId));
@@ -184,8 +274,10 @@ public class NotificationService {
                 String title = "Nueva venta";
                 String message = String.format("Se ha comprado una copia digital de %s", productsText);
 
+                // 1. Enviar externa (Push/Email)
                 notificationClient.sendNotification(artistId, title, message, "INFO");
 
+                // 2. Guardar interna (DB)
                 saveLocalNotification(
                     artistId, title, message,
                     NotificationType.PURCHASE_NOTIFICATION, order.getId(), "SALE"
@@ -196,14 +288,22 @@ public class NotificationService {
         });
     }
 
+    /**
+     * Envía una notificación al usuario sobre un fallo de pago.
+     *
+     * @param order La orden asociada.
+     * @param reason El motivo del fallo (ej. "Tarjeta rechazada").
+     */
     public void notifyFailedPayment(Order order, String reason) {
         try {
             String title = "❌ Error en el pago";
             String message = String.format("El pago para el pedido %s ha fallado. Motivo: %s", 
                 order.getOrderNumber(), reason);
             
+            // 1. Enviar externa
             notificationClient.sendNotification(order.getUserId(), title, message, "ERROR");
             
+            // 2. Guardar interna
             saveLocalNotification(
                 order.getUserId(), title, message, 
                 NotificationType.PAYMENT_FAILED, order.getId(), "ORDER"
@@ -213,13 +313,20 @@ public class NotificationService {
         }
     }
 
+    /**
+     * Envía una notificación al usuario sobre un reembolso procesado, utilizando los datos del pago.
+     *
+     * @param payment El registro de pago asociado al reembolso.
+     */
     public void notifyRefund(Payment payment) {
         try {
             String title = "Reembolso procesado 💸";
             String message = String.format("Se ha procesado un reembolso de $%s", payment.getAmount());
             
+            // 1. Enviar externa
             notificationClient.sendNotification(payment.getUserId(), title, message, "INFO");
             
+            // 2. Guardar interna
             saveLocalNotification(
                 payment.getUserId(), title, message, 
                 NotificationType.SYSTEM_NOTIFICATION, payment.getId(), "PAYMENT"
@@ -229,14 +336,21 @@ public class NotificationService {
         }
     }
 
+    /**
+     * Envía una notificación al usuario sobre un reembolso procesado, utilizando los datos de la orden.
+     *
+     * @param order La orden asociada al reembolso.
+     */
     public void notifyRefund(Order order) {
         try {
             String title = "Reembolso procesado 💸";
             String message = String.format("Se ha procesado el reembolso para el pedido %s", 
                 order.getOrderNumber());
             
+            // 1. Enviar externa
             notificationClient.sendNotification(order.getUserId(), title, message, "INFO");
             
+            // 2. Guardar interna
             saveLocalNotification(
                 order.getUserId(), title, message, 
                 NotificationType.SYSTEM_NOTIFICATION, order.getId(), "REFUND"
@@ -246,6 +360,13 @@ public class NotificationService {
         }
     }
 
+    /**
+     * Envía una notificación al usuario informando de un cambio en el estado de su orden.
+     *
+     * @param order La orden cuyo estado ha cambiado.
+     * @param oldStatus El estado anterior.
+     * @param newStatus El nuevo estado.
+     */
     public void notifyOrderStatusChange(Order order, OrderStatus oldStatus, OrderStatus newStatus) {
         try {
             String title = "📦 Estado de pedido actualizado";
@@ -254,8 +375,10 @@ public class NotificationService {
                 order.getOrderNumber(), translateStatus(oldStatus), translateStatus(newStatus)
             );
 
+            // 1. Enviar externa
             notificationClient.sendNotification(order.getUserId(), title, message, "INFO");
             
+            // 2. Guardar interna
             saveLocalNotification(
                 order.getUserId(), title, message, 
                 NotificationType.SYSTEM_NOTIFICATION, order.getId(), "ORDER_STATUS"
@@ -265,10 +388,13 @@ public class NotificationService {
         }
     }
 
-    // --- Helpers ---
+    // --- Métodos Auxiliares ---
 
     /**
-     * Obtiene el nombre de un producto (canción o álbum) a partir de un OrderItem
+     * Obtiene el nombre de un producto (canción o álbum) a partir de un {@link OrderItem} comunicándose con el microservicio de Catálogo.
+     *
+     * @param item El artículo de la orden.
+     * @return El título del producto, o {@code null} si falla la consulta.
      */
     private String getProductName(OrderItem item) {
         try {
@@ -289,6 +415,13 @@ public class NotificationService {
         return null;
     }
 
+    /**
+     * Persiste una notificación en la base de datos para el historial de bandeja de entrada del usuario.
+     * <p>
+     * Este método contiene la lógica de persistencia y manejo de errores para evitar que un fallo al guardar el historial
+     * rompa el flujo principal de la aplicación.
+     * </p>
+     */
     private void saveLocalNotification(Long userId, String title, String message, NotificationType type, Long referenceId, String referenceType) {
         try {
             Notification notification = Notification.builder()
@@ -301,8 +434,6 @@ public class NotificationService {
                     .isRead(false)
                     .isSent(true)
                     .sentAt(LocalDateTime.now()) // Fecha de envío
-                    // createdAt se llena automático con @PrePersist en la entidad, 
-                    // pero si quieres forzarlo aquí también es válido:
                     .createdAt(LocalDateTime.now()) 
                     .build();
             
@@ -313,6 +444,9 @@ public class NotificationService {
         }
     }
 
+    /**
+     * Mapea una entidad {@link Notification} a su respectivo Data Transfer Object (DTO) {@link NotificationDTO}.
+     */
     private NotificationDTO mapToDTO(Notification notification) {
         return NotificationDTO.builder()
                 .id(notification.getId())
@@ -331,6 +465,12 @@ public class NotificationService {
                 .build();
     }
 
+    /**
+     * Traduce los valores del enumerador {@link OrderStatus} a cadenas legibles en español.
+     *
+     * @param status El estado de la orden.
+     * @return La traducción en español.
+     */
     private String translateStatus(OrderStatus status) {
         if (status == null) return "Desconocido";
         switch (status) {

@@ -20,6 +20,17 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfigurationSource;
 
+/**
+ * Clase de configuración principal de Spring Security.
+ * <p>
+ * Habilita la seguridad web ({@link EnableWebSecurity}) y la seguridad a nivel de método ({@link EnableMethodSecurity})
+ * para configurar un esquema de seguridad basado en tokens JWT y sin estado (stateless).
+ * </p>
+ *
+ * @author Grupo GA01
+ * @see JwtAuthenticationFilter
+ * 
+ */
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
@@ -31,6 +42,23 @@ public class SecurityConfig {
     private final CorsConfigurationSource corsConfigurationSource;
     private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
 
+    /**
+     * Define el filtro principal de la cadena de seguridad HTTP (Security Filter Chain).
+     * <p>
+     * Configuración clave:
+     * <ul>
+     * <li>Deshabilita CSRF (típico en APIs REST sin estado).</li>
+     * <li>Configura la gestión de sesiones como {@link SessionCreationPolicy#STATELESS} (sin estado), obligatorio para JWT.</li>
+     * <li>Define {@link JwtAuthenticationEntryPoint} para manejar errores de autenticación (ej. token inválido o ausente).</li>
+     * <li>Define las rutas de acceso público ({@code permitAll()}) y asegura que el resto requiera autenticación ({@code authenticated()}).</li>
+     * <li>Añade {@link JwtAuthenticationFilter} antes del filtro estándar de autenticación de usuario/contraseña.</li>
+     * </ul>
+     * </p>
+     *
+     * @param http El objeto {@link HttpSecurity} para construir las reglas de seguridad.
+     * @return La cadena de filtros de seguridad.
+     * @throws Exception Si ocurre un error durante la configuración.
+     */
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
@@ -42,22 +70,29 @@ public class SecurityConfig {
                 )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
+                                // Rutas de autenticación
                                 "/api/auth/**",
+                                // Rutas de datos públicos de usuario (consulta)
                                 "/api/users",
                                 "/api/users/{id}",
                                 "/api/users/{userId}/followers",
                                 "/api/users/{userId}/following",
                                 "/api/users/{userId}/following/artists",
-                                "/api/users/{userId}/follow/{targetUserId}",
+                                "/api/users/{userId}/follow/{targetUserId}", // Permitir el follow/unfollow sin autenticación (si la lógica del servicio lo permite)
+                                // Rutas de archivos (subida y acceso)
                                 "/api/files/**", 
+                                // Rutas de consulta de valoraciones
                                 "/api/ratings/user/{userId}",
                                 "/api/ratings/entity/{entityType}/{entityId}",
                                 "/api/ratings/entity/{entityType}/{entityId}/with-comments",
                                 "/api/ratings/entity/{entityType}/{entityId}/stats",
                                 "/api/ratings/user/{userId}/entity/{entityType}/{entityId}",
-                                "/api/faqs/**", // FAQs - acceso público para visualización
-                                "/api/contact/**", // Contact - permitir envío de tickets sin autenticación
+                                // Rutas de FAQs y contacto (acceso público)
+                                "/api/faqs/**", 
+                                "/api/contact/**", 
+                                // Rutas de notificaciones (comunicación inter-servicio)
                                 "/api/notifications/**",
+                                // Otras rutas públicas
                                 "/public/**",
                                 "/actuator/**",
                                 "/error"
@@ -70,6 +105,15 @@ public class SecurityConfig {
         return http.build();
     }
 
+    /**
+     * Define el proveedor de autenticación de datos (DAO Authentication Provider).
+     * <p>
+     * Utiliza {@link CustomUserDetailsService} para cargar los detalles del usuario
+     * y {@link PasswordEncoder} para la verificación de la contraseña.
+     * </p>
+     *
+     * @return El proveedor de autenticación configurado.
+     */
     @Bean
     public AuthenticationProvider authenticationProvider() {
         DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
@@ -78,14 +122,31 @@ public class SecurityConfig {
         return authProvider;
     }
 
+    /**
+     * Define el gestor de autenticación (Authentication Manager).
+     * <p>
+     * Es responsable de coordinar la autenticación de usuarios.
+     * </p>
+     *
+     * @param config La configuración de autenticación.
+     * @return El gestor de autenticación.
+     * @throws Exception Si no se puede obtener el gestor.
+     */
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
         return config.getAuthenticationManager();
     }
 
+    /**
+     * Define el bean del codificador de contraseñas.
+     * <p>
+     * Se utiliza {@link BCryptPasswordEncoder} para almacenar las contraseñas de manera segura (hashing).
+     * </p>
+     *
+     * @return El codificador de contraseñas.
+     */
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
 }
-

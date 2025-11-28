@@ -23,6 +23,14 @@ class CartProvider with ChangeNotifier {
   double get totalAmount => _cart?.totalAmount ?? 0.0;
   List<CartItemDetail> get cartItemDetails => _cartItemDetails;
 
+  // Check if an item is in the cart
+  bool isItemInCart(String itemType, int itemId) {
+    if (_cart == null || _cart!.items.isEmpty) return false;
+    return _cart!.items.any(
+      (item) => item.itemType == itemType && item.itemId == itemId,
+    );
+  }
+
   // Tax calculations (IVA 21%)
   static const double taxRate = 0.21;
 

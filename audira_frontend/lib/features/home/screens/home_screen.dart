@@ -11,6 +11,7 @@ import '../../../core/models/genre.dart';
 import '../../../core/models/featured_content.dart';
 import '../../../core/models/recommended_song.dart';
 import '../../../core/providers/auth_provider.dart';
+import '../../../core/providers/audio_provider.dart';
 import '../../common/widgets/song_card.dart';
 import '../../common/widgets/album_card.dart';
 import '../../common/widgets/genre_chip.dart';
@@ -83,7 +84,9 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     }
 
-    setState(() => _isLoading = false);
+    if (mounted) {
+      setState(() => _isLoading = false);
+    }
   }
 
   Future<void> _loadRecommendations(int userId) async {
@@ -106,12 +109,76 @@ class _HomeScreenState extends State<HomeScreen> {
               _trending.isNotEmpty ||
               _newReleases.isNotEmpty;
         });
+
+        // Enriquecer datos de artistas en todas las recomendaciones
+        await _enrichRecommendationsData();
       } else {
         setState(() => _hasRecommendations = false);
       }
     } catch (e) {
       setState(() => _hasRecommendations = false);
     }
+  }
+
+  Future<void> _enrichRecommendationsData() async {
+    final Map<int, String> artistCache = {};
+
+    // Enriquecer cada lista de recomendaciones
+    _byPurchasedGenres =
+        await _enrichRecommendationList(_byPurchasedGenres, artistCache);
+    _byPurchasedArtists =
+        await _enrichRecommendationList(_byPurchasedArtists, artistCache);
+    _byLikedSongs = await _enrichRecommendationList(_byLikedSongs, artistCache);
+    _fromFollowedArtists =
+        await _enrichRecommendationList(_fromFollowedArtists, artistCache);
+    _trending = await _enrichRecommendationList(_trending, artistCache);
+    _newReleases = await _enrichRecommendationList(_newReleases, artistCache);
+
+    if (mounted) {
+      setState(() {}); // Actualizar UI con los nombres enriquecidos
+    }
+  }
+
+  Future<List<RecommendedSong>> _enrichRecommendationList(
+      List<RecommendedSong> songs, Map<int, String> artistCache) async {
+    List<RecommendedSong> enrichedSongs = List.from(songs);
+
+    for (int i = 0; i < enrichedSongs.length; i++) {
+      final song = enrichedSongs[i];
+      if (_needsEnrichment(song.artistName)) {
+        final realName = await _fetchArtistName(song.artistId, artistCache);
+        if (realName != null) {
+          enrichedSongs[i] = song.copyWith(artistName: realName);
+        }
+      }
+    }
+
+    return enrichedSongs;
+  }
+
+  bool _needsEnrichment(String name) {
+    return name == 'Artista Desconocido' ||
+        name == 'Artista desconocido' ||
+        name.startsWith('Artist #') ||
+        name.startsWith('Artista #') ||
+        name.startsWith('user');
+  }
+
+  Future<String?> _fetchArtistName(int artistId, Map<int, String> cache) async {
+    if (cache.containsKey(artistId)) return cache[artistId];
+
+    try {
+      final response = await _musicService.getArtistById(artistId);
+      if (response.success && response.data != null) {
+        final artist = response.data!;
+        final name = artist.artistName ?? artist.displayName;
+        cache[artistId] = name;
+        return name;
+      }
+    } catch (e) {
+      debugPrint("Error fetching artist $artistId: $e");
+    }
+    return null;
   }
 
   Future<void> _loadFeaturedContent(
@@ -139,6 +206,32 @@ class _HomeScreenState extends State<HomeScreen> {
         _featuredAlbums.add(response.data!);
       }
     }
+
+    // Enriquecer nombres de artistas en canciones destacadas
+    await _enrichFeaturedSongsData();
+  }
+
+  Future<void> _enrichFeaturedSongsData() async {
+    final Map<int, String> artistCache = {};
+    List<Song> enrichedSongs = List.from(_featuredSongs);
+    bool needsUpdate = false;
+
+    for (int i = 0; i < enrichedSongs.length; i++) {
+      final song = enrichedSongs[i];
+      if (_needsEnrichment(song.artistName)) {
+        final realName = await _fetchArtistName(song.artistId, artistCache);
+        if (realName != null) {
+          enrichedSongs[i] = song.copyWith(artistName: realName);
+          needsUpdate = true;
+        }
+      }
+    }
+
+    if (needsUpdate && mounted) {
+      setState(() {
+        _featuredSongs = enrichedSongs;
+      });
+    }
   }
 
   Future<void> _loadDefaultContent() async {
@@ -152,6 +245,9 @@ class _HomeScreenState extends State<HomeScreen> {
     if (albumsResponse.success && albumsResponse.data != null) {
       _featuredAlbums = albumsResponse.data!.take(10).toList();
     }
+
+    // Enriquecer nombres de artistas
+    await _enrichFeaturedSongsData();
   }
 
   // --- NUEVA UI: DISEÑO EPIC DARK ---
@@ -327,6 +423,23 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
           ],
         ),
+      ),
+      floatingActionButton: Consumer<AudioProvider>(
+        builder: (context, audioProvider, child) {
+          // Solo mostrar el FAB si hay una canción y el miniplayer está oculto
+          if (audioProvider.currentSong != null &&
+              !audioProvider.demoFinished &&
+              !audioProvider.miniPlayerVisible) {
+            return FloatingActionButton(
+              onPressed: () {
+                audioProvider.showMiniPlayer();
+              },
+              backgroundColor: AppTheme.primaryBlue,
+              child: const Icon(Icons.music_note),
+            );
+          }
+          return const SizedBox.shrink();
+        },
       ),
     );
   }

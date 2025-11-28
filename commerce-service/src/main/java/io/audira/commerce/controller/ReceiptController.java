@@ -11,14 +11,38 @@ import org.springframework.web.bind.annotation.*;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Controlador REST para manejar la generación y la consulta de Recibos de Pago (Receipts).
+ * <p>
+ * Los endpoints base se mapean a {@code /api/receipts}. Esta clase permite a los usuarios
+ * y a otros servicios obtener el comprobante de pago asociado a una transacción específica.
+ * </p>
+ *
+ * @author Grupo GA01
+ * @see ReceiptService
+ * @see ReceiptDTO
+ * 
+ */
 @RestController
 @RequestMapping("/api/receipts")
 @RequiredArgsConstructor
 @Slf4j
 public class ReceiptController {
 
+    /**
+     * Servicio que contiene la lógica de negocio para la gestión de recibos.
+     */
     private final ReceiptService receiptService;
 
+    /**
+     * Obtiene un recibo utilizando el ID de pago (paymentId) asociado.
+     * <p>
+     * Mapeo: {@code GET /api/receipts/payment/{paymentId}}
+     * </p>
+     *
+     * @param paymentId El ID primario del registro de pago (tipo {@link Long}).
+     * @return {@link ResponseEntity} que contiene el objeto {@link ReceiptDTO} (200 OK) si el recibo se encuentra, o un mensaje de error (404 NOT FOUND) si no existe.
+     */
     @GetMapping("/payment/{paymentId}")
     public ResponseEntity<?> getReceiptByPaymentId(@PathVariable Long paymentId) {
         try {
@@ -34,6 +58,15 @@ public class ReceiptController {
         }
     }
 
+    /**
+     * Obtiene un recibo utilizando el ID de transacción de la pasarela de pago (transactionId).
+     * <p>
+     * Mapeo: {@code GET /api/receipts/transaction/{transactionId}}
+     * </p>
+     *
+     * @param transactionId El identificador único de la transacción (tipo {@link String}) proporcionado por la pasarela de pago.
+     * @return {@link ResponseEntity} que contiene el objeto {@link ReceiptDTO} (200 OK) si el recibo se encuentra, o un mensaje de error (404 NOT FOUND) si no existe.
+     */
     @GetMapping("/transaction/{transactionId}")
     public ResponseEntity<?> getReceiptByTransactionId(@PathVariable String transactionId) {
         try {
@@ -49,6 +82,17 @@ public class ReceiptController {
         }
     }
 
+    /**
+     * Genera un nuevo recibo para un pago que ya ha sido procesado.
+     * <p>
+     * Mapeo: {@code POST /api/receipts/generate/{paymentId}}
+     * Este endpoint se utiliza si el recibo necesita ser recreado o generado por primera vez
+     * después de que el pago haya sido marcado como exitoso.
+     * </p>
+     *
+     * @param paymentId El ID primario del pago (tipo {@link Long}) para el cual se desea generar el recibo.
+     * @return {@link ResponseEntity} que contiene el objeto {@link ReceiptDTO} generado (200 OK) o un mensaje de error (400 BAD REQUEST) si el pago no es apto para generar un recibo.
+     */
     @PostMapping("/generate/{paymentId}")
     public ResponseEntity<?> generateReceipt(@PathVariable Long paymentId) {
         try {
@@ -64,4 +108,3 @@ public class ReceiptController {
         }
     }
 }
-

@@ -116,6 +116,7 @@ class _StoreScreenState extends State<StoreScreen>
   bool _needsEnrichment(String name) {
     return name == 'Artista Desconocido' ||
         name.startsWith('Artist #') ||
+        name.startsWith('Artista #') ||
         name.startsWith('user');
   }
 

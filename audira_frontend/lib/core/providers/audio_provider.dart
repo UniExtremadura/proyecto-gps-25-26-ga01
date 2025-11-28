@@ -35,6 +35,7 @@ class AudioProvider with ChangeNotifier {
       false; // Si la cola actual es de canciones descargadas
   bool _queueIsPurchased =
       false; // Si la cola es de biblioteca (canciones compradas)
+  bool _miniPlayerVisible = true; // Controla la visibilidad del miniplayer
 
   Song? get currentSong => _currentSong;
   List<Song> get queue => _queue;
@@ -49,9 +50,25 @@ class AudioProvider with ChangeNotifier {
   bool get demoFinished => _demoFinished;
   bool get isUserAuthenticated => _isUserAuthenticated; // Nuevo getter
   double get volume => _volume;
+  bool get miniPlayerVisible => _miniPlayerVisible;
   double get progress => _totalDuration.inMilliseconds > 0
       ? _currentPosition.inMilliseconds / _totalDuration.inMilliseconds
       : 0.0;
+
+  void toggleMiniPlayerVisibility() {
+    _miniPlayerVisible = !_miniPlayerVisible;
+    notifyListeners();
+  }
+
+  void showMiniPlayer() {
+    _miniPlayerVisible = true;
+    notifyListeners();
+  }
+
+  void hideMiniPlayer() {
+    _miniPlayerVisible = false;
+    notifyListeners();
+  }
 
   AudioProvider() {
     _init();
