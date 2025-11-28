@@ -5,6 +5,7 @@ import '../../../config/theme.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/providers/library_provider.dart';
 import '../../../core/providers/download_provider.dart';
+import '../../../core/providers/audio_provider.dart';
 import '../../../core/api/services/playlist_service.dart';
 import '../../../core/api/services/music_service.dart';
 import '../../../core/models/genre.dart';
@@ -499,14 +500,38 @@ class _LibraryScreenState extends State<LibraryScreen>
           subtitle: song.artistName,
           icon: Icons.music_note,
           color: AppTheme.primaryBlue,
-          trailing: Text('\$${song.price}',
-              style: const TextStyle(
-                  color: AppTheme.primaryBlue, fontWeight: FontWeight.bold)),
-          onTap: () =>
-              Navigator.pushNamed(context, '/song', arguments: song.id),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('\$${song.price}',
+                  style: const TextStyle(
+                      color: AppTheme.primaryBlue,
+                      fontWeight: FontWeight.bold)),
+              const SizedBox(width: 8),
+              const Icon(Icons.play_circle_outline,
+                  color: AppTheme.primaryBlue),
+            ],
+          ),
+          onTap: () => _playSongFromLibrary(filtered, index),
         ).animate().fadeIn(delay: (30 * index).ms).slideX();
       },
     );
+  }
+
+  void _playSongFromLibrary(List<Song> songs, int index) {
+    final authProvider = context.read<AuthProvider>();
+    final audioProvider = context.read<AudioProvider>();
+
+    // Reproducir la cola completa desde el índice seleccionado
+    audioProvider.playQueue(
+      songs,
+      startIndex: index,
+      isUserAuthenticated: authProvider.isAuthenticated,
+      userId: authProvider.currentUser?.id,
+    );
+
+    // Navegar a la pantalla de reproducción
+    Navigator.pushNamed(context, '/playback');
   }
 
   Widget _buildAlbumsList(List<Album> albums) {
@@ -599,14 +624,19 @@ class _LibraryScreenState extends State<LibraryScreen>
                     fontSize: 12,
                     letterSpacing: 1.5)),
           ),
-          ...favSongs.map((s) => _buildGenericTile(
-                title: s.name,
-                subtitle: s.artistName,
-                icon: Icons.favorite,
-                color: AppTheme.errorRed,
-                onTap: () =>
-                    Navigator.pushNamed(context, '/song', arguments: s.id),
-              )),
+          ...favSongs.asMap().entries.map((entry) {
+            final index = entry.key;
+            final song = entry.value;
+            return _buildGenericTile(
+              title: song.name,
+              subtitle: song.artistName,
+              icon: Icons.favorite,
+              color: AppTheme.errorRed,
+              trailing: const Icon(Icons.play_circle_outline,
+                  color: AppTheme.errorRed),
+              onTap: () => _playSongFromLibrary(favSongs, index),
+            );
+          }),
           const SizedBox(height: 16),
         ],
         if (favAlbums.isNotEmpty) ...[
@@ -650,18 +680,55 @@ class _LibraryScreenState extends State<LibraryScreen>
           subtitle: download.artistName,
           icon: Icons.download_done_rounded,
           color: AppTheme.successGreen,
-          trailing: IconButton(
-            icon: const Icon(Icons.delete_outline, color: AppTheme.errorRed),
-            onPressed: () =>
-                Provider.of<DownloadProvider>(context, listen: false)
-                    .deleteDownload(download.songId),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                icon:
+                    const Icon(Icons.delete_outline, color: AppTheme.errorRed),
+                onPressed: () =>
+                    Provider.of<DownloadProvider>(context, listen: false)
+                        .deleteDownload(download.songId),
+              ),
+              const Icon(Icons.play_circle_outline,
+                  color: AppTheme.successGreen),
+            ],
           ),
-          onTap: () {
-            Navigator.pushNamed(context, '/downloads');
-          },
+          onTap: () => _playDownloadedSong(filtered, index),
         ).animate().fadeIn(delay: (30 * index).ms).slideX();
       },
     );
+  }
+
+  void _playDownloadedSong(List<DownloadedSong> downloads, int index) {
+    final authProvider = context.read<AuthProvider>();
+    final audioProvider = context.read<AudioProvider>();
+
+    // Convertir DownloadedSong a Song
+    final songs = downloads
+        .map((d) => Song(
+              id: d.songId,
+              artistId: 0,
+              artistName: d.artistName,
+              name: d.songName,
+              duration: d.duration,
+              price: 0,
+              coverImageUrl: d.coverImageUrl,
+              audioUrl: d.localFilePath,
+            ))
+        .toList();
+
+    // Reproducir la cola completa desde el índice seleccionado, marcando como descargadas
+    audioProvider.playQueue(
+      songs,
+      startIndex: index,
+      isUserAuthenticated: authProvider.isAuthenticated,
+      userId: authProvider.currentUser?.id,
+      areDownloaded: true, // IMPORTANTE: marcar como descargadas
+    );
+
+    // Navegar a la pantalla de reproducción
+    Navigator.pushNamed(context, '/playback');
   }
 
   Widget _buildGenericTile({

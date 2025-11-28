@@ -739,6 +739,14 @@ class _PlaybackScreenState extends State<PlaybackScreen> {
   }
 
   void _showDemoFinishedDialog(BuildContext context) {
+    final audioProvider = context.read<AudioProvider>();
+    final authProvider = context.read<AuthProvider>();
+    final cartProvider = context.read<CartProvider>();
+    final currentSong = audioProvider.currentSong;
+
+    // Determinar si el usuario está autenticado
+    final isAuthenticated = authProvider.isAuthenticated;
+
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -752,9 +760,11 @@ class _PlaybackScreenState extends State<PlaybackScreen> {
             Text("Fin de la Demo", style: TextStyle(color: Colors.white)),
           ],
         ),
-        content: const Text(
-          "La vista previa de 10 segundos ha terminado.\n\nRegístrate o compra la canción para escucharla completa.",
-          style: TextStyle(color: Colors.white70),
+        content: Text(
+          isAuthenticated
+              ? "La vista previa de 10 segundos ha terminado.\n\nPara escuchar la canción completa, añádela al carrito y cómprala."
+              : "La vista previa de 10 segundos ha terminado.\n\nRegístrate o inicia sesión para comprar la canción y escucharla completa.",
+          style: const TextStyle(color: Colors.white70),
         ),
         actions: [
           TextButton(
@@ -764,27 +774,55 @@ class _PlaybackScreenState extends State<PlaybackScreen> {
             },
             child: const Text("Salir", style: TextStyle(color: Colors.grey)),
           ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.pop(context);
-              Navigator.pushNamed(context, '/register');
-            },
-            style:
-                ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryBlue),
-            child: const Text("Registrarse Gratis"),
-          ),
+          if (isAuthenticated && currentSong != null && currentSong.price > 0)
+            ElevatedButton.icon(
+              onPressed: () async {
+                try {
+                  final success = await cartProvider.addToCart(
+                    userId: authProvider.currentUser!.id,
+                    itemType: 'SONG',
+                    itemId: currentSong.id,
+                    price: currentSong.price,
+                    quantity: 1,
+                  );
+                  if (context.mounted) {
+                    Navigator.pop(context); // Cerrar diálogo
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                      content: Text(success
+                          ? 'Añadido al carrito'
+                          : 'Ya está en el carrito'),
+                      backgroundColor: success ? Colors.green : Colors.orange,
+                    ));
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context)
+                        .showSnackBar(SnackBar(content: Text('Error: $e')));
+                  }
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryBlue),
+              icon: const Icon(Icons.shopping_cart),
+              label: const Text("Añadir al Carrito"),
+            ),
+          if (!isAuthenticated)
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                Navigator.pop(context);
+                Navigator.pushNamed(context, '/register');
+              },
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryBlue),
+              child: const Text("Registrarse Gratis"),
+            ),
         ],
       ),
     );
   }
 }
 
-// -----------------------------------------------------------------------------
-// COMPONENTE ULTRA-OPTIMIZADO: SLIDER DE PROGRESO
-// -----------------------------------------------------------------------------
-// Este widget es la clave del rendimiento. Se redibuja independientemente
-// del resto de la pantalla compleja.
 class _ProgressSlider extends StatefulWidget {
   final AudioProvider audioProvider;
 

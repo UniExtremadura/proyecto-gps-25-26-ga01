@@ -24,9 +24,15 @@ class AudioProvider with ChangeNotifier {
   Duration _totalDuration = Duration.zero;
   bool _isDemoMode = false;
   bool _demoFinished = false;
+  bool _isUserAuthenticated =
+      false; // Nuevo: para saber si el usuario está autenticado
   double _volume = 0.5; // Volume from 0.0 to 1.0
   bool _isSeekingInternally = false;
   int? _currentUserId; // Para verificar si la canción está comprada
+  List<Song> _originalQueue = []; // Cola original antes de shuffle
+  final Set<int> _playedSongsInShuffle = {}; // Para evitar repetir en shuffle
+  bool _queueIsDownloaded =
+      false; // Si la cola actual es de canciones descargadas
 
   Song? get currentSong => _currentSong;
   List<Song> get queue => _queue;
@@ -39,6 +45,7 @@ class AudioProvider with ChangeNotifier {
   Duration get totalDuration => _totalDuration;
   bool get isDemoMode => _isDemoMode;
   bool get demoFinished => _demoFinished;
+  bool get isUserAuthenticated => _isUserAuthenticated; // Nuevo getter
   double get volume => _volume;
   double get progress => _totalDuration.inMilliseconds > 0
       ? _currentPosition.inMilliseconds / _totalDuration.inMilliseconds
@@ -122,15 +129,20 @@ class AudioProvider with ChangeNotifier {
   // Método para establecer el usuario actual (llamado desde la app)
   void setCurrentUser(int? userId) {
     _currentUserId = userId;
+    _isUserAuthenticated = userId != null;
   }
 
   Future<void> playSong(Song song,
-      {bool? demo, bool? isUserAuthenticated, int? userId}) async {
+      {bool? demo,
+      bool? isUserAuthenticated,
+      int? userId,
+      bool isDownloaded = false}) async {
     _demoFinished = false;
     debugPrint('▶️ Reproduciendo canción - Canción: ${song.name}');
     debugPrint('   demo parameter: $demo');
     debugPrint('   isUserAuthenticated parameter: $isUserAuthenticated');
     debugPrint('   userId parameter: $userId');
+    debugPrint('   isDownloaded parameter: $isDownloaded');
 
     try {
       _currentSong = song;
@@ -145,9 +157,20 @@ class AudioProvider with ChangeNotifier {
       // Usar userId si se proporciona, si no usar el guardado
       final effectiveUserId = userId ?? _currentUserId;
 
+      // Actualizar estado de autenticación
+      if (isUserAuthenticated != null) {
+        _isUserAuthenticated = isUserAuthenticated;
+      }
+
       // IMPORTANTE: Verificar si la canción está comprada para determinar modo demo
       bool isPurchased = false;
-      if (effectiveUserId != null && isUserAuthenticated == true) {
+
+      // Si está descargada, automáticamente se considera comprada
+      if (isDownloaded) {
+        isPurchased = true;
+        debugPrint('   ✅ Canción descargada - considerada como comprada');
+      } else if (effectiveUserId != null &&
+          (isUserAuthenticated ?? _isUserAuthenticated)) {
         try {
           final response = await _libraryService.checkIfPurchased(
             effectiveUserId,
@@ -166,23 +189,26 @@ class AudioProvider with ChangeNotifier {
       // - Si NO está autenticado: DEMO
       // - Si está autenticado pero NO ha comprado la canción: DEMO
       // - Si está autenticado Y ha comprado la canción: COMPLETO
+      // - Si está descargada: COMPLETO
       if (demo != null) {
         _isDemoMode = demo;
         debugPrint('   ✅ Demo mode forzado por parámetro: $_isDemoMode');
-      } else if (isUserAuthenticated == false || !isPurchased) {
+      } else if (!(isUserAuthenticated ?? _isUserAuthenticated) ||
+          !isPurchased) {
         _isDemoMode = true;
         debugPrint(
-            '   ✅ Demo mode activado: user auth=$isUserAuthenticated, purchased=$isPurchased');
+            '   ✅ Demo mode activado: user auth=${isUserAuthenticated ?? _isUserAuthenticated}, purchased=$isPurchased');
       } else {
         _isDemoMode = false;
         debugPrint(
-            '   ✅ Modo completo: usuario autenticado y canción comprada');
+            '   ✅ Modo completo: usuario autenticado y canción comprada/descargada');
       }
 
       debugPrint('   🎯 FINAL isDemoMode: $_isDemoMode');
 
       _queue = [song];
       _currentIndex = 0;
+      _originalQueue = [song];
 
       if (song.audioUrl != null && song.audioUrl!.isNotEmpty) {
         debugPrint('   🔊 Configurando audio URL: ${song.audioUrl}');
@@ -258,14 +284,27 @@ class AudioProvider with ChangeNotifier {
   }
 
   Future<void> playQueue(List<Song> songs,
-      {int startIndex = 0, bool? isUserAuthenticated, int? userId}) async {
+      {int startIndex = 0,
+      bool? isUserAuthenticated,
+      int? userId,
+      bool areDownloaded = false}) async {
     try {
       if (songs.isEmpty) return;
 
       _queue = List.from(songs);
+      _originalQueue = List.from(songs);
       _currentIndex = startIndex;
+      _queueIsDownloaded = areDownloaded; // Guardar si es cola de descargas
+
+      // Si shuffle está activado, mezclar desde el índice actual
+      if (_isShuffleEnabled) {
+        _applyShuffleToQueue();
+      }
+
       await playSong(_queue[_currentIndex],
-          isUserAuthenticated: isUserAuthenticated, userId: userId);
+          isUserAuthenticated: isUserAuthenticated,
+          userId: userId,
+          isDownloaded: areDownloaded);
     } catch (e) {
       debugPrint('Error reproduciendo la cola: $e');
     }
@@ -290,16 +329,28 @@ class AudioProvider with ChangeNotifier {
   Future<void> next() async {
     if (_queue.isEmpty) return;
 
+    // En modo shuffle con repeat all, elegir siguiente canción aleatoria sin repetir la actual
+    if (_isShuffleEnabled && _repeatMode == RepeatMode.all) {
+      _playNextShuffledSong();
+      return;
+    }
+
+    // Navegación normal en la cola
     if (_currentIndex < _queue.length - 1) {
       _currentIndex++;
-      // Mantener el mismo modo (demo o completo) al pasar a la siguiente canción
       await playSong(_queue[_currentIndex],
-          isUserAuthenticated: _currentUserId != null, userId: _currentUserId);
+          isUserAuthenticated: _isUserAuthenticated,
+          userId: _currentUserId,
+          isDownloaded: _queueIsDownloaded);
     } else if (_repeatMode == RepeatMode.all) {
+      // Volver al inicio
       _currentIndex = 0;
       await playSong(_queue[_currentIndex],
-          isUserAuthenticated: _currentUserId != null, userId: _currentUserId);
+          isUserAuthenticated: _isUserAuthenticated,
+          userId: _currentUserId,
+          isDownloaded: _queueIsDownloaded);
     } else {
+      // No hay más canciones, pausar
       await pause();
       await seek(Duration.zero);
     }
@@ -308,16 +359,29 @@ class AudioProvider with ChangeNotifier {
   Future<void> previous() async {
     if (_queue.isEmpty) return;
 
+    // Si llevamos más de 3 segundos, reiniciar canción actual
     if (_currentPosition.inSeconds > 3) {
       await seek(Duration.zero);
-    } else if (_currentIndex > 0) {
+      return;
+    }
+
+    // Ir a canción anterior
+    if (_currentIndex > 0) {
       _currentIndex--;
       await playSong(_queue[_currentIndex],
-          isUserAuthenticated: _currentUserId != null, userId: _currentUserId);
+          isUserAuthenticated: _isUserAuthenticated,
+          userId: _currentUserId,
+          isDownloaded: _queueIsDownloaded);
     } else if (_repeatMode == RepeatMode.all) {
+      // Si estamos en el primero y repeat all está activo, ir al último
       _currentIndex = _queue.length - 1;
       await playSong(_queue[_currentIndex],
-          isUserAuthenticated: _currentUserId != null, userId: _currentUserId);
+          isUserAuthenticated: _isUserAuthenticated,
+          userId: _currentUserId,
+          isDownloaded: _queueIsDownloaded);
+    } else {
+      // Si estamos en el primero sin repeat, reiniciar la canción
+      await seek(Duration.zero);
     }
   }
 
@@ -350,12 +414,47 @@ class AudioProvider with ChangeNotifier {
 
   void toggleShuffle() {
     _isShuffleEnabled = !_isShuffleEnabled;
-    if (_isShuffleEnabled && _queue.length > 1) {
-      final currentSong = _queue[_currentIndex];
-      _queue.shuffle();
-      _currentIndex = _queue.indexOf(currentSong);
+
+    if (_isShuffleEnabled) {
+      // Activar shuffle: mezclar cola manteniendo la canción actual como primera
+      _applyShuffleToQueue();
+    } else {
+      // Desactivar shuffle: restaurar orden original
+      _restoreOriginalQueue();
     }
+
     notifyListeners();
+  }
+
+  void _applyShuffleToQueue() {
+    if (_queue.length <= 1) return;
+
+    // Guardar canción actual
+    final currentSong = _queue[_currentIndex];
+
+    // Crear cola mezclada excluyendo la canción actual
+    List<Song> remainingSongs = List.from(_queue);
+    remainingSongs.removeAt(_currentIndex);
+    remainingSongs.shuffle();
+
+    // Reconstruir cola: actual primero + resto mezclado
+    _queue = [currentSong, ...remainingSongs];
+    _currentIndex = 0; // La actual está ahora en posición 0
+    _playedSongsInShuffle.clear();
+    _playedSongsInShuffle.add(currentSong.id);
+  }
+
+  void _restoreOriginalQueue() {
+    if (_originalQueue.isEmpty) return;
+
+    // Encontrar la canción actual en la cola original
+    final currentSong = _currentSong;
+    if (currentSong != null) {
+      _queue = List.from(_originalQueue);
+      _currentIndex = _queue.indexWhere((s) => s.id == currentSong.id);
+      if (_currentIndex == -1) _currentIndex = 0;
+    }
+    _playedSongsInShuffle.clear();
   }
 
   void toggleRepeat() {
@@ -374,14 +473,20 @@ class AudioProvider with ChangeNotifier {
   }
 
   void _handleSongCompletion() {
+    debugPrint(
+        '🎵 Canción completada - Modo repeat: $_repeatMode, Shuffle: $_isShuffleEnabled');
+
     switch (_repeatMode) {
       case RepeatMode.one:
+        // Repetir la misma canción
         playSong(_queue[_currentIndex],
-            isUserAuthenticated: _currentUserId != null,
-            userId: _currentUserId);
+            isUserAuthenticated: _isUserAuthenticated,
+            userId: _currentUserId,
+            isDownloaded: _queueIsDownloaded);
         break;
       case RepeatMode.all:
-        next(); // Ya está manejando la autenticación correctamente
+        // Continuar con siguiente (maneja shuffle internamente)
+        next();
         break;
       case RepeatMode.off:
         // Al terminar una canción en modo off, si hay más en la cola, reproducir siguiente
@@ -394,6 +499,44 @@ class AudioProvider with ChangeNotifier {
         }
         break;
     }
+  }
+
+  // Método helper para reproducir siguiente canción aleatoria en shuffle
+  Future<void> _playNextShuffledSong() async {
+    if (_queue.length <= 1) {
+      // Solo hay una canción, repetirla
+      await playSong(_queue[0],
+          isUserAuthenticated: _isUserAuthenticated,
+          userId: _currentUserId,
+          isDownloaded: _queueIsDownloaded);
+      return;
+    }
+
+    // Elegir siguiente canción que no sea la actual
+    List<int> availableIndices = [];
+    for (int i = 0; i < _queue.length; i++) {
+      if (i != _currentIndex) {
+        availableIndices.add(i);
+      }
+    }
+
+    if (availableIndices.isEmpty) {
+      // Caso extremo: solo reproducir la actual
+      await playSong(_queue[_currentIndex],
+          isUserAuthenticated: _isUserAuthenticated,
+          userId: _currentUserId,
+          isDownloaded: _queueIsDownloaded);
+      return;
+    }
+
+    // Elegir índice aleatorio de los disponibles
+    availableIndices.shuffle();
+    _currentIndex = availableIndices.first;
+
+    await playSong(_queue[_currentIndex],
+        isUserAuthenticated: _isUserAuthenticated,
+        userId: _currentUserId,
+        isDownloaded: _queueIsDownloaded);
   }
 
   void addToQueue(Song song) {
