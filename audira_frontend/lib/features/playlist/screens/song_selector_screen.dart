@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:provider/provider.dart';
 
 // Imports de tu proyecto
 import '../../../config/theme.dart';
 import '../../../core/models/song.dart';
 import '../../../core/api/services/music_service.dart';
+import '../../../core/providers/library_provider.dart';
 
 class SongSelectorScreen extends StatefulWidget {
   final List<int> currentSongIds; // Canciones ya en la playlist
@@ -52,11 +54,24 @@ class _SongSelectorScreenState extends State<SongSelectorScreen> {
     try {
       final response = await _musicService.getAllSongs();
       if (response.success && response.data != null) {
-        // Filtrar canciones que NO están en la playlist
-        _allSongs = response.data!
-            .where((song) => !widget.currentSongIds.contains(song.id))
+        // Obtener libraryProvider para filtrar solo canciones compradas
+        if (!mounted) return;
+        final libraryProvider = context.read<LibraryProvider>();
+
+        // Filtrar canciones que NO están en la playlist Y que están compradas
+        List<Song> tempSongs = response.data!
+            .where((song) =>
+                !widget.currentSongIds.contains(song.id) &&
+                libraryProvider.isSongPurchased(song.id))
             .toList();
-        _filteredSongs = _allSongs;
+
+        setState(() {
+          _allSongs = tempSongs;
+          _filteredSongs = _allSongs;
+        });
+
+        // Enriquecer datos del artista
+        await _enrichSongData(tempSongs);
       } else {
         _error = response.error ?? 'Error cargando canciones';
       }
@@ -65,6 +80,54 @@ class _SongSelectorScreenState extends State<SongSelectorScreen> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  Future<void> _enrichSongData(List<Song> songs) async {
+    bool needsUpdate = false;
+    final Map<int, String> artistCache = {};
+
+    List<Song> enrichedSongs = List.from(songs);
+    for (int i = 0; i < enrichedSongs.length; i++) {
+      final s = enrichedSongs[i];
+      if (_needsEnrichment(s.artistName)) {
+        final realName = await _fetchArtistName(s.artistId, artistCache);
+        if (realName != null) {
+          enrichedSongs[i] = s.copyWith(artistName: realName);
+          needsUpdate = true;
+        }
+      }
+    }
+
+    if (needsUpdate && mounted) {
+      setState(() {
+        _allSongs = enrichedSongs;
+        _filteredSongs = _allSongs;
+      });
+    }
+  }
+
+  bool _needsEnrichment(String name) {
+    return name == 'Artista Desconocido' ||
+        name.startsWith('Artist #') ||
+        name.startsWith('Artista #') ||
+        name.startsWith('user');
+  }
+
+  Future<String?> _fetchArtistName(int artistId, Map<int, String> cache) async {
+    if (cache.containsKey(artistId)) return cache[artistId];
+
+    try {
+      final response = await _musicService.getArtistById(artistId);
+      if (response.success && response.data != null) {
+        final artist = response.data!;
+        final name = artist.artistName ?? artist.displayName;
+        cache[artistId] = name;
+        return name;
+      }
+    } catch (e) {
+      debugPrint("Error fetching artist $artistId: $e");
+    }
+    return null;
   }
 
   void _filterSongs(String query) {

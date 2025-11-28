@@ -23,8 +23,10 @@ class MiniPlayer extends StatelessWidget {
       builder: (context, audioProvider, child) {
         final song = audioProvider.currentSong;
 
-        // Si no hay canción, no mostramos nada (ni ocupamos espacio)
-        if (song == null || audioProvider.demoFinished) {
+        // Si no hay canción o el miniplayer está oculto, no mostramos nada
+        if (song == null ||
+            audioProvider.demoFinished ||
+            !audioProvider.miniPlayerVisible) {
           return const SizedBox.shrink();
         }
 
@@ -154,6 +156,14 @@ class MiniPlayer extends StatelessWidget {
                                       color: Colors.white, size: 28),
                                   onPressed: () {
                                     audioProvider.next();
+                                  },
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.close_rounded,
+                                      color: Colors.white70, size: 20),
+                                  tooltip: 'Ocultar reproductor',
+                                  onPressed: () {
+                                    audioProvider.hideMiniPlayer();
                                   },
                                 ),
                               ],

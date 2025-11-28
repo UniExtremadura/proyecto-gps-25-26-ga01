@@ -193,8 +193,12 @@ class SongCard extends StatelessWidget {
                   // MODIFICADO: SizedBox reducido de 4 a 2
                   const SizedBox(height: 2),
                   Text(
-                    song.durationFormatted,
-                    style: Theme.of(context).textTheme.bodySmall,
+                    song.artistName,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppTheme.textGrey,
+                        ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                   // MODIFICADO: SizedBox reducido de 4 a 2
                   const SizedBox(height: 2),
