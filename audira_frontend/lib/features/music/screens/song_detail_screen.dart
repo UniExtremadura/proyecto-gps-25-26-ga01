@@ -476,9 +476,11 @@ class _SongDetailScreenState extends State<SongDetailScreen>
   Widget _buildActionButtons() {
     final audioProvider = Provider.of<AudioProvider>(context);
     final libraryProvider = Provider.of<LibraryProvider>(context);
+    final cartProvider = Provider.of<CartProvider>(context);
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final isPurchased = libraryProvider.isSongPurchased(_song!.id);
     final isFavorite = libraryProvider.isSongFavorite(_song!.id);
+    final isInCart = cartProvider.isItemInCart('SONG', _song!.id);
 
     return Row(
       children: [
@@ -509,7 +511,7 @@ class _SongDetailScreenState extends State<SongDetailScreen>
         ),
         const SizedBox(width: 16),
 
-        // Buy/Owned Button
+        // Buy/Owned/In Cart Button
         Expanded(
           flex: 2,
           child: isPurchased
@@ -531,18 +533,35 @@ class _SongDetailScreenState extends State<SongDetailScreen>
                           fontWeight: FontWeight.bold,
                           fontSize: 13)),
                 )
-              : ElevatedButton(
-                  onPressed: _addToCart,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primaryBlue,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                  ),
-                  child: Text("\$${_song!.price.toStringAsFixed(2)}",
-                      style: const TextStyle(
-                          fontWeight: FontWeight.bold, fontSize: 14)),
-                ),
+              : isInCart
+                  ? ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.pushNamed(context, '/cart');
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.warningOrange,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                      ),
+                      icon: const Icon(Icons.shopping_cart, size: 18),
+                      label: const Text("EN CARRITO",
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 13)),
+                    )
+                  : ElevatedButton.icon(
+                      onPressed: _addToCart,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primaryBlue,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                      ),
+                      icon: const Icon(Icons.add_shopping_cart, size: 18),
+                      label: Text("\$${_song!.price.toStringAsFixed(2)}",
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 14)),
+                    ),
         ),
         const SizedBox(width: 16),
 

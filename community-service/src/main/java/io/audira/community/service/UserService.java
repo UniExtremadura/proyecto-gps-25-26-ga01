@@ -24,6 +24,18 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Servicio principal de lógica de negocio responsable de la gestión de usuarios, la autenticación,
+ * las interacciones sociales (follow/unfollow) y la administración de perfiles.
+ * <p>
+ * Este servicio orquesta la persistencia, la seguridad y la comunicación con el microservicio de archivos.
+ * </p>
+ *
+ * @author Grupo GA01
+ * @see UserRepository
+ * @see JwtTokenProvider
+ * 
+ */
 @Service
 @RequiredArgsConstructor
 public class UserService {
@@ -37,6 +49,21 @@ public class UserService {
 
     private static final Logger logger = LoggerFactory.getLogger(UserService.class);
 
+    // --- Métodos de Autenticación y Perfil ---
+
+    /**
+     * Registra un nuevo usuario en el sistema.
+     * <p>
+     * 1. Verifica la unicidad de email y nombre de usuario.
+     * 2. Hashea la contraseña.
+     * 3. Crea la entidad específica ({@link Artist} o {@link RegularUser}) basada en el rol.
+     * 4. Autentica al nuevo usuario inmediatamente y genera un JWT.
+     * </p>
+     *
+     * @param request La solicitud {@link RegisterRequest} validada.
+     * @return El objeto {@link AuthResponse} que contiene el JWT y los datos del usuario.
+     * @throws RuntimeException si el email o nombre de usuario ya existen.
+     */
     @Transactional
     public AuthResponse registerUser(RegisterRequest request) {
         if (userRepository.existsByEmail(request.getEmail())) {
@@ -50,7 +77,7 @@ public class UserService {
         String encodedPassword = passwordEncoder.encode(request.getPassword());
         String uid = request.getEmail(); 
 
-        // Create specific user type based on role
+        // Create specific user type based on role (using JPA inheritance)
         if (request.getRole() == UserRole.ARTIST) {
             user = Artist.builder()
                     .email(request.getEmail())
@@ -79,6 +106,7 @@ public class UserService {
 
         user = userRepository.save(user);
 
+        // Authenticate the user and generate token
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
         );
@@ -91,6 +119,13 @@ public class UserService {
                 .build();
     }
 
+    /**
+     * Autentica a un usuario utilizando sus credenciales (email/username y contraseña).
+     *
+     * @param request La solicitud {@link LoginRequest} con las credenciales.
+     * @return El objeto {@link AuthResponse} con el JWT y los datos del usuario.
+     * @throws RuntimeException si la autenticación falla (credenciales incorrectas).
+     */
     public AuthResponse loginUser(LoginRequest request) {
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
@@ -112,31 +147,15 @@ public class UserService {
                 .build();
     }
 
-    public UserDTO getUserById(Long id) {
-        User user = userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("User not found with id: " + id));
-        return mapToDTO(user);
-    }
-
-    public UserDTO getUserByUsername(String username) {
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("User not found with username: " + username));
-        return mapToDTO(user);
-    }
-
-    public List<UserDTO> getAllUsers() {
-        return userRepository.findAll().stream()
-                .map(this::mapToDTO)
-                .collect(Collectors.toList());
-    }
-
-    public List<UserDTO> getUsersByRole(String role) {
-        UserRole userRole = UserRole.valueOf(role.toUpperCase());
-        return userRepository.findByRole(userRole).stream()
-                .map(this::mapToDTO)
-                .collect(Collectors.toList());
-    }
-
+    /**
+     * Actualiza el perfil de un usuario con los datos proporcionados en la solicitud.
+     *
+     * @param userId El ID del usuario a modificar.
+     * @param request La solicitud {@link UpdateProfileRequest} con los campos a actualizar.
+     * @return El {@link UserDTO} actualizado.
+     * @throws RuntimeException si el usuario no se encuentra.
+     * @throws IllegalArgumentException si alguna URL de red social es inválida.
+     */
     @Transactional
     public UserDTO updateProfile(Long userId, UpdateProfileRequest request) {
 
@@ -180,7 +199,6 @@ public class UserService {
         }
 
         // Update social media links with validation
-        // Only update if the field is not null AND not empty (to avoid overwriting with empty strings)
         if (request.getTwitterUrl() != null && !request.getTwitterUrl().trim().isEmpty()) {
             String twitterUrl = request.getTwitterUrl().trim();
             if (!SocialMediaValidator.isValidTwitterUrl(twitterUrl)) {
@@ -228,116 +246,126 @@ public class UserService {
         return mapToDTO(user);
     }
 
-    @Transactional
-    public UserDTO updateProfile(Long userId, Map<String, Object> updates) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
-
-        if (updates.containsKey("firstName")) {
-            user.setFirstName((String) updates.get("firstName"));
-        }
-        if (updates.containsKey("lastName")) {
-            user.setLastName((String) updates.get("lastName"));
-        }
-        if (updates.containsKey("bio")) {
-            user.setBio((String) updates.get("bio"));
-        }
-        if (updates.containsKey("profileImageUrl")) {
-            user.setProfileImageUrl((String) updates.get("profileImageUrl"));
-        }
-        if (updates.containsKey("bannerImageUrl")) {
-            user.setBannerImageUrl((String) updates.get("bannerImageUrl"));
-        }
-        if (updates.containsKey("location")) {
-            user.setLocation((String) updates.get("location"));
-        }
-        if (updates.containsKey("website")) {
-            user.setWebsite((String) updates.get("website"));
-        }
-
-        // Update artist-specific fields if user is an artist
-        if (user instanceof Artist) {
-            Artist artist = (Artist) user;
-            if (updates.containsKey("artistName")) {
-                artist.setArtistName((String) updates.get("artistName"));
-            }
-            if (updates.containsKey("artistBio")) {
-                artist.setArtistBio((String) updates.get("artistBio"));
-            }
-            if (updates.containsKey("recordLabel")) {
-                artist.setRecordLabel((String) updates.get("recordLabel"));
-            }
-        }
-
-        // Update social media links with validation
-        // Only update if the field exists AND is not empty (to avoid overwriting with empty strings)
-        if (updates.containsKey("twitterUrl")) {
-            String twitterUrl = (String) updates.get("twitterUrl");
-            if (twitterUrl != null && !twitterUrl.trim().isEmpty()) {
-                if (!SocialMediaValidator.isValidTwitterUrl(twitterUrl)) {
-                    throw new IllegalArgumentException("URL de Twitter/X inválida. Formato: https://twitter.com/username o https://x.com/username");
-                }
-                user.setTwitterUrl(twitterUrl.trim());
-            }
-        }
-        if (updates.containsKey("instagramUrl")) {
-            String instagramUrl = (String) updates.get("instagramUrl");
-            if (instagramUrl != null && !instagramUrl.trim().isEmpty()) {
-                if (!SocialMediaValidator.isValidInstagramUrl(instagramUrl)) {
-                    throw new IllegalArgumentException("URL de Instagram inválida. Formato: https://instagram.com/username");
-                }
-                user.setInstagramUrl(instagramUrl.trim());
-            }
-        }
-        if (updates.containsKey("facebookUrl")) {
-            String facebookUrl = (String) updates.get("facebookUrl");
-            if (facebookUrl != null && !facebookUrl.trim().isEmpty()) {
-                if (!SocialMediaValidator.isValidFacebookUrl(facebookUrl)) {
-                    throw new IllegalArgumentException("URL de Facebook inválida. Formato: https://facebook.com/username");
-                }
-                user.setFacebookUrl(facebookUrl.trim());
-            }
-        }
-        if (updates.containsKey("youtubeUrl")) {
-            String youtubeUrl = (String) updates.get("youtubeUrl");
-            if (youtubeUrl != null && !youtubeUrl.trim().isEmpty()) {
-                if (!SocialMediaValidator.isValidYoutubeUrl(youtubeUrl)) {
-                    throw new IllegalArgumentException("URL de YouTube inválida. Formato: https://youtube.com/@channel o https://youtube.com/c/channel");
-                }
-                user.setYoutubeUrl(youtubeUrl.trim());
-            }
-        }
-        if (updates.containsKey("spotifyUrl")) {
-            String spotifyUrl = (String) updates.get("spotifyUrl");
-            if (spotifyUrl != null && !spotifyUrl.trim().isEmpty()) {
-                if (!SocialMediaValidator.isValidSpotifyUrl(spotifyUrl)) {
-                    throw new IllegalArgumentException("URL de Spotify inválida. Formato: https://open.spotify.com/artist/...");
-                }
-                user.setSpotifyUrl(spotifyUrl.trim());
-            }
-        }
-        if (updates.containsKey("tiktokUrl")) {
-            String tiktokUrl = (String) updates.get("tiktokUrl");
-            if (tiktokUrl != null && !tiktokUrl.trim().isEmpty()) {
-                if (!SocialMediaValidator.isValidTiktokUrl(tiktokUrl)) {
-                    throw new IllegalArgumentException("URL de TikTok inválida. Formato: https://tiktok.com/@username");
-                }
-                user.setTiktokUrl(tiktokUrl.trim());
-            }
-        }
-
-        user = userRepository.save(user);
+    /**
+     * Obtiene el perfil de un usuario por su ID.
+     *
+     * @param id El ID del usuario (tipo {@link Long}).
+     * @return El objeto {@link UserDTO} del perfil.
+     * @throws RuntimeException si el usuario no se encuentra.
+     */
+    public UserDTO getUserById(Long id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("User not found with id: " + id));
         return mapToDTO(user);
     }
 
-    @Transactional
-    public void deleteUser(Long userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-        userRepository.delete(user);
+    /**
+     * Obtiene el perfil de un usuario por su nombre de usuario.
+     *
+     * @param username El nombre de usuario (String).
+     * @return El objeto {@link UserDTO} del perfil.
+     * @throws RuntimeException si el usuario no se encuentra.
+     */
+    public UserDTO getUserByUsername(String username) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("User not found with username: " + username));
+        return mapToDTO(user);
     }
 
+    /**
+     * Obtiene una lista de todos los usuarios registrados.
+     *
+     * @return Una {@link List} de {@link UserDTO}.
+     */
+    public List<UserDTO> getAllUsers() {
+        return userRepository.findAll().stream()
+                .map(this::mapToDTO)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Obtiene una lista de usuarios filtrados por su rol.
+     *
+     * @param role El rol (String) a buscar (ej. "ARTIST").
+     * @return Una {@link List} de {@link UserDTO}.
+     */
+    public List<UserDTO> getUsersByRole(String role) {
+        UserRole userRole = UserRole.valueOf(role.toUpperCase());
+        return userRepository.findByRole(userRole).stream()
+                .map(this::mapToDTO)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Sube una imagen de perfil y actualiza la URL en el perfil del usuario.
+     *
+     * @param userId El ID del usuario.
+     * @param imageFile El archivo de imagen {@link MultipartFile} a subir.
+     * @return El {@link UserDTO} actualizado.
+     * @throws RuntimeException si el usuario no se encuentra o falla la subida.
+     */
+    @Transactional
+    public UserDTO uploadProfileImage(Long userId, MultipartFile imageFile) {
+        try {
+            // Upload image to file service
+            String imageUrl = fileServiceClient.uploadImage(imageFile);
+
+            // Update user with new profile image URL
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+
+            user.setProfileImageUrl(imageUrl);
+            user = userRepository.save(user);
+
+            logger.info("Profile image updated for user: {} ({})", user.getUsername(), user.getEmail());
+
+            return mapToDTO(user);
+        } catch (Exception e) {
+            logger.error("Error uploading profile image for user {}: {}", userId, e.getMessage());
+            throw new RuntimeException("Error al subir la imagen de perfil: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Sube una imagen de banner y actualiza la URL en el perfil del usuario.
+     *
+     * @param userId El ID del usuario.
+     * @param imageFile El archivo de imagen {@link MultipartFile} a subir.
+     * @return El {@link UserDTO} actualizado.
+     * @throws RuntimeException si el usuario no se encuentra o falla la subida.
+     */
+    @Transactional
+    public UserDTO uploadBannerImage(Long userId, MultipartFile imageFile) {
+        try {
+            // Upload image to file service
+            String imageUrl = fileServiceClient.uploadImage(imageFile);
+
+            // Update user with new banner image URL
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+
+            user.setBannerImageUrl(imageUrl);
+            user = userRepository.save(user);
+
+            logger.info("Banner image updated for user: {} ({})", user.getUsername(), user.getEmail());
+
+            return mapToDTO(user);
+        } catch (Exception e) {
+            logger.error("Error uploading banner image for user {}: {}", userId, e.getMessage());
+            throw new RuntimeException("Error al subir la imagen de banner: " + e.getMessage());
+        }
+    }
+    
+    // --- Lógica de Interacción Social ---
+
+    /**
+     * Inicia la acción de seguir a otro usuario.
+     *
+     * @param userId ID del usuario seguidor.
+     * @param targetUserId ID del usuario seguido.
+     * @return El {@link UserDTO} del usuario seguidor actualizado.
+     * @throws RuntimeException si los IDs son iguales o si un usuario no se encuentra.
+     */
     @Transactional
     public UserDTO followUser(Long userId, Long targetUserId) {
         if (userId.equals(targetUserId)) {
@@ -358,6 +386,14 @@ public class UserService {
         return mapToDTO(user);
     }
 
+    /**
+     * Inicia la acción de dejar de seguir a otro usuario.
+     *
+     * @param userId ID del usuario seguidor.
+     * @param targetUserId ID del usuario seguido.
+     * @return El {@link UserDTO} del usuario seguidor actualizado.
+     * @throws RuntimeException si un usuario no se encuentra.
+     */
     @Transactional
     public UserDTO unfollowUser(Long userId, Long targetUserId) {
         User user = userRepository.findById(userId)
@@ -374,6 +410,13 @@ public class UserService {
         return mapToDTO(user);
     }
 
+    /**
+     * Obtiene la lista de seguidores de un usuario.
+     *
+     * @param userId El ID del usuario.
+     * @return Una {@link List} de {@link UserDTO} que son seguidores.
+     * @throws RuntimeException si el usuario no se encuentra.
+     */
     public List<UserDTO> getFollowers(Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
@@ -383,6 +426,13 @@ public class UserService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Obtiene la lista de usuarios que un usuario está siguiendo.
+     *
+     * @param userId El ID del usuario.
+     * @return Una {@link List} de {@link UserDTO} que el usuario está siguiendo.
+     * @throws RuntimeException si el usuario no se encuentra.
+     */
     public List<UserDTO> getFollowing(Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
@@ -392,6 +442,13 @@ public class UserService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Obtiene la lista de usuarios que un usuario está siguiendo y que tienen el rol de {@link UserRole#ARTIST}.
+     *
+     * @param userId El ID del usuario.
+     * @return Una {@link List} de {@link UserDTO} que son artistas seguidos.
+     * @throws RuntimeException si el usuario no se encuentra.
+     */
     public List<UserDTO> getFollowedArtists(Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
@@ -403,84 +460,13 @@ public class UserService {
                 .collect(Collectors.toList());
     }
 
-    private UserDTO mapToDTO(User user) {
-        logger.info("🔍 mapToDTO called for user: {} (id: {})", user.getUsername(), user.getId());
-        logger.info("📱 User Twitter URL from entity: '{}'", user.getTwitterUrl());
-        logger.info("📱 User Instagram URL from entity: '{}'", user.getInstagramUrl());
-
-        UserDTO.UserDTOBuilder builder = UserDTO.builder()
-                .id(user.getId())
-                .email(user.getEmail())
-                .username(user.getUsername())
-                .firstName(user.getFirstName())
-                .lastName(user.getLastName())
-                .bio(user.getBio())
-                .profileImageUrl(user.getProfileImageUrl())
-                .bannerImageUrl(user.getBannerImageUrl())
-                .location(user.getLocation())
-                .website(user.getWebsite())
-                .role(user.getRole())
-                .isActive(user.getIsActive())
-                .isVerified(user.getIsVerified())
-                .followerIds(user.getFollowerIds())
-                .followingIds(user.getFollowingIds())
-                .createdAt(user.getCreatedAt())
-                .updatedAt(user.getUpdatedAt());
-
-        // Add artist-specific fields if user is an artist
-        if (user instanceof Artist) {
-            Artist artist = (Artist) user;
-            builder.artistName(artist.getArtistName())
-                   .artistBio(artist.getArtistBio())
-                   .recordLabel(artist.getRecordLabel())
-                   .verifiedArtist(artist.getVerifiedArtist());
-        }
-
-        // Add social media links
-        String twitterUrl = user.getTwitterUrl();
-        String instagramUrl = user.getInstagramUrl();
-        String facebookUrl = user.getFacebookUrl();
-        String youtubeUrl = user.getYoutubeUrl();
-        String spotifyUrl = user.getSpotifyUrl();
-        String tiktokUrl = user.getTiktokUrl();
-
-        logger.info("🐦 Adding Twitter URL to DTO: '{}'", twitterUrl);
-
-        builder.twitterUrl(twitterUrl)
-               .instagramUrl(instagramUrl)
-               .facebookUrl(facebookUrl)
-               .youtubeUrl(youtubeUrl)
-               .spotifyUrl(spotifyUrl)
-               .tiktokUrl(tiktokUrl);
-
-        UserDTO dto = builder.build();
-        logger.info("✅ DTO built - Twitter URL in DTO: '{}'", dto.getTwitterUrl());
-        return dto;
-    }
-
-    @Transactional
-    public User verifyEmail(Long userId) {
-        // Buscar usuario
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
-        // Verificar que no esté ya verificado
-        if (user.getIsVerified()) {
-            throw new RuntimeException("Email already verified");
-        }
-
-        // Marcar como verificado
-        user.setIsVerified(true);
-        user = userRepository.save(user);
-
-
-        logger.info("Email verified successfully for user: {} ({})",
-                    user.getUsername(),
-                    user.getEmail());
-
-        return user;
-    }
-
+    /**
+     * Cambia la contraseña de un usuario después de verificar la contraseña actual.
+     *
+     * @param userId El ID del usuario.
+     * @param request La solicitud {@link ChangePasswordRequest} validada.
+     * @throws RuntimeException si el usuario no se encuentra, las contraseñas no coinciden o la contraseña actual es incorrecta.
+     */
     @Transactional
     public void changePassword(Long userId, ChangePasswordRequest request) {
         // Validar que las contraseñas coincidan
@@ -506,8 +492,18 @@ public class UserService {
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
         userRepository.save(user);
     }
+    
+    // --- Métodos de Búsqueda de Artistas ---
 
-    // Search methods for GA01-96
+    /**
+     * Busca artistas activos por una cadena de consulta que coincida con su nombre artístico, nombre o apellido.
+     * <p>
+     * Utiliza la consulta JPQL personalizada definida en {@link UserRepository}.
+     * </p>
+     *
+     * @param query La cadena de texto de búsqueda.
+     * @return Una {@link List} de {@link UserDTO} que representan a los artistas que coinciden.
+     */
     public List<UserDTO> searchArtists(String query) {
         List<Artist> artists = userRepository.searchArtistsByName(query);
         return artists.stream()
@@ -515,61 +511,33 @@ public class UserService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Busca los IDs de artistas activos por una cadena de consulta.
+     * <p>
+     * Utilizado principalmente por otros microservicios (uso interno).
+     * </p>
+     *
+     * @param query La cadena de texto de búsqueda.
+     * @return Una {@link List} de IDs (tipo {@link Long}) de los artistas que coinciden.
+     */
     public List<Long> searchArtistIds(String query) {
         return userRepository.searchArtistIdsByName(query);
     }
-
-    @Transactional
-    public UserDTO uploadProfileImage(Long userId, MultipartFile imageFile) {
-        try {
-            // Upload image to file service
-            String imageUrl = fileServiceClient.uploadImage(imageFile);
-
-            // Update user with new profile image URL
-            User user = userRepository.findById(userId)
-                    .orElseThrow(() -> new RuntimeException("User not found"));
-
-            user.setProfileImageUrl(imageUrl);
-            user = userRepository.save(user);
-
-            logger.info("Profile image updated for user: {} ({})", user.getUsername(), user.getEmail());
-
-            return mapToDTO(user);
-        } catch (Exception e) {
-            logger.error("Error uploading profile image for user {}: {}", userId, e.getMessage());
-            throw new RuntimeException("Error al subir la imagen de perfil: " + e.getMessage());
-        }
-    }
-
-    @Transactional
-    public UserDTO uploadBannerImage(Long userId, MultipartFile imageFile) {
-        try {
-            // Upload image to file service
-            String imageUrl = fileServiceClient.uploadImage(imageFile);
-
-            // Update user with new banner image URL
-            User user = userRepository.findById(userId)
-                    .orElseThrow(() -> new RuntimeException("User not found"));
-
-            user.setBannerImageUrl(imageUrl);
-            user = userRepository.save(user);
-
-            logger.info("Banner image updated for user: {} ({})", user.getUsername(), user.getEmail());
-
-            return mapToDTO(user);
-        } catch (Exception e) {
-            logger.error("Error uploading banner image for user {}: {}", userId, e.getMessage());
-            throw new RuntimeException("Error al subir la imagen de banner: " + e.getMessage());
-        }
-    }
-
-    // Admin-specific methods for user management
-    // GA01-164: Buscar/editar usuario (roles, estado)
-    // GA01-165: Suspender/reactivar cuentas
+    
+    // --- Métodos de Administración (AdminController) ---
 
     /**
-     * Change user role (Admin operation)
-     * GA01-164: Buscar/editar usuario (roles, estado)
+     * Cambia el rol de un usuario existente.
+     * <p>
+     * Esta operación es compleja en el esquema de herencia {@code JOINED} de JPA, ya que requiere:
+     * 1. Eliminar la entidad existente.
+     * 2. Crear una nueva entidad ({@link Artist} o {@link RegularUser}) con el mismo ID, copiando todos los datos, pero con el nuevo rol.
+     * </p>
+     *
+     * @param userId El ID del usuario.
+     * @param newRole El nuevo rol ({@link UserRole}) a asignar.
+     * @return El {@link UserDTO} de la nueva entidad con el rol actualizado.
+     * @throws RuntimeException si el usuario no se encuentra.
      */
     @Transactional
     public UserDTO changeUserRole(Long userId, UserRole newRole) {
@@ -584,21 +552,22 @@ public class UserService {
         // Get current role for logging
         UserRole oldRole = user.getRole();
 
-        // Delete old user entity
+        // 1. Delete old user entity
         userRepository.delete(user);
-        userRepository.flush();
+        userRepository.flush(); // Force deletion before insertion
 
-        // Create new user entity based on new role
+        // 2. Create new user entity based on new role
         User newUser;
         if (newRole == UserRole.ARTIST) {
             newUser = Artist.builder()
-                    .id(user.getId())
+                    // Copy existing data and assign the original ID
+                    .id(user.getId()) 
                     .email(user.getEmail())
                     .username(user.getUsername())
                     .password(user.getPassword())
                     .firstName(user.getFirstName())
                     .lastName(user.getLastName())
-                    .role(newRole)
+                    .role(newRole) // <-- NEW ROLE
                     .uid(user.getUid())
                     .bio(user.getBio())
                     .profileImageUrl(user.getProfileImageUrl())
@@ -618,14 +587,15 @@ public class UserService {
                     .createdAt(user.getCreatedAt())
                     .build();
         } else {
-            newUser = RegularUser.builder()
+            // For other roles (USER, ADMIN), use RegularUser (or Admin if applicable)
+            newUser = RegularUser.builder() // Assumes RegularUser is the base concrete implementation for USER/ADMIN
                     .id(user.getId())
                     .email(user.getEmail())
                     .username(user.getUsername())
                     .password(user.getPassword())
                     .firstName(user.getFirstName())
                     .lastName(user.getLastName())
-                    .role(newRole)
+                    .role(newRole) // <-- NEW ROLE
                     .uid(user.getUid())
                     .bio(user.getBio())
                     .profileImageUrl(user.getProfileImageUrl())
@@ -655,8 +625,12 @@ public class UserService {
     }
 
     /**
-     * Change user active status (Admin operation)
-     * GA01-165: Suspender/reactivar cuentas
+     * Cambia el estado de actividad (suspender/reactivar) de una cuenta de usuario.
+     *
+     * @param userId El ID del usuario.
+     * @param isActive El nuevo estado de actividad ({@code true} para activar, {@code false} para suspender).
+     * @return El {@link UserDTO} actualizado.
+     * @throws RuntimeException si el usuario no se encuentra.
      */
     @Transactional
     public UserDTO changeUserStatus(Long userId, Boolean isActive) {
@@ -673,8 +647,9 @@ public class UserService {
     }
 
     /**
-     * Get user statistics for admin dashboard
-     * GA01-164: Buscar/editar usuario
+     * Obtiene estadísticas resumidas sobre la población de usuarios para el panel de administración.
+     *
+     * @return Un {@link Map} con las métricas clave (totalUsers, activeUsers, artists, etc.).
      */
     public Map<String, Object> getUserStatistics() {
         List<User> allUsers = userRepository.findAll();
@@ -708,8 +683,13 @@ public class UserService {
     }
 
     /**
-     * Search users by query (username, email, or name)
-     * GA01-164: Buscar/editar usuario
+     * Busca usuarios por una cadena de consulta que coincida con el nombre de usuario, email, nombre o apellido.
+     * <p>
+     * Nota: Esta implementación realiza la búsqueda en memoria (después de {@code findAll()}). Para bases de datos grandes, se debería migrar a consultas JPQL como las utilizadas para {@code searchArtists}.
+     * </p>
+     *
+     * @param query La cadena de texto de búsqueda.
+     * @return Una {@link List} de {@link UserDTO} que coinciden.
      */
     public List<UserDTO> searchUsers(String query) {
         String lowerQuery = query.toLowerCase();
@@ -726,8 +706,11 @@ public class UserService {
     }
 
     /**
-     * Admin verify user email
-     * GA01-164: Buscar/editar usuario
+     * Marca manualmente el correo electrónico de un usuario como verificado (acción de administrador).
+     *
+     * @param userId El ID del usuario.
+     * @return El {@link UserDTO} actualizado.
+     * @throws RuntimeException si el usuario no se encuentra.
      */
     @Transactional
     public UserDTO adminVerifyUser(Long userId) {
@@ -740,5 +723,100 @@ public class UserService {
         logger.info("User verified by admin: {} ({})", user.getUsername(), user.getEmail());
 
         return mapToDTO(user);
+    }
+    
+    /**
+     * Marcar el correo electrónico del usuario como verificado (flujo de verificación de email).
+     *
+     * @param userId El ID del usuario.
+     * @return La entidad {@link User} actualizada.
+     * @throws RuntimeException si el usuario no se encuentra o ya está verificado.
+     */
+    @Transactional
+    public User verifyEmail(Long userId) {
+        // Buscar usuario
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        // Verificar que no esté ya verificado
+        if (user.getIsVerified()) {
+            throw new RuntimeException("Email already verified");
+        }
+
+        // Marcar como verificado
+        user.setIsVerified(true);
+        user = userRepository.save(user);
+
+
+        logger.info("Email verified successfully for user: {} ({})",
+                    user.getUsername(),
+                    user.getEmail());
+
+        return user;
+    }
+
+
+    /**
+     * Mapea una entidad {@link User} (o subclase {@link Artist}) a su respectivo DTO {@link UserDTO}.
+     * <p>
+     * Método auxiliar privado. Incluye lógica condicional para copiar campos específicos de {@link Artist}.
+     * </p>
+     *
+     * @param user La entidad {@link User} o {@link Artist} de origen.
+     * @return El {@link UserDTO} resultante.
+     */
+    private UserDTO mapToDTO(User user) {
+        logger.info("🔍 mapToDTO called for user: {} (id: {})", user.getUsername(), user.getId());
+        logger.info("📱 User Twitter URL from entity: '{}'", user.getTwitterUrl());
+        logger.info("📱 User Instagram URL from entity: '{}'", user.getInstagramUrl());
+
+        UserDTO.UserDTOBuilder builder = UserDTO.builder()
+                .id(user.getId())
+                .email(user.getEmail())
+                .username(user.getUsername())
+                .firstName(user.getFirstName())
+                .lastName(user.getLastName())
+                .bio(user.getBio())
+                .profileImageUrl(user.getProfileImageUrl())
+                .bannerImageUrl(user.getBannerImageUrl())
+                .location(user.getLocation())
+                .website(user.getWebsite())
+                .role(user.getRole())
+                .isActive(user.getIsActive())
+                .isVerified(user.getIsVerified())
+                .followerIds(user.getFollowerIds())
+                .followingIds(user.getFollowingIds())
+                .createdAt(user.getCreatedAt())
+                .updatedAt(user.getUpdatedAt());
+
+        // Add artist-specific fields if user is an artist
+        if (user instanceof Artist) {
+            Artist artist = (Artist) user;
+            builder.artistName(artist.getArtistName())
+                    .artistBio(artist.getArtistBio())
+                    .recordLabel(artist.getRecordLabel())
+                    .verifiedArtist(artist.getVerifiedArtist());
+        }
+
+        // Add social media links
+        String twitterUrl = user.getTwitterUrl();
+        String instagramUrl = user.getInstagramUrl();
+        String facebookUrl = user.getFacebookUrl();
+        String youtubeUrl = user.getYoutubeUrl();
+        String spotifyUrl = user.getSpotifyUrl();
+        String tiktokUrl = user.getTiktokUrl();
+
+        logger.info("🐦 Adding Twitter URL to DTO: '{}'", twitterUrl);
+
+        builder.twitterUrl(twitterUrl)
+                .instagramUrl(instagramUrl)
+                .facebookUrl(facebookUrl)
+                .youtubeUrl(youtubeUrl)
+                .spotifyUrl(spotifyUrl)
+                .tiktokUrl(tiktokUrl);
+
+        UserDTO dto = builder.build();
+        logger.info("✅ DTO built - Twitter URL in DTO: '{}'", dto.getTwitterUrl());
+        return dto;
     }
 }

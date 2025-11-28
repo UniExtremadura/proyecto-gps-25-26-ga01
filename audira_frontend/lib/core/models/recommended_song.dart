@@ -53,6 +53,30 @@ class RecommendedSong extends Equatable {
     };
   }
 
+  RecommendedSong copyWith({
+    int? id,
+    String? title,
+    int? artistId,
+    String? artistName,
+    String? imageUrl,
+    double? price,
+    int? plays,
+    String? reason,
+    double? relevanceScore,
+  }) {
+    return RecommendedSong(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      artistId: artistId ?? this.artistId,
+      artistName: artistName ?? this.artistName,
+      imageUrl: imageUrl ?? this.imageUrl,
+      price: price ?? this.price,
+      plays: plays ?? this.plays,
+      reason: reason ?? this.reason,
+      relevanceScore: relevanceScore ?? this.relevanceScore,
+    );
+  }
+
   @override
   List<Object?> get props => [
         id,

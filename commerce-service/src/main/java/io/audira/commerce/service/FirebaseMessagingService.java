@@ -19,6 +19,18 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Servicio encargado de la inicialización del SDK de Firebase Admin y del envío de notificaciones push (FCM).
+ * <p>
+ * Este servicio gestiona la autenticación con Firebase mediante el archivo de credenciales
+ * y proporciona métodos para enviar mensajes a tokens individuales, a múltiples tokens (multicast)
+ * y a temas (topics). Incluye lógica para eliminar tokens inválidos.
+ * </p>
+ *
+ * @author Grupo GA01
+ * @see FirebaseMessaging
+ * 
+ */
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -26,13 +38,24 @@ public class FirebaseMessagingService {
 
     private final FcmTokenRepository fcmTokenRepository;
 
+    /**
+     * Recurso que apunta al archivo JSON de credenciales de la cuenta de servicio de Firebase.
+     * El valor por defecto se carga desde {@code classpath:firebase-service-account.json}.
+     */
     @Value("${firebase.credentials-file:classpath:firebase-service-account.json}")
     private Resource firebaseCredentials;
 
+    /**
+     * Inicializa el SDK de Firebase Admin al arrancar el servicio.
+     * <p>
+     * Este método utiliza la anotación {@code @PostConstruct} para asegurar que la inicialización
+     * ocurra después de que la inyección de dependencias se haya completado.
+     * </p>
+     */
     @PostConstruct
     public void initialize() {
         try {
-            // Check if already initialized
+            
             if (FirebaseApp.getApps().isEmpty()) {
                 InputStream serviceAccount = firebaseCredentials.getInputStream();
 
@@ -50,11 +73,19 @@ public class FirebaseMessagingService {
     }
 
     /**
-     * Send notification to a specific user
-     * Sends to all registered devices for that user
+     * Envía una notificación a un usuario específico, intentando enviar el mensaje a todos
+     * los dispositivos (tokens) registrados para ese usuario.
+     *
+     * @param userId El ID del usuario (tipo {@link Long}) destinatario.
+     * @param title El título de la notificación.
+     * @param message El cuerpo o mensaje de la notificación.
+     * @param type El tipo de notificación (String, ej. "PURCHASE_NOTIFICATION").
+     * @param referenceId ID de referencia (ej. ID de orden, opcional).
+     * @param referenceType Tipo de referencia (ej. "ORDER", opcional).
+     * @return {@code true} si al menos un mensaje fue enviado con éxito, {@code false} si no hay tokens o si todos fallaron.
      */
     public boolean sendNotification(Long userId, String title, String message,
-                                   String type, Long referenceId, String referenceType) {
+                                    String type, Long referenceId, String referenceType) {
         try {
             List<FcmToken> tokens = fcmTokenRepository.findByUserId(userId);
 
@@ -67,6 +98,7 @@ public class FirebaseMessagingService {
             int failureCount = 0;
 
             for (FcmToken fcmToken : tokens) {
+                
                 boolean sent = sendToToken(fcmToken.getToken(), title, message, type, referenceId, referenceType);
                 if (sent) {
                     successCount++;
@@ -87,12 +119,24 @@ public class FirebaseMessagingService {
     }
 
     /**
-     * Send notification to a specific token
+     * Envía una notificación a un token de dispositivo específico.
+     * <p>
+     * Si el envío falla debido a un token inválido o no registrado (UNREGISTERED),
+     * el token se elimina automáticamente de la base de datos.
+     * </p>
+     *
+     * @param token El token FCM del dispositivo de destino.
+     * @param title El título de la notificación.
+     * @param message El cuerpo del mensaje.
+     * @param type El tipo de notificación.
+     * @param referenceId ID de referencia (opcional).
+     * @param referenceType Tipo de referencia (opcional).
+     * @return {@code true} si el mensaje se envió correctamente, {@code false} si hubo un fallo.
      */
     public boolean sendToToken(String token, String title, String message,
-                              String type, Long referenceId, String referenceType) {
+                               String type, Long referenceId, String referenceType) {
         try {
-            // Build data payload
+            
             Map<String, String> data = new HashMap<>();
             data.put("type", type);
             if (referenceId != null) {
@@ -102,13 +146,13 @@ public class FirebaseMessagingService {
                 data.put("referenceType", referenceType);
             }
 
-            // Build notification
+            
             Notification notification = Notification.builder()
                     .setTitle(title)
                     .setBody(message)
                     .build();
 
-            // Build message
+            
             Message fcmMessage = Message.builder()
                     .setToken(token)
                     .setNotification(notification)
@@ -127,7 +171,7 @@ public class FirebaseMessagingService {
                             .build())
                     .build();
 
-            // Send message
+            
             String response = FirebaseMessaging.getInstance().send(fcmMessage);
             log.info("Successfully sent message: {}", response);
             return true;
@@ -135,10 +179,11 @@ public class FirebaseMessagingService {
         } catch (FirebaseMessagingException e) {
             log.error("Error sending FCM message to token: {}", e.getMessage());
 
-            // If token is invalid, remove it from database
+            
             if (e.getMessagingErrorCode() == MessagingErrorCode.UNREGISTERED ||
                 e.getMessagingErrorCode() == MessagingErrorCode.INVALID_ARGUMENT) {
                 log.info("Removing invalid FCM token: {}", token);
+                
                 fcmTokenRepository.deleteByToken(token);
             }
 
@@ -150,17 +195,28 @@ public class FirebaseMessagingService {
     }
 
     /**
-     * Send notification to multiple tokens
+     * Envía una notificación a múltiples tokens simultáneamente utilizando la función Multicast de Firebase.
+     * <p>
+     * Esta función es más eficiente para enviar el mismo mensaje a un gran número de tokens.
+     * También procesa la respuesta por lotes para eliminar los tokens inválidos.
+     * </p>
+     *
+     * @param tokens Lista de tokens FCM de los dispositivos de destino.
+     * @param title El título de la notificación.
+     * @param message El cuerpo del mensaje.
+     * @param type El tipo de notificación.
+     * @param referenceId ID de referencia (opcional).
+     * @param referenceType Tipo de referencia (opcional).
      */
     public void sendMulticast(List<String> tokens, String title, String message,
-                             String type, Long referenceId, String referenceType) {
+                              String type, Long referenceId, String referenceType) {
         if (tokens.isEmpty()) {
             log.warn("No tokens provided for multicast message");
             return;
         }
 
         try {
-            // Build data payload
+            
             Map<String, String> data = new HashMap<>();
             data.put("type", type);
             if (referenceId != null) {
@@ -170,13 +226,13 @@ public class FirebaseMessagingService {
                 data.put("referenceType", referenceType);
             }
 
-            // Build notification
+            
             Notification notification = Notification.builder()
                     .setTitle(title)
                     .setBody(message)
                     .build();
 
-            // Build multicast message
+            
             MulticastMessage message_multicast = MulticastMessage.builder()
                     .addAllTokens(tokens)
                     .setNotification(notification)
@@ -186,13 +242,13 @@ public class FirebaseMessagingService {
                             .build())
                     .build();
 
-            // Send multicast
+            
             BatchResponse response = FirebaseMessaging.getInstance().sendEachForMulticast(message_multicast);
 
             log.info("Multicast message sent: {} success, {} failures",
-                    response.getSuccessCount(), response.getFailureCount());
+                        response.getSuccessCount(), response.getFailureCount());
 
-            // Clean up invalid tokens
+            
             if (response.getFailureCount() > 0) {
                 List<SendResponse> responses = response.getResponses();
                 for (int i = 0; i < responses.size(); i++) {
@@ -203,6 +259,7 @@ public class FirebaseMessagingService {
                              exception.getMessagingErrorCode() == MessagingErrorCode.INVALID_ARGUMENT)) {
                             String invalidToken = tokens.get(i);
                             log.info("Removing invalid token from multicast: {}", invalidToken);
+                            
                             fcmTokenRepository.deleteByToken(invalidToken);
                         }
                     }
@@ -215,12 +272,23 @@ public class FirebaseMessagingService {
     }
 
     /**
-     * Send notification to a topic
+     * Envía una notificación a todos los dispositivos suscritos a un tema específico (Topic).
+     * <p>
+     * Este es el método más escalable para enviar el mismo mensaje a una audiencia amplia.
+     * </p>
+     *
+     * @param topic El nombre del tema (String) al que se suscribe el dispositivo.
+     * @param title El título de la notificación.
+     * @param message El cuerpo del mensaje.
+     * @param type El tipo de notificación.
+     * @param referenceId ID de referencia (opcional).
+     * @param referenceType Tipo de referencia (opcional).
+     * @return {@code true} si el mensaje fue enviado correctamente, {@code false} si hubo un fallo.
      */
     public boolean sendToTopic(String topic, String title, String message,
-                              String type, Long referenceId, String referenceType) {
+                               String type, Long referenceId, String referenceType) {
         try {
-            // Build data payload
+            
             Map<String, String> data = new HashMap<>();
             data.put("type", type);
             if (referenceId != null) {
@@ -230,20 +298,20 @@ public class FirebaseMessagingService {
                 data.put("referenceType", referenceType);
             }
 
-            // Build notification
+            
             Notification notification = Notification.builder()
                     .setTitle(title)
                     .setBody(message)
                     .build();
 
-            // Build message
+            
             Message fcmMessage = Message.builder()
                     .setTopic(topic)
                     .setNotification(notification)
                     .putAllData(data)
                     .build();
 
-            // Send message
+            
             String response = FirebaseMessaging.getInstance().send(fcmMessage);
             log.info("Successfully sent message to topic {}: {}", topic, response);
             return true;

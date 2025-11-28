@@ -17,6 +17,18 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.Map;
 
+/**
+ * Cliente REST para la comunicación con el Microservicio de Archivos (File Service).
+ * <p>
+ * Este componente es responsable de orquestar la subida de archivos (especialmente imágenes)
+ * utilizando el formato {@code multipart/form-data} y manejar las respuestas y errores
+ * de comunicación entre microservicios.
+ * </p>
+ *
+ * @author Grupo GA01
+ * @see RestTemplate
+ * 
+ */
 @Component
 @RequiredArgsConstructor
 public class FileServiceClient {
@@ -24,13 +36,22 @@ public class FileServiceClient {
     private static final Logger logger = LoggerFactory.getLogger(FileServiceClient.class);
     private final RestTemplate restTemplate;
 
+    /**
+     * URL base del microservicio de Archivos.
+     * El valor por defecto es {@code http://file-service:9005}.
+     */
     @Value("${file.service.url:http://file-service:9005}")
     private String fileServiceUrl;
 
     /**
-     * Upload an image file to the file service
-     * @param file the multipart file to upload
-     * @return the URL of the uploaded file
+     * Sube un archivo de imagen al servicio de archivos mediante una solicitud POST {@code multipart/form-data}.
+     * <p>
+     * Llama al endpoint {@code /api/files/upload/image}.
+     * </p>
+     *
+     * @param file El archivo {@link MultipartFile} a subir.
+     * @return La URL (tipo {@link String}) del archivo subido proporcionada por el servicio.
+     * @throws RuntimeException Si ocurre un error de comunicación HTTP (cliente o servidor) o un error de E/S.
      */
     public String uploadImage(MultipartFile file) throws Exception {
         String uploadUrl = fileServiceUrl + "/api/files/upload/image";
@@ -39,17 +60,21 @@ public class FileServiceClient {
 
         try {
             HttpHeaders headers = new HttpHeaders();
+            // Establece el tipo de contenido como MULTIPART_FORM_DATA
             headers.setContentType(MediaType.MULTIPART_FORM_DATA);
 
+            // Prepara el cuerpo de la solicitud con el archivo
             MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
             body.add("file", new MultipartFileResource(file));
 
             HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
 
+            // Ejecuta la solicitud REST
             ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
                 uploadUrl,
                 HttpMethod.POST,
                 requestEntity,
+                // Define el tipo de retorno esperado (Map<String, Object>)
                 new ParameterizedTypeReference<Map<String, Object>>() {} 
             );
 
@@ -78,17 +103,33 @@ public class FileServiceClient {
     }
 
     /**
-     * Helper class to convert MultipartFile to Resource for RestTemplate
+     * Clase auxiliar privada y estática para adaptar un objeto {@link MultipartFile}
+     * a un {@link ByteArrayResource}, permitiendo que {@link RestTemplate} lo envíe
+     * correctamente como parte de una solicitud {@code multipart/form-data}.
+     *
+     * @author TuNombre o Audira Team
      */
     private static class MultipartFileResource extends ByteArrayResource {
 
         private final String filename;
 
+        /**
+         * Constructor que lee los bytes del {@link MultipartFile} y almacena el nombre del archivo original.
+         *
+         * @param multipartFile El archivo de origen.
+         * @throws Exception Si ocurre un error al leer los bytes del archivo.
+         */
         public MultipartFileResource(MultipartFile multipartFile) throws Exception {
             super(multipartFile.getBytes());
             this.filename = multipartFile.getOriginalFilename();
         }
 
+        /**
+         * Retorna el nombre del archivo original, necesario para que el servicio REST de destino
+         * pueda manejar el archivo correctamente.
+         *
+         * @return El nombre del archivo.
+         */
         @Override
         public String getFilename() {
             return this.filename;

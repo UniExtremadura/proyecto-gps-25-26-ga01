@@ -129,6 +129,9 @@ class _SearchScreenState extends State<SearchScreen>
         _albums = albumsResponse.data!.take(10).toList();
       }
 
+      // Enriquecer nombres de artistas en canciones
+      await _enrichSongsData();
+
       if (mounted) {
         final authProvider = Provider.of<AuthProvider>(context, listen: false);
         if (authProvider.isAuthenticated && authProvider.currentUser != null) {
@@ -162,12 +165,75 @@ class _SearchScreenState extends State<SearchScreen>
           _trending,
           _newReleases
         ].any((list) => list.isNotEmpty);
+
+        // Enriquecer datos de artistas en las recomendaciones
+        await _enrichRecommendationsData();
       } else {
         _hasRecommendations = false;
       }
     } catch (e) {
       _hasRecommendations = false;
     }
+  }
+
+  Future<void> _enrichRecommendationsData() async {
+    final Map<int, String> artistCache = {};
+
+    _byPurchasedGenres =
+        await _enrichRecommendationList(_byPurchasedGenres, artistCache);
+    _byPurchasedArtists =
+        await _enrichRecommendationList(_byPurchasedArtists, artistCache);
+    _byLikedSongs = await _enrichRecommendationList(_byLikedSongs, artistCache);
+    _fromFollowedArtists =
+        await _enrichRecommendationList(_fromFollowedArtists, artistCache);
+    _trending = await _enrichRecommendationList(_trending, artistCache);
+    _newReleases = await _enrichRecommendationList(_newReleases, artistCache);
+
+    if (mounted) {
+      setState(() {}); // Actualizar UI con los nombres enriquecidos
+    }
+  }
+
+  Future<List<RecommendedSong>> _enrichRecommendationList(
+      List<RecommendedSong> songs, Map<int, String> artistCache) async {
+    List<RecommendedSong> enrichedSongs = List.from(songs);
+
+    for (int i = 0; i < enrichedSongs.length; i++) {
+      final song = enrichedSongs[i];
+      if (_needsEnrichment(song.artistName)) {
+        final realName = await _fetchArtistName(song.artistId, artistCache);
+        if (realName != null) {
+          enrichedSongs[i] = song.copyWith(artistName: realName);
+        }
+      }
+    }
+
+    return enrichedSongs;
+  }
+
+  bool _needsEnrichment(String name) {
+    return name == 'Artista Desconocido' ||
+        name == 'Artista desconocido' ||
+        name.startsWith('Artist #') ||
+        name.startsWith('Artista #') ||
+        name.startsWith('user');
+  }
+
+  Future<String?> _fetchArtistName(int artistId, Map<int, String> cache) async {
+    if (cache.containsKey(artistId)) return cache[artistId];
+
+    try {
+      final response = await _musicService.getArtistById(artistId);
+      if (response.success && response.data != null) {
+        final artist = response.data!;
+        final name = artist.artistName ?? artist.displayName;
+        cache[artistId] = name;
+        return name;
+      }
+    } catch (e) {
+      debugPrint("Error fetching artist $artistId: $e");
+    }
+    return null;
   }
 
   Future<void> _loadGenres() async {
@@ -229,6 +295,8 @@ class _SearchScreenState extends State<SearchScreen>
               _songs = data['songs'] as List<Song>;
               _hasMoreSongs = data['hasMore'] as bool;
             });
+            // Enriquecer nombres de artistas en canciones
+            await _enrichSongsData();
           }
         }
       }
@@ -266,6 +334,29 @@ class _SearchScreenState extends State<SearchScreen>
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _enrichSongsData() async {
+    final Map<int, String> artistCache = {};
+    List<Song> enrichedSongs = List.from(_songs);
+    bool needsUpdate = false;
+
+    for (int i = 0; i < enrichedSongs.length; i++) {
+      final song = enrichedSongs[i];
+      if (_needsEnrichment(song.artistName)) {
+        final realName = await _fetchArtistName(song.artistId, artistCache);
+        if (realName != null) {
+          enrichedSongs[i] = song.copyWith(artistName: realName);
+          needsUpdate = true;
+        }
+      }
+    }
+
+    if (needsUpdate && mounted) {
+      setState(() {
+        _songs = enrichedSongs;
+      });
     }
   }
 

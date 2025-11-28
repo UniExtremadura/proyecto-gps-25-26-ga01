@@ -12,16 +12,38 @@ import java.util.UUID;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
+/**
+ * Servicio encargado de las operaciones de compresión de archivos,
+ * creando archivos ZIP a partir de uno o múltiples archivos almacenados en el sistema.
+ * <p>
+ * Gestiona las rutas de almacenamiento y utiliza la funcionalidad de {@code java.util.zip}
+ * para generar los archivos comprimidos.
+ * </p>
+ *
+ * @author Grupo GA01
+ * 
+ */
 @Service
 public class FileCompressionService {
 
+    /**
+     * Directorio base donde se almacenan todos los archivos cargados, configurado
+     * mediante la propiedad {@code file.upload-dir}. Por defecto es "uploads".
+     */
     @Value("${file.upload-dir:uploads}")
     private String uploadDir;
 
     /**
-     * Comprime una lista de archivos en un archivo ZIP
-     * @param filePaths Lista de rutas relativas de archivos (ej: "audio-files/abc.mp3")
-     * @return Ruta del archivo ZIP generado
+     * Comprime una lista de archivos en un único archivo ZIP.
+     * <p>
+     * El archivo ZIP se guarda en el subdirectorio {@code compressed/} con un nombre
+     * generado aleatoriamente (UUID).
+     * </p>
+     *
+     * @param filePaths Lista de rutas relativas de archivos (ej: "audio-files/abc.mp3").
+     * @return Ruta relativa del archivo ZIP generado (ej: "compressed/UUID.zip").
+     * @throws IOException Si ocurre un error de I/O durante la compresión o si un archivo fuente no es encontrado.
+     * @throws FileNotFoundException Si alguna de las rutas en {@code filePaths} no corresponde a un archivo existente.
      */
     public String compressFiles(List<String> filePaths) throws IOException {
         Path fileStorageLocation = Paths.get(uploadDir).toAbsolutePath().normalize();
@@ -53,9 +75,16 @@ public class FileCompressionService {
     }
 
     /**
-     * Comprime un solo archivo
-     * @param filePath Ruta relativa del archivo
-     * @return Ruta del archivo ZIP generado
+     * Comprime un solo archivo en un archivo ZIP.
+     * <p>
+     * El archivo ZIP generado incluye parte del nombre original del archivo y un sufijo
+     * de UUID corto para asegurar la unicidad. Se almacena en {@code compressed/}.
+     * </p>
+     *
+     * @param filePath Ruta relativa del archivo a comprimir.
+     * @return Ruta relativa del archivo ZIP generado (ej: "compressed/archivo_UUID.zip").
+     * @throws IOException Si ocurre un error de I/O durante la compresión.
+     * @throws FileNotFoundException Si el archivo en la ruta especificada no existe.
      */
     public String compressSingleFile(String filePath) throws IOException {
         Path fileStorageLocation = Paths.get(uploadDir).toAbsolutePath().normalize();
@@ -71,8 +100,11 @@ public class FileCompressionService {
 
         // Generar nombre único para el archivo ZIP
         String originalFileName = sourceFile.getFileName().toString();
-        String zipFileName = originalFileName.substring(0, originalFileName.lastIndexOf('.')) + "_" +
-                           UUID.randomUUID().toString().substring(0, 8) + ".zip";
+        int dotIndex = originalFileName.lastIndexOf('.');
+        String baseName = (dotIndex > 0) ? originalFileName.substring(0, dotIndex) : originalFileName;
+
+        String zipFileName = baseName + "_" +
+                             UUID.randomUUID().toString().substring(0, 8) + ".zip";
         Path zipFilePath = compressedDir.resolve(zipFileName);
 
         try (FileOutputStream fos = new FileOutputStream(zipFilePath.toFile());
@@ -84,6 +116,17 @@ public class FileCompressionService {
         return "compressed/" + zipFileName;
     }
 
+    /**
+     * Agrega un archivo al flujo de salida ZIP.
+     * <p>
+     * Crea una nueva entrada en el ZIP y escribe el contenido del archivo fuente en el flujo.
+     * </p>
+     *
+     * @param sourceFile La ruta absoluta del archivo fuente a incluir.
+     * @param zos El {@link ZipOutputStream} donde se escribirá el archivo.
+     * @param entryName El nombre que tendrá el archivo dentro del ZIP.
+     * @throws IOException Si ocurre un error de I/O al leer o escribir el archivo.
+     */
     private void addFileToZip(Path sourceFile, ZipOutputStream zos, String entryName) throws IOException {
         ZipEntry zipEntry = new ZipEntry(entryName);
         zos.putNextEntry(zipEntry);
@@ -100,9 +143,12 @@ public class FileCompressionService {
     }
 
     /**
-     * Obtiene el tamaño de un archivo
-     * @param filePath Ruta relativa del archivo
-     * @return Tamaño en bytes
+     * Obtiene el tamaño en bytes de un archivo específico.
+     *
+     * @param filePath Ruta relativa del archivo.
+     * @return El tamaño del archivo en bytes.
+     * @throws IOException Si ocurre un error de I/O al acceder al archivo.
+     * @throws FileNotFoundException Si el archivo en la ruta especificada no existe.
      */
     public long getFileSize(String filePath) throws IOException {
         Path fileStorageLocation = Paths.get(uploadDir).toAbsolutePath().normalize();

@@ -10,16 +10,45 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
 
+/**
+ * Controlador REST para la gestión de tokens de Firebase Cloud Messaging (FCM).
+ * <p>
+ * Los endpoints base se mapean a {@code /api/notifications/fcm} y se utilizan
+ * para registrar, anular el registro y consultar los tokens de dispositivos
+ * asociados a un usuario para el envío de notificaciones push.
+ * </p>
+ *
+ * @author Grupo GA01
+ * @see FcmTokenService
+ * @see FcmToken
+ * 
+ */
 @RestController
 @RequestMapping("/api/notifications/fcm")
 @RequiredArgsConstructor
 @Slf4j
 public class FcmTokenController {
 
+    /**
+     * Servicio de lógica de negocio para la gestión de tokens FCM.
+     */
     private final FcmTokenService fcmTokenService;
 
     /**
-     * Register a new FCM token for a user
+     * Registra un nuevo token FCM para un usuario.
+     * <p>
+     * Este endpoint se llama típicamente cuando la aplicación móvil o web obtiene un
+     * token por primera vez o cuando el token es refrescado.
+     * Mapeo: {@code POST /api/notifications/fcm/register}
+     * </p>
+     *
+     * @param request Cuerpo de la solicitud {@link RequestBody} que debe contener:
+     * <ul>
+     * <li>{@code userId} (Long): ID del usuario.</li>
+     * <li>{@code token} (String): El token FCM único del dispositivo.</li>
+     * <li>{@code platform} (String): La plataforma del dispositivo (ej. "ANDROID", "IOS", "WEB"). Por defecto a ANDROID si es inválido.</li>
+     * </ul>
+     * @return {@link ResponseEntity} que contiene un mapa de éxito y el ID del token registrado, o un mapa de error si falla.
      */
     @PostMapping("/register")
     public ResponseEntity<?> registerToken(@RequestBody Map<String, Object> request) {
@@ -39,12 +68,12 @@ public class FcmTokenController {
 
             return ResponseEntity.ok(Map.of(
                 "success", true,
-                "message", "FCM token registered successfully",
+                "message", "FCM token registrado exitosamente",
                 "tokenId", fcmToken.getId()
             ));
 
         } catch (Exception e) {
-            log.error("Error registering FCM token: {}", e.getMessage());
+            log.error("Error registrando FCM token: {}", e.getMessage());
             return ResponseEntity.badRequest().body(Map.of(
                 "success", false,
                 "error", e.getMessage()
@@ -53,7 +82,19 @@ public class FcmTokenController {
     }
 
     /**
-     * Unregister an FCM token
+     * Anula el registro (elimina) un token FCM para un usuario.
+     * <p>
+     * Este endpoint se llama cuando un usuario cierra sesión o desinstala la aplicación,
+     * para evitar enviar notificaciones a un token inactivo.
+     * Mapeo: {@code DELETE /api/notifications/fcm/unregister}
+     * </p>
+     *
+     * @param request Cuerpo de la solicitud {@link RequestBody} que debe contener:
+     * <ul>
+     * <li>{@code userId} (Long): ID del usuario.</li>
+     * <li>{@code token} (String): El token FCM a eliminar.</li>
+     * </ul>
+     * @return {@link ResponseEntity} que contiene un mapa de éxito o un mapa de error si falla.
      */
     @DeleteMapping("/unregister")
     public ResponseEntity<?> unregisterToken(@RequestBody Map<String, Object> request) {
@@ -65,11 +106,11 @@ public class FcmTokenController {
 
             return ResponseEntity.ok(Map.of(
                 "success", true,
-                "message", "FCM token unregistered successfully"
+                "message", "FCM token anulado exitosamente"
             ));
 
         } catch (Exception e) {
-            log.error("Error unregistering FCM token: {}", e.getMessage());
+            log.error("Error anulando FCM token: {}", e.getMessage());
             return ResponseEntity.badRequest().body(Map.of(
                 "success", false,
                 "error", e.getMessage()
@@ -78,7 +119,14 @@ public class FcmTokenController {
     }
 
     /**
-     * Get all tokens for a user
+     * Obtiene todos los tokens FCM activos asociados a un usuario.
+     * <p>
+     * Mapeo: {@code GET /api/notifications/fcm/user/{userId}}
+     * </p>
+     *
+     * @param userId El ID del usuario (tipo {@link Long}) para el que se desean obtener los tokens.
+     * @return {@link ResponseEntity} que contiene un mapa con la clave {@code tokens}
+     * y una lista de los objetos {@link FcmToken} asociados, o un mapa de error si falla.
      */
     @GetMapping("/user/{userId}")
     public ResponseEntity<?> getUserTokens(@PathVariable Long userId) {
@@ -91,7 +139,7 @@ public class FcmTokenController {
             ));
 
         } catch (Exception e) {
-            log.error("Error fetching user tokens: {}", e.getMessage());
+            log.error("Error obteniendo tokens de usuario: {}", e.getMessage());
             return ResponseEntity.badRequest().body(Map.of(
                 "success", false,
                 "error", e.getMessage()

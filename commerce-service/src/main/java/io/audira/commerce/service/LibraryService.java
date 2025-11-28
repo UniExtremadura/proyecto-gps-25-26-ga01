@@ -17,6 +17,18 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * Servicio de lógica de negocio responsable de gestionar la Biblioteca Digital de Artículos Comprados (Library) de los usuarios.
+ * <p>
+ * Este servicio controla qué artículos (canciones, álbumes, mercancía) posee un usuario y gestiona
+ * el proceso de adición de ítems tras una compra exitosa, incluyendo la lógica de desagregación de álbumes.
+ * </p>
+ *
+ * @author Grupo GA01
+ * @see PurchasedItemRepository
+ * @see MusicCatalogClient
+ * 
+ */
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -26,7 +38,13 @@ public class LibraryService {
     private final MusicCatalogClient musicCatalogClient;
 
     /**
-     * Get user's complete library organized by item type
+     * Obtiene la biblioteca completa de un usuario, organizada por tipo de artículo.
+     * <p>
+     * Se consulta la base de datos por todos los artículos comprados y se mapean a la estructura categorizada {@link UserLibraryDTO}.
+     * </p>
+     *
+     * @param userId El ID del usuario (tipo {@link Long}).
+     * @return El objeto {@link UserLibraryDTO} con los artículos clasificados.
      */
     @Transactional(readOnly = true)
     public UserLibraryDTO getUserLibrary(Long userId) {
@@ -56,7 +74,10 @@ public class LibraryService {
     }
 
     /**
-     * Get all purchased items for a user
+     * Obtiene todos los artículos comprados por un usuario en una lista plana.
+     *
+     * @param userId El ID del usuario.
+     * @return Una {@link List} plana de objetos {@link PurchasedItemDTO}.
      */
     @Transactional(readOnly = true)
     public List<PurchasedItemDTO> getAllPurchasedItems(Long userId) {
@@ -69,7 +90,11 @@ public class LibraryService {
     }
 
     /**
-     * Get purchased items of a specific type
+     * Obtiene los artículos comprados de un usuario, filtrados por un tipo de artículo específico.
+     *
+     * @param userId El ID del usuario.
+     * @param itemType El tipo de artículo ({@link ItemType}) por el cual filtrar.
+     * @return Una {@link List} de objetos {@link PurchasedItemDTO} filtrada.
      */
     @Transactional(readOnly = true)
     public List<PurchasedItemDTO> getPurchasedItemsByType(Long userId, ItemType itemType) {
@@ -82,7 +107,12 @@ public class LibraryService {
     }
 
     /**
-     * Check if user has purchased a specific item
+     * Verifica si un usuario ya ha adquirido un artículo específico.
+     *
+     * @param userId El ID del usuario.
+     * @param itemType El tipo de artículo.
+     * @param itemId El ID del artículo.
+     * @return {@code true} si el artículo ha sido comprado, {@code false} en caso contrario.
      */
     @Transactional(readOnly = true)
     public boolean hasUserPurchasedItem(Long userId, ItemType itemType, Long itemId) {
@@ -92,9 +122,14 @@ public class LibraryService {
     }
 
     /**
-     * Add items from a completed order to user's library
-     * This should be called when a payment is completed successfully
-     * When an album is purchased, all its songs are also added to the library
+     * Procesa una orden completada y añade todos los artículos de dicha orden a la biblioteca del usuario.
+     * <p>
+     * Este método debe ser llamado solo después de que el pago asociado ha sido confirmado como exitoso.
+     * Lógica clave: Si se compra un {@code ItemType.ALBUM}, también se añaden todas las canciones individuales del álbum a la biblioteca.
+     * </p>
+     *
+     * @param order La entidad {@link Order} completada.
+     * @param paymentId El ID del registro de pago asociado a la transacción.
      */
     @Transactional
     public void addOrderToLibrary(Order order, Long paymentId) {
@@ -114,7 +149,12 @@ public class LibraryService {
     }
 
     /**
-     * Add a single item to the library
+     * Añade un único artículo de orden a la biblioteca, siempre y cuando no exista ya.
+     *
+     * @param userId El ID del usuario.
+     * @param orderItem El artículo de orden ({@link OrderItem}) a registrar.
+     * @param orderId ID de la orden.
+     * @param paymentId ID del pago.
      */
     private void addItemToLibrary(Long userId, OrderItem orderItem, Long orderId, Long paymentId) {
         // Check if already exists (avoid duplicates)
@@ -145,12 +185,21 @@ public class LibraryService {
     }
 
     /**
-     * Add all songs from an album to the user's library
+     * Obtiene la lista de canciones de un álbum (a través del {@link MusicCatalogClient}) y las añade individualmente a la biblioteca del usuario.
+     * <p>
+     * Las canciones individuales añadidas de un álbum tienen un precio de {@code BigDecimal.ZERO} para reflejar que el costo ya fue cubierto por el álbum.
+     * </p>
+     *
+     * @param userId El ID del usuario.
+     * @param albumId El ID del álbum en el catálogo.
+     * @param orderId ID de la orden.
+     * @param paymentId ID del pago.
      */
     private void addAlbumSongsToLibrary(Long userId, Long albumId, Long orderId, Long paymentId) {
         try {
             log.info("Fetching songs for album {} to add to user {} library", albumId, userId);
 
+            // Comunicación con el microservicio de Catálogo
             List<Long> songIds = musicCatalogClient.getSongIdsByAlbum(albumId);
 
             if (songIds.isEmpty()) {
@@ -162,7 +211,7 @@ public class LibraryService {
                 songIds.size(), albumId, userId);
 
             for (Long songId : songIds) {
-                // Check if song is already in library
+                // Check if song is already in library (ej. si fue comprada individualmente antes)
                 boolean exists = purchasedItemRepository.existsByUserIdAndItemTypeAndItemId(
                     userId,
                     ItemType.SONG,
@@ -193,13 +242,17 @@ public class LibraryService {
         } catch (Exception e) {
             log.error("Error adding songs from album {} to user {} library: {}",
                 albumId, userId, e.getMessage(), e);
-            // Don't throw exception - the album purchase itself was successful
-            // User can still access the album even if individual songs weren't added
+            // El fallo de un proceso auxiliar (como esta desagregación) no debe revertir la transacción principal de la compra.
         }
     }
 
     /**
-     * Delete all library items for a user (admin/testing purposes)
+     * Elimina todos los registros de artículos comprados de un usuario.
+     * <p>
+     * Utilizado para propósitos administrativos o de prueba.
+     * </p>
+     *
+     * @param userId El ID del usuario cuya biblioteca será eliminada.
      */
     @Transactional
     public void clearUserLibrary(Long userId) {

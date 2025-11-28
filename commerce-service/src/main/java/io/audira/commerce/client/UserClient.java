@@ -9,16 +9,54 @@ import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
 
+/**
+ * Cliente REST para comunicarse con el microservicio de usuarios (User Service).
+ * <p>
+ * Esta clase encapsula las llamadas HTTP a la API de usuarios para recuperar información
+ * de perfil de usuario ({@link UserDTO}). Utiliza {@link RestTemplate} para la
+ * comunicación síncrona y realiza un manejo exhaustivo de errores de conexión y de cliente.
+ * </p>
+ *
+ * @author Grupo GA01   
+ * @see RestTemplate
+ * 
+ */
 @Component
 @RequiredArgsConstructor
 @Slf4j
 public class UserClient {
 
+    /**
+     * Cliente de Spring utilizado para realizar las llamadas HTTP síncronas.
+     * Se inyecta automáticamente gracias a la anotación {@link RequiredArgsConstructor} de Lombok.
+     */
     private final RestTemplate restTemplate;
 
+    /**
+     * URL base del microservicio de usuarios.
+     * <p>
+     * El valor por defecto es {@code http://172.16.0.4:9001/api/users} si la propiedad
+     * {@code services.user.url} no está definida en la configuración.
+     * </p>
+     */
     @Value("${services.user.url:http://172.16.0.4:9001/api/users}")
     private String userServiceUrl;
 
+    /**
+     * Recupera la información completa de un usuario por su identificador único.
+     * <p>
+     * Realiza una llamada GET al endpoint {@code /api/users/{userId}} del servicio de usuarios.
+     * Si la respuesta es exitosa (200 OK), mapea el JSON a un objeto {@link UserDTO}.
+     * </p>
+     *
+     * @param userId El identificador único del usuario (tipo {@link Long}) a buscar.
+     * @return El objeto {@link UserDTO} que contiene los datos del usuario.
+     * @throws RuntimeException Envuelve las excepciones de Spring (como {@link HttpClientErrorException}
+     * y {@link ResourceAccessException}) para proporcionar un mensaje de error
+     * consistente y detallado en caso de fallos de comunicación o errores HTTP.
+     * @throws HttpClientErrorException Si la respuesta del servicio es un error de cliente (ej. 404 NOT FOUND, 400 BAD REQUEST).
+     * @throws ResourceAccessException Si la conexión al servicio falla (ej. el servicio está inactivo o inaccesible).
+     */
     public UserDTO getUserById(Long userId) {
         String url = userServiceUrl + "/" + userId;
 
