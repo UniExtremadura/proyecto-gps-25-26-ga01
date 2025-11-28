@@ -503,10 +503,6 @@ class _LibraryScreenState extends State<LibraryScreen>
           trailing: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('\$${song.price}',
-                  style: const TextStyle(
-                      color: AppTheme.primaryBlue,
-                      fontWeight: FontWeight.bold)),
               const SizedBox(width: 8),
               const Icon(Icons.play_circle_outline,
                   color: AppTheme.primaryBlue),
@@ -528,6 +524,8 @@ class _LibraryScreenState extends State<LibraryScreen>
       startIndex: index,
       isUserAuthenticated: authProvider.isAuthenticated,
       userId: authProvider.currentUser?.id,
+      arePurchased:
+          true, // IMPORTANTE: Las canciones de biblioteca están compradas
     );
 
     // Navegar a la pantalla de reproducción

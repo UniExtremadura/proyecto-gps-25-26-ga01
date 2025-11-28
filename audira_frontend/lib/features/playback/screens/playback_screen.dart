@@ -835,6 +835,7 @@ class _ProgressSlider extends StatefulWidget {
 class _ProgressSliderState extends State<_ProgressSlider> {
   // Variable local para gestionar el arrastre sin saltos
   double? _dragValue;
+  bool _isDragging = false;
 
   String _formatDuration(Duration duration) {
     String twoDigits(int n) => n.toString().padLeft(2, '0');
@@ -857,12 +858,14 @@ class _ProgressSliderState extends State<_ProgressSlider> {
     // LÓGICA CLAVE: Si el usuario está arrastrando (_dragValue != null),
     // usamos ese valor para dibujar el slider. Si no, usamos el del Provider.
     // Esto evita que el slider "tiemble" o salte hacia atrás mientras arrastras.
-    final displayValue = _dragValue ?? progress.clamp(0.0, 1.0);
+    final displayValue = _isDragging && _dragValue != null
+        ? _dragValue!
+        : progress.clamp(0.0, 1.0);
 
     // Calculamos el tiempo a mostrar en texto (dinámico mientras arrastras)
-    final displayTime = _dragValue != null
+    final displayTime = _isDragging && _dragValue != null
         ? Duration(
-            milliseconds: (displayValue * totalDuration.inMilliseconds).round())
+            milliseconds: (_dragValue! * totalDuration.inMilliseconds).round())
         : currentPos;
 
     return Column(
@@ -882,30 +885,43 @@ class _ProgressSliderState extends State<_ProgressSlider> {
           ),
           child: Slider(
             value: displayValue,
+            min: 0.0,
+            max: 1.0,
             // Solo permitimos interaction si la duración es válida
             onChanged: (totalDuration.inMilliseconds > 0)
                 ? (value) {
                     // Actualizamos SOLO el estado local mientras arrastra
                     setState(() {
-                      _dragValue = value;
+                      _dragValue = value.clamp(0.0, 1.0);
                     });
                   }
                 : null,
             onChangeStart: (_) {
-              // Opcional: pausar updates del provider si fuera necesario,
-              // pero con _dragValue local es suficiente.
+              // Marcar que estamos arrastrando
+              setState(() {
+                _isDragging = true;
+              });
             },
             onChangeEnd: (value) async {
-              // Al soltar, enviamos el comando de seek
-              final newPos = Duration(
-                  milliseconds: (value * totalDuration.inMilliseconds).round());
-              await widget.audioProvider.seek(newPos);
+              try {
+                // Al soltar, enviamos el comando de seek
+                final clampedValue = value.clamp(0.0, 1.0);
+                final newPos = Duration(
+                    milliseconds:
+                        (clampedValue * totalDuration.inMilliseconds).round());
 
-              // Limpiamos el valor de arrastre para volver a escuchar al provider
-              if (mounted) {
-                setState(() {
-                  _dragValue = null;
-                });
+                // Realizar el seek
+                await widget.audioProvider.seek(newPos);
+              } catch (e) {
+                debugPrint('Error en seek desde slider: $e');
+              } finally {
+                // Limpiamos el valor de arrastre para volver a escuchar al provider
+                if (mounted) {
+                  setState(() {
+                    _isDragging = false;
+                    _dragValue = null;
+                  });
+                }
               }
             },
           ),
