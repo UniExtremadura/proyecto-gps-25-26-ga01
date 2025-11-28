@@ -53,10 +53,17 @@ class _SongSelectorScreenState extends State<SongSelectorScreen> {
       final response = await _musicService.getAllSongs();
       if (response.success && response.data != null) {
         // Filtrar canciones que NO están en la playlist
-        _allSongs = response.data!
+        List<Song> tempSongs = response.data!
             .where((song) => !widget.currentSongIds.contains(song.id))
             .toList();
-        _filteredSongs = _allSongs;
+
+        setState(() {
+          _allSongs = tempSongs;
+          _filteredSongs = _allSongs;
+        });
+
+        // Enriquecer datos del artista
+        await _enrichSongData(tempSongs);
       } else {
         _error = response.error ?? 'Error cargando canciones';
       }
@@ -65,6 +72,54 @@ class _SongSelectorScreenState extends State<SongSelectorScreen> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  Future<void> _enrichSongData(List<Song> songs) async {
+    bool needsUpdate = false;
+    final Map<int, String> artistCache = {};
+
+    List<Song> enrichedSongs = List.from(songs);
+    for (int i = 0; i < enrichedSongs.length; i++) {
+      final s = enrichedSongs[i];
+      if (_needsEnrichment(s.artistName)) {
+        final realName = await _fetchArtistName(s.artistId, artistCache);
+        if (realName != null) {
+          enrichedSongs[i] = s.copyWith(artistName: realName);
+          needsUpdate = true;
+        }
+      }
+    }
+
+    if (needsUpdate && mounted) {
+      setState(() {
+        _allSongs = enrichedSongs;
+        _filteredSongs = _allSongs;
+      });
+    }
+  }
+
+  bool _needsEnrichment(String name) {
+    return name == 'Artista Desconocido' ||
+        name.startsWith('Artist #') ||
+        name.startsWith('Artista #') ||
+        name.startsWith('user');
+  }
+
+  Future<String?> _fetchArtistName(int artistId, Map<int, String> cache) async {
+    if (cache.containsKey(artistId)) return cache[artistId];
+
+    try {
+      final response = await _musicService.getArtistById(artistId);
+      if (response.success && response.data != null) {
+        final artist = response.data!;
+        final name = artist.artistName ?? artist.displayName;
+        cache[artistId] = name;
+        return name;
+      }
+    } catch (e) {
+      debugPrint("Error fetching artist $artistId: $e");
+    }
+    return null;
   }
 
   void _filterSongs(String query) {

@@ -9,6 +9,7 @@ import '../../../config/theme.dart';
 import '../../../core/models/payment.dart';
 import '../../../core/models/receipt.dart';
 import '../../../core/api/services/receipt_service.dart';
+import '../../../core/api/services/music_service.dart';
 
 class ReceiptScreen extends StatefulWidget {
   final Payment payment;
@@ -51,6 +52,9 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
             _receipt = response.data;
             _isLoading = false;
           });
+
+          // Enriquecer nombres de items
+          await _enrichReceiptItems();
         }
       } else {
         if (mounted) {
@@ -68,6 +72,61 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
         });
       }
     }
+  }
+
+  Future<void> _enrichReceiptItems() async {
+    if (_receipt == null || _receipt!.order.items.isEmpty) return;
+
+    final MusicService musicService = MusicService();
+    List<ReceiptItem> enrichedItems = List.from(_receipt!.items);
+    bool needsUpdate = false;
+
+    // Mapear items del order con items del receipt por posición
+    for (int i = 0;
+        i < enrichedItems.length && i < _receipt!.order.items.length;
+        i++) {
+      final receiptItem = enrichedItems[i];
+      final orderItem = _receipt!.order.items[i];
+
+      // Solo enriquecer si el nombre parece incompleto
+      if (_needsItemEnrichment(receiptItem.itemName)) {
+        String? realName;
+
+        if (orderItem.itemType.toUpperCase() == 'SONG') {
+          final response = await musicService.getSongById(orderItem.itemId);
+          if (response.success && response.data != null) {
+            realName = response.data!.name;
+          }
+        } else if (orderItem.itemType.toUpperCase() == 'ALBUM') {
+          final response = await musicService.getAlbumById(orderItem.itemId);
+          if (response.success && response.data != null) {
+            realName = response.data!.name;
+          }
+        }
+
+        if (realName != null) {
+          enrichedItems[i] = receiptItem.copyWith(
+            itemName: realName,
+            itemId: orderItem.itemId,
+          );
+          needsUpdate = true;
+        }
+      }
+    }
+
+    if (needsUpdate && mounted) {
+      setState(() {
+        _receipt = _receipt!.copyWith(items: enrichedItems);
+      });
+    }
+  }
+
+  bool _needsItemEnrichment(String name) {
+    return name.startsWith('Song #') ||
+        name.startsWith('Album #') ||
+        name.startsWith('Canción #') ||
+        name.startsWith('Álbum #') ||
+        name == 'Sin título';
   }
 
   // --- LÓGICA DE COMPARTIR ---

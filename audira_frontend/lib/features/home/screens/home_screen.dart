@@ -106,12 +106,76 @@ class _HomeScreenState extends State<HomeScreen> {
               _trending.isNotEmpty ||
               _newReleases.isNotEmpty;
         });
+
+        // Enriquecer datos de artistas en todas las recomendaciones
+        await _enrichRecommendationsData();
       } else {
         setState(() => _hasRecommendations = false);
       }
     } catch (e) {
       setState(() => _hasRecommendations = false);
     }
+  }
+
+  Future<void> _enrichRecommendationsData() async {
+    final Map<int, String> artistCache = {};
+
+    // Enriquecer cada lista de recomendaciones
+    _byPurchasedGenres =
+        await _enrichRecommendationList(_byPurchasedGenres, artistCache);
+    _byPurchasedArtists =
+        await _enrichRecommendationList(_byPurchasedArtists, artistCache);
+    _byLikedSongs = await _enrichRecommendationList(_byLikedSongs, artistCache);
+    _fromFollowedArtists =
+        await _enrichRecommendationList(_fromFollowedArtists, artistCache);
+    _trending = await _enrichRecommendationList(_trending, artistCache);
+    _newReleases = await _enrichRecommendationList(_newReleases, artistCache);
+
+    if (mounted) {
+      setState(() {}); // Actualizar UI con los nombres enriquecidos
+    }
+  }
+
+  Future<List<RecommendedSong>> _enrichRecommendationList(
+      List<RecommendedSong> songs, Map<int, String> artistCache) async {
+    List<RecommendedSong> enrichedSongs = List.from(songs);
+
+    for (int i = 0; i < enrichedSongs.length; i++) {
+      final song = enrichedSongs[i];
+      if (_needsEnrichment(song.artistName)) {
+        final realName = await _fetchArtistName(song.artistId, artistCache);
+        if (realName != null) {
+          enrichedSongs[i] = song.copyWith(artistName: realName);
+        }
+      }
+    }
+
+    return enrichedSongs;
+  }
+
+  bool _needsEnrichment(String name) {
+    return name == 'Artista Desconocido' ||
+        name == 'Artista desconocido' ||
+        name.startsWith('Artist #') ||
+        name.startsWith('Artista #') ||
+        name.startsWith('user');
+  }
+
+  Future<String?> _fetchArtistName(int artistId, Map<int, String> cache) async {
+    if (cache.containsKey(artistId)) return cache[artistId];
+
+    try {
+      final response = await _musicService.getArtistById(artistId);
+      if (response.success && response.data != null) {
+        final artist = response.data!;
+        final name = artist.artistName ?? artist.displayName;
+        cache[artistId] = name;
+        return name;
+      }
+    } catch (e) {
+      debugPrint("Error fetching artist $artistId: $e");
+    }
+    return null;
   }
 
   Future<void> _loadFeaturedContent(

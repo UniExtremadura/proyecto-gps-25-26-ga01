@@ -254,9 +254,7 @@ class ProfileScreen extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              if (user.isArtist) ...[
-                _buildStatItem('ARTISTA', 'ROL'),
-              ],
+              _buildStatItem(user.role.toUpperCase(), 'ROL'),
               Container(width: 1, height: 24, color: Colors.white24),
               _buildStatItem('${user.followerIds.length}', 'SEGUIDORES'),
               Container(width: 1, height: 24, color: Colors.white24),
