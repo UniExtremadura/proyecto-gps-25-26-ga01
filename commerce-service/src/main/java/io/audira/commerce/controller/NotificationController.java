@@ -39,6 +39,9 @@ public class NotificationController {
      * Servicio de lógica de negocio para la gestión de notificaciones.
      */
     private final NotificationService notificationService;
+    private final io.audira.commerce.service.FirebaseMessagingService firebaseMessagingService;
+    private final io.audira.commerce.repository.FcmTokenRepository fcmTokenRepository;
+    private final io.audira.commerce.repository.NotificationRepository notificationRepository;
 
     /**
      * Endpoint general para recibir solicitudes de notificación de otros servicios.
@@ -214,6 +217,54 @@ public class NotificationController {
         } catch (Exception e) {
             // Manejamos la excepción para retornar 404 si el servicio no encuentra el recurso
             return ResponseEntity.notFound().build();
+        }
+    }
+
+    /**
+     * Endpoint de verificación de salud del sistema de notificaciones.
+     * <p>
+     * Proporciona información sobre el estado de Firebase, tokens FCM y notificaciones almacenadas.
+     * Útil para monitoreo y debugging.
+     * Mapeo: {@code GET /api/notifications/health}
+     * </p>
+     *
+     * @return {@link ResponseEntity} que contiene un mapa con información de salud del sistema.
+     */
+    @GetMapping("/health")
+    public ResponseEntity<Map<String, Object>> getNotificationHealth() {
+        try {
+            boolean firebaseInitialized = firebaseMessagingService.isInitialized();
+            long totalTokens = fcmTokenRepository.count();
+            long totalNotifications = notificationRepository.count();
+            long unreadNotifications = notificationRepository.countByIsRead(false);
+
+            String status;
+            if (firebaseInitialized && totalTokens > 0) {
+                status = "HEALTHY";
+            } else if (firebaseInitialized) {
+                status = "DEGRADED - No FCM tokens registered";
+            } else {
+                status = "CRITICAL - Firebase not initialized";
+            }
+
+            Map<String, Object> health = Map.of(
+                "status", status,
+                "firebaseInitialized", firebaseInitialized,
+                "totalFcmTokens", totalTokens,
+                "totalNotifications", totalNotifications,
+                "unreadNotifications", unreadNotifications,
+                "timestamp", java.time.LocalDateTime.now()
+            );
+
+            return ResponseEntity.ok(health);
+        } catch (Exception e) {
+            log.error("Error checking notification health: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of(
+                        "status", "ERROR",
+                        "error", e.getMessage(),
+                        "timestamp", java.time.LocalDateTime.now()
+                    ));
         }
     }
 }

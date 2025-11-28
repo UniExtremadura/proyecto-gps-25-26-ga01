@@ -248,13 +248,22 @@ public class NotificationService {
      * Notifica a cada artista/vendedor involucrado en la orden sobre la venta de sus productos.
      * <p>
      * Los ítems de la orden se agrupan por {@code artistId} para enviar una sola notificación por artista.
+     * Los ítems sin {@code artistId} (nulo) se filtran automáticamente para evitar excepciones.
      * </p>
      *
      * @param order La orden completada.
      */
     private void notifyArtists(Order order) {
-        Map<Long, List<OrderItem>> itemsByArtist = order.getItems().stream()
-                .collect(Collectors.groupingBy(OrderItem::getArtistId));
+        try {
+            // Filtrar items sin artistId antes de agrupar para evitar NullPointerException
+            Map<Long, List<OrderItem>> itemsByArtist = order.getItems().stream()
+                    .filter(item -> item.getArtistId() != null)
+                    .collect(Collectors.groupingBy(OrderItem::getArtistId));
+
+            if (itemsByArtist.isEmpty()) {
+                log.warn("No items with valid artistId found in order {}", order.getOrderNumber());
+                return;
+            }
 
         itemsByArtist.forEach((artistId, items) -> {
             try {
@@ -286,6 +295,9 @@ public class NotificationService {
                 log.error("Error notifying artist {}: {}", artistId, e.getMessage());
             }
         });
+        } catch (Exception e) {
+            log.error("Failed to send purchase notifications for order: {}", order.getOrderNumber(), e);
+        }
     }
 
     /**

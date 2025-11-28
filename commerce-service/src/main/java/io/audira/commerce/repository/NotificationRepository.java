@@ -78,6 +78,17 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
     Long countByUserIdAndIsRead(Long userId, Boolean isRead);
 
     /**
+     * Cuenta el número total de notificaciones filtradas por el estado de lectura.
+     * <p>
+     * Útil para obtener métricas generales del sistema de notificaciones.
+     * </p>
+     *
+     * @param isRead Estado de lectura ({@code true} para leídas, {@code false} para no leídas).
+     * @return El número total de notificaciones que cumplen con la condición (tipo {@code Long}).
+     */
+    Long countByIsRead(Boolean isRead);
+
+    /**
      * Busca y retorna todas las notificaciones que aún no han sido marcadas como enviadas (isSent = false).
      * <p>
      * Este método es utilizado por un proceso o tarea programada para reintentar o gestionar los envíos push pendientes.
