@@ -205,10 +205,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   try {
    final response = await _notificationService.markAsRead(notification.id);
    if (response.success && response.data != null) {
-    // Nota: Asumiendo que response.data! es un NotificationModel o un Map convertible
-    // Si response.data es un Map, la conversión debería hacerse aquí:
-    final updatedNotification = 
-      NotificationModel.fromJson(response.data! as Map<String, dynamic>);
+    // response.data ya es un Map<String, dynamic>, no necesita cast
+    final updatedNotification =
+      NotificationModel.fromJson(response.data as Map<String, dynamic>);
 
     setState(() {
      if (index != -1) {
