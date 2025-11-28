@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:provider/provider.dart';
 
 // Imports de tu proyecto
 import '../../../config/theme.dart';
 import '../../../core/models/song.dart';
 import '../../../core/api/services/music_service.dart';
+import '../../../core/providers/library_provider.dart';
 
 class SongSelectorScreen extends StatefulWidget {
   final List<int> currentSongIds; // Canciones ya en la playlist
@@ -52,9 +54,15 @@ class _SongSelectorScreenState extends State<SongSelectorScreen> {
     try {
       final response = await _musicService.getAllSongs();
       if (response.success && response.data != null) {
-        // Filtrar canciones que NO están en la playlist
+        // Obtener libraryProvider para filtrar solo canciones compradas
+        if (!mounted) return;
+        final libraryProvider = context.read<LibraryProvider>();
+
+        // Filtrar canciones que NO están en la playlist Y que están compradas
         List<Song> tempSongs = response.data!
-            .where((song) => !widget.currentSongIds.contains(song.id))
+            .where((song) =>
+                !widget.currentSongIds.contains(song.id) &&
+                libraryProvider.isSongPurchased(song.id))
             .toList();
 
         setState(() {

@@ -414,8 +414,10 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen>
 
   Widget _buildAlbumInfo() {
     final libraryProvider = Provider.of<LibraryProvider>(context);
+    final cartProvider = Provider.of<CartProvider>(context);
     final isFavorite = libraryProvider.isAlbumFavorite(_album!.id);
     final isPurchased = libraryProvider.isAlbumPurchased(_album!.id);
+    final isInCart = cartProvider.isItemInCart('ALBUM', _album!.id);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
@@ -469,20 +471,40 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen>
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // PLAY / BUY BUTTON
+              // PLAY / BUY / IN CART BUTTON
               Expanded(
-                child: ElevatedButton(
-                  onPressed: isPurchased ? () => _playAlbum() : _addToCart,
+                child: ElevatedButton.icon(
+                  onPressed: isPurchased
+                      ? () => _playAlbum()
+                      : isInCart
+                          ? () => Navigator.pushNamed(context, '/cart')
+                          : _addToCart,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor:
-                        isPurchased ? AppTheme.primaryBlue : Colors.white,
-                    foregroundColor: isPurchased ? Colors.white : Colors.black,
+                    backgroundColor: isPurchased
+                        ? AppTheme.primaryBlue
+                        : isInCart
+                            ? AppTheme.warningOrange
+                            : Colors.white,
+                    foregroundColor:
+                        isPurchased || isInCart ? Colors.white : Colors.black,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(30)),
                   ),
-                  child: Text(
-                    isPurchased ? 'REPRODUCIR' : 'COMPRAR \$${_album!.price}',
+                  icon: Icon(
+                    isPurchased
+                        ? Icons.play_arrow_rounded
+                        : isInCart
+                            ? Icons.shopping_cart
+                            : Icons.add_shopping_cart,
+                    size: 20,
+                  ),
+                  label: Text(
+                    isPurchased
+                        ? 'REPRODUCIR'
+                        : isInCart
+                            ? 'EN CARRITO'
+                            : 'COMPRAR \$${_album!.price}',
                     style: const TextStyle(
                         fontWeight: FontWeight.bold, letterSpacing: 1),
                   ),

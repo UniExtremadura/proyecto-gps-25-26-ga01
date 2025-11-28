@@ -123,7 +123,9 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
 
   bool _needsItemEnrichment(String name) {
     return name.startsWith('Song #') ||
+        name.startsWith('song #') ||
         name.startsWith('Album #') ||
+        name.startsWith('album #') ||
         name.startsWith('Canción #') ||
         name.startsWith('Álbum #') ||
         name == 'Sin título';

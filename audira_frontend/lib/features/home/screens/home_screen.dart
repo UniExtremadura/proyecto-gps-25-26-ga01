@@ -11,6 +11,7 @@ import '../../../core/models/genre.dart';
 import '../../../core/models/featured_content.dart';
 import '../../../core/models/recommended_song.dart';
 import '../../../core/providers/auth_provider.dart';
+import '../../../core/providers/audio_provider.dart';
 import '../../common/widgets/song_card.dart';
 import '../../common/widgets/album_card.dart';
 import '../../common/widgets/genre_chip.dart';
@@ -83,7 +84,9 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     }
 
-    setState(() => _isLoading = false);
+    if (mounted) {
+      setState(() => _isLoading = false);
+    }
   }
 
   Future<void> _loadRecommendations(int userId) async {
@@ -203,6 +206,32 @@ class _HomeScreenState extends State<HomeScreen> {
         _featuredAlbums.add(response.data!);
       }
     }
+
+    // Enriquecer nombres de artistas en canciones destacadas
+    await _enrichFeaturedSongsData();
+  }
+
+  Future<void> _enrichFeaturedSongsData() async {
+    final Map<int, String> artistCache = {};
+    List<Song> enrichedSongs = List.from(_featuredSongs);
+    bool needsUpdate = false;
+
+    for (int i = 0; i < enrichedSongs.length; i++) {
+      final song = enrichedSongs[i];
+      if (_needsEnrichment(song.artistName)) {
+        final realName = await _fetchArtistName(song.artistId, artistCache);
+        if (realName != null) {
+          enrichedSongs[i] = song.copyWith(artistName: realName);
+          needsUpdate = true;
+        }
+      }
+    }
+
+    if (needsUpdate && mounted) {
+      setState(() {
+        _featuredSongs = enrichedSongs;
+      });
+    }
   }
 
   Future<void> _loadDefaultContent() async {
@@ -216,6 +245,9 @@ class _HomeScreenState extends State<HomeScreen> {
     if (albumsResponse.success && albumsResponse.data != null) {
       _featuredAlbums = albumsResponse.data!.take(10).toList();
     }
+
+    // Enriquecer nombres de artistas
+    await _enrichFeaturedSongsData();
   }
 
   // --- NUEVA UI: DISEÑO EPIC DARK ---
@@ -391,6 +423,23 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
           ],
         ),
+      ),
+      floatingActionButton: Consumer<AudioProvider>(
+        builder: (context, audioProvider, child) {
+          // Solo mostrar el FAB si hay una canción y el miniplayer está oculto
+          if (audioProvider.currentSong != null &&
+              !audioProvider.demoFinished &&
+              !audioProvider.miniPlayerVisible) {
+            return FloatingActionButton(
+              onPressed: () {
+                audioProvider.showMiniPlayer();
+              },
+              backgroundColor: AppTheme.primaryBlue,
+              child: const Icon(Icons.music_note),
+            );
+          }
+          return const SizedBox.shrink();
+        },
       ),
     );
   }
