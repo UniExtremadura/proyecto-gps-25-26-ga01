@@ -39,6 +39,12 @@ public class FirebaseMessagingService {
     private final FcmTokenRepository fcmTokenRepository;
 
     /**
+     * Flag que indica si Firebase Admin SDK se inicializó correctamente.
+     * Se utiliza para evitar intentar enviar notificaciones si Firebase no está configurado.
+     */
+    private boolean isFirebaseInitialized = false;
+
+    /**
      * Recurso que apunta al archivo JSON de credenciales de la cuenta de servicio de Firebase.
      * El valor por defecto se carga desde {@code classpath:firebase-service-account.json}.
      */
@@ -55,7 +61,7 @@ public class FirebaseMessagingService {
     @PostConstruct
     public void initialize() {
         try {
-            
+
             if (FirebaseApp.getApps().isEmpty()) {
                 InputStream serviceAccount = firebaseCredentials.getInputStream();
 
@@ -64,12 +70,27 @@ public class FirebaseMessagingService {
                         .build();
 
                 FirebaseApp.initializeApp(options);
-                log.info("Firebase Admin SDK initialized successfully");
+                isFirebaseInitialized = true;
+                log.info("✅ Firebase Admin SDK initialized successfully");
+            } else {
+                isFirebaseInitialized = true;
+                log.info("Firebase Admin SDK already initialized");
             }
         } catch (IOException e) {
-            log.error("Failed to initialize Firebase Admin SDK: {}", e.getMessage());
-            log.warn("FCM notifications will not work without proper Firebase configuration");
+            isFirebaseInitialized = false;
+            log.error("❌ Failed to initialize Firebase Admin SDK: {}", e.getMessage());
+            log.warn("⚠️  FCM notifications will NOT work without proper Firebase configuration.");
+            log.warn("⚠️  Please ensure firebase-service-account.json exists in src/main/resources/");
         }
+    }
+
+    /**
+     * Verifica si Firebase está inicializado correctamente.
+     *
+     * @return {@code true} si Firebase está listo para enviar notificaciones, {@code false} en caso contrario.
+     */
+    public boolean isInitialized() {
+        return isFirebaseInitialized;
     }
 
     /**
@@ -86,11 +107,16 @@ public class FirebaseMessagingService {
      */
     public boolean sendNotification(Long userId, String title, String message,
                                     String type, Long referenceId, String referenceType) {
+        if (!isFirebaseInitialized) {
+            log.error("❌ Cannot send notification to user {}: Firebase not initialized", userId);
+            return false;
+        }
+
         try {
             List<FcmToken> tokens = fcmTokenRepository.findByUserId(userId);
 
             if (tokens.isEmpty()) {
-                log.warn("No FCM tokens found for user {}", userId);
+                log.warn("⚠️  No FCM tokens found for user {}", userId);
                 return false;
             }
 
@@ -135,6 +161,11 @@ public class FirebaseMessagingService {
      */
     public boolean sendToToken(String token, String title, String message,
                                String type, Long referenceId, String referenceType) {
+        if (!isFirebaseInitialized) {
+            log.error("❌ Cannot send notification to token: Firebase not initialized");
+            return false;
+        }
+
         try {
             
             Map<String, String> data = new HashMap<>();
@@ -210,8 +241,13 @@ public class FirebaseMessagingService {
      */
     public void sendMulticast(List<String> tokens, String title, String message,
                               String type, Long referenceId, String referenceType) {
+        if (!isFirebaseInitialized) {
+            log.error("❌ Cannot send multicast notification: Firebase not initialized");
+            return;
+        }
+
         if (tokens.isEmpty()) {
-            log.warn("No tokens provided for multicast message");
+            log.warn("⚠️  No tokens provided for multicast message");
             return;
         }
 
@@ -287,6 +323,11 @@ public class FirebaseMessagingService {
      */
     public boolean sendToTopic(String topic, String title, String message,
                                String type, Long referenceId, String referenceType) {
+        if (!isFirebaseInitialized) {
+            log.error("❌ Cannot send notification to topic {}: Firebase not initialized", topic);
+            return false;
+        }
+
         try {
             
             Map<String, String> data = new HashMap<>();
