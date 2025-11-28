@@ -7,8 +7,12 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * Represents a recommended song with metadata about why it was recommended
- * GA01-117: Módulo básico de recomendaciones (placeholder)
+ * Representa una canción recomendada con metadatos explicativos.
+ * <p>
+ * Extiende la información básica de una canción añadiendo el <b>porqué</b> se recomienda
+ * y un puntaje de relevancia. Fundamental para la transparencia del sistema de recomendaciones
+ * (Explainable AI).
+ * </p>
  */
 @Data
 @Builder
@@ -16,22 +20,47 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class RecommendedSong {
 
+    /** ID de la canción. */
     private Long id;
+
+    /** Título de la canción. */
     private String title;
+
+    /** ID del artista. */
     private Long artistId;
+
+    /** Nombre del artista (resolved). */
     private String artistName;
+
+    /** URL de la carátula. */
     private String imageUrl;
+
+    /** Precio de venta unitario. */
     private Double price;
+
+    /** Número de reproducciones (contexto de popularidad). */
     private Long plays;
-    private String reason; // Why this song was recommended (e.g., "Based on your listening history", "Trending now")
-    private Double relevanceScore; // Score from 0.0 to 1.0 indicating how relevant this recommendation is
 
     /**
-     * Create a RecommendedSong from a Song entity
-     * @param song Song entity
-     * @param artistName Artist name (real name from user service)
-     * @param reason Reason for recommendation
-     * @param relevanceScore Relevance score (0.0 to 1.0)
+     * Texto explicativo de la recomendación.
+     * <p>Ej: "Porque escuchaste 'Bohemian Rhapsody'" o "Tendencia en tu región".</p>
+     */
+    private String reason;
+
+    /**
+     * Puntuación de relevancia o confianza (Score).
+     * <p>Valor decimal de 0.0 a 1.0 que indica qué tan segura está la IA de que esta canción gustará.</p>
+     */
+    private Double relevanceScore;
+
+    /**
+     * Método de fábrica para convertir una entidad {@link Song} en una recomendación.
+     *
+     * @param song La entidad de canción original.
+     * @param artistName Nombre del artista resuelto.
+     * @param reason La razón generada por el algoritmo.
+     * @param relevanceScore El puntaje calculado por el algoritmo.
+     * @return Instancia de {@code RecommendedSong}.
      */
     public static RecommendedSong fromSong(Song song, String artistName, String reason, Double relevanceScore) {
         return RecommendedSong.builder()

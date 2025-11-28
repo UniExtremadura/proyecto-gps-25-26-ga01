@@ -12,17 +12,33 @@ import java.util.UUID;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
+/**
+ * Servicio encargado de la lógica de negocio para la compresión de archivos.
+ * <p>
+ * Utiliza las librerías nativas de {@code java.util.zip} para generar archivos .zip
+ * gestionando streams de entrada y salida para optimizar el uso de memoria.
+ * </p>
+ */
 @Service
 public class FileCompressionService {
 
+    /**
+     * Directorio base inyectado desde la configuración donde se alojan los archivos.
+     */
     @Value("${file.upload-dir:uploads}")
     private String uploadDir;
 
-    /**
-     * Comprime una lista de archivos en un archivo ZIP
-     * @param filePaths Lista de rutas relativas de archivos (ej: "audio-files/abc.mp3")
-     * @return Ruta del archivo ZIP generado
-     */
+/**
+     * Comprime una lista de archivos existentes en un único archivo ZIP.
+     * <p>
+     * Crea un directorio "compressed" si no existe y genera un nombre de archivo aleatorio (UUID).
+     * </p>
+     *
+     * @param filePaths Lista de rutas relativas de los archivos a comprimir (ej: "audio-files/cancion.mp3").
+     * @return La ruta relativa del archivo ZIP generado.
+     * @throws IOException Si ocurre un error de lectura/escritura o si no se puede crear el directorio.
+     * @throws FileNotFoundException Si alguno de los archivos solicitados no existe en disco.
+     */    
     public String compressFiles(List<String> filePaths) throws IOException {
         Path fileStorageLocation = Paths.get(uploadDir).toAbsolutePath().normalize();
 
@@ -52,11 +68,17 @@ public class FileCompressionService {
         return "compressed/" + zipFileName;
     }
 
-    /**
-     * Comprime un solo archivo
-     * @param filePath Ruta relativa del archivo
-     * @return Ruta del archivo ZIP generado
-     */
+/**
+     * Comprime un solo archivo individualmente.
+     * <p>
+     * Útil para reducir el tamaño de transferencia de archivos pesados (como WAV o FLAC).
+     * El nombre resultante conserva el original seguido de un sufijo UUID parcial.
+     * </p>
+     *
+     * @param filePath Ruta relativa del archivo origen.
+     * @return La ruta relativa del ZIP generado.
+     * @throws IOException Si falla la operación de E/S.
+     */    
     public String compressSingleFile(String filePath) throws IOException {
         Path fileStorageLocation = Paths.get(uploadDir).toAbsolutePath().normalize();
         Path sourceFile = fileStorageLocation.resolve(filePath).normalize();
@@ -84,6 +106,17 @@ public class FileCompressionService {
         return "compressed/" + zipFileName;
     }
 
+    /**
+     * Método auxiliar interno para escribir los bytes de un archivo en el flujo ZIP.
+     * <p>
+     * Utiliza un buffer de 1KB para la transferencia de datos.
+     * </p>
+     *
+     * @param sourceFile Ruta absoluta del archivo fuente en disco.
+     * @param zos Flujo de salida del archivo ZIP.
+     * @param entryName Nombre con el que se guardará el archivo dentro del ZIP.
+     * @throws IOException Si falla la lectura o escritura.
+     */
     private void addFileToZip(Path sourceFile, ZipOutputStream zos, String entryName) throws IOException {
         ZipEntry zipEntry = new ZipEntry(entryName);
         zos.putNextEntry(zipEntry);
@@ -100,9 +133,11 @@ public class FileCompressionService {
     }
 
     /**
-     * Obtiene el tamaño de un archivo
-     * @param filePath Ruta relativa del archivo
-     * @return Tamaño en bytes
+     * Obtiene el tamaño físico de un archivo almacenado.
+     *
+     * @param filePath Ruta relativa del archivo.
+     * @return Tamaño en bytes.
+     * @throws IOException Si el archivo no existe o no se puede acceder a sus atributos.
      */
     public long getFileSize(String filePath) throws IOException {
         Path fileStorageLocation = Paths.get(uploadDir).toAbsolutePath().normalize();

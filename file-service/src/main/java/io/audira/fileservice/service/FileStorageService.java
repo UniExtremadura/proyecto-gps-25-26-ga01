@@ -12,11 +12,27 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.UUID;
 
+/**
+ * Servicio encargado de las operaciones de bajo nivel del sistema de archivos.
+ * <p>
+ * Gestiona el almacenamiento físico, la recuperación y validación de archivos
+ * (imágenes y audio) en el disco local del servidor.
+ * </p>
+ */
 @Service
 public class FileStorageService {
 
     private final Path fileStorageLocation;
 
+    /**
+     * Constructor que inicializa el servicio de almacenamiento.
+     * <p>
+     * Intenta crear el directorio raíz de subida si no existe al iniciar la aplicación.
+     * </p>
+     *
+     * @param uploadDir Ruta del directorio base inyectada desde la configuración {@code file.upload-dir}.
+     * @throws RuntimeException Si no se puede crear el directorio de almacenamiento.
+     */
     public FileStorageService(@Value("${file.upload-dir:uploads}") String uploadDir) {
         this.fileStorageLocation = Paths.get(uploadDir).toAbsolutePath().normalize();
         try {
@@ -26,6 +42,24 @@ public class FileStorageService {
         }
     }
 
+    /**
+     * Almacena un archivo en el sistema de archivos.
+     * <p>
+     * Realiza las siguientes operaciones:
+     * <ul>
+     * <li>Limpia y normaliza el nombre del archivo original para evitar rutas relativas peligrosas.</li>
+     * <li>Verifica que el archivo no esté vacío.</li>
+     * <li>Genera un nombre único utilizando UUID para evitar colisiones de archivos con el mismo nombre.</li>
+     * <li>Crea el subdirectorio destino si no existe.</li>
+     * <li>Copia los bytes del archivo reemplazando cualquier existente.</li>
+     * </ul>
+     * </p>
+     *
+     * @param file El archivo {@link MultipartFile} recibido en la petición.
+     * @param subDirectory El nombre de la carpeta donde se guardará (ej: "audio-files", "images").
+     * @return La ruta relativa del archivo guardado (ej: "audio-files/uuid-generado.mp3").
+     * @throws RuntimeException Si el archivo es inválido, contiene caracteres peligrosos o ocurre un error de E/S.
+     */
     public String storeFile(MultipartFile file, String subDirectory) {
         // Normalizar nombre del archivo
         String originalFileName = StringUtils.cleanPath(file.getOriginalFilename());
@@ -63,6 +97,12 @@ public class FileStorageService {
         }
     }
 
+    /**
+     * Elimina un archivo físico del almacenamiento.
+     *
+     * @param filePath La ruta relativa del archivo a eliminar.
+     * @throws RuntimeException Si ocurre un error de E/S al intentar borrar el archivo.
+     */
     public void deleteFile(String filePath) {
         try {
             Path file = this.fileStorageLocation.resolve(filePath).normalize();
@@ -72,6 +112,16 @@ public class FileStorageService {
         }
     }
 
+    **
+     * Valida si un archivo es una imagen compatible.
+     * <p>
+     * Comprueba tanto el tipo MIME (Content-Type) como la extensión del archivo.
+     * Soporta: JPG, JPEG, PNG, GIF, WEBP.
+     * </p>
+     *
+     * @param file El archivo a validar.
+     * @return {@code true} si cumple con los criterios de imagen, {@code false} en caso contrario.
+     */
     public boolean isValidImageFile(MultipartFile file) {
         String contentType = file.getContentType();
         String fileName = file.getOriginalFilename();
@@ -101,6 +151,16 @@ public class FileStorageService {
         return validContentType || validExtension;
     }
 
+    /**
+     * Valida si un archivo es un audio compatible.
+     * <p>
+     * Comprueba tanto el tipo MIME (Content-Type) como la extensión del archivo.
+     * Soporta: MP3, WAV, FLAC, MIDI.
+     * </p>
+     *
+     * @param file El archivo a validar.
+     * @return {@code true} si cumple con los criterios de audio, {@code false} en caso contrario.
+     */
     public boolean isValidAudioFile(MultipartFile file) {
         String contentType = file.getContentType();
         String fileName = file.getOriginalFilename();
@@ -133,6 +193,11 @@ public class FileStorageService {
         return validContentType || validExtension;
     }
 
+    /**
+     * Obtiene la ruta absoluta del directorio raíz de almacenamiento.
+     *
+     * @return Un objeto {@link Path} que representa la ubicación base de los archivos.
+     */
     public Path getFileStorageLocation() {
         return this.fileStorageLocation;
     }

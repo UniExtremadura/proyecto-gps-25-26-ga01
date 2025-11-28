@@ -16,7 +16,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * REST client for communication with Commerce Service
+ * Cliente REST para la comunicación con el Servicio de Comercio (Commerce Service).
+ * <p>
+ * Se encarga de recuperar información transaccional, como los pedidos realizados por usuarios.
+ * Implementa un patrón de <b>fallo silencioso</b>: si el servicio remoto no responde,
+ * retorna listas vacías para no interrumpir el flujo principal de la aplicación.
+ * </p>
  */
 @Component
 @RequiredArgsConstructor
@@ -29,10 +34,10 @@ public class CommerceServiceClient {
     private String commerceServiceUrl;
 
     /**
-     * Get all orders for a user
+     * Obtiene el historial de pedidos de un usuario específico.
      *
-     * @param userId User ID
-     * @return List of orders
+     * @param userId Identificador único del usuario.
+     * @return Una lista de {@link OrderDTO} con los pedidos encontrados, o una lista vacía si ocurre un error.
      */
     public List<OrderDTO> getUserOrders(Long userId) {
         String url = String.format("%s/api/orders/user/%d", commerceServiceUrl, userId);
@@ -71,9 +76,12 @@ public class CommerceServiceClient {
     }
 
     /**
-     * Get all orders
+     * Recupera la totalidad de pedidos registrados en el sistema.
+     * <p>
+     * Utilizado principalmente para tareas administrativas o reportes globales.
+     * </p>
      *
-     * @return List of all orders
+     * @return Lista completa de todos los pedidos, o lista vacía ante fallos de conexión.
      */
     public List<OrderDTO> getAllOrders() {
         String url = String.format("%s/api/orders", commerceServiceUrl);

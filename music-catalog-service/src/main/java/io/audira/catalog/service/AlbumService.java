@@ -20,6 +20,13 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+/**
+ * Servicio que encapsula la lógica de negocio para la gestión de Álbumes.
+ * <p>
+ * Coordina las operaciones entre los repositorios de Álbumes y Canciones, asegurando
+ * la consistencia de los datos (ej: asociar canciones a un álbum, liberar canciones al borrar un álbum).
+ * </p>
+ */
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -29,29 +36,56 @@ public class AlbumService {
     private final SongRepository songRepository;
     private final UserServiceClient userServiceClient;
 
+    /**
+     * Recupera los álbumes más recientes (sin filtrar por estado).
+     * <p>Utilizado para paneles administrativos.</p>
+     *
+     * @return Lista de álbumes ordenados por fecha de lanzamiento.
+     */
     public List<Album> getRecentAlbums() {
         return albumRepository.findRecentAlbums();
     }
 
+    /**
+     * Busca un álbum por ID (Entidad pura).
+     *
+     * @param id ID del álbum.
+     * @return Optional con el álbum.
+     */
     public Optional<Album> getAlbumById(Long id) {
         return albumRepository.findById(id);
     }
 
+    /**
+     * Obtiene todos los álbumes del sistema.
+     * @return Lista completa.
+     */
     public List<Album> getAllAlbums() {
         return albumRepository.findAll();
     }
 
+    /**
+     * Obtiene los álbumes de un artista específico.
+     *
+     * @param artistId ID del artista.
+     * @return Lista de álbumes del artista.
+     */
     public List<Album> getAlbumsByArtist(Long artistId) {
         return albumRepository.findByArtistId(artistId);
     }
 
     /**
-     * Get albums by artist with artist name included in DTO
+     * Obtiene los álbumes de un artista específico, incluyendo el nombre del artista.
+     * <p>
+     * Si la llamada al servicio de usuarios falla, se utiliza un nombre de artista por defecto.
+     * </p>
+     *
+     * @param artistId ID del artista.
+     * @return Lista de álbumes del artista con nombre.
      */
     public List<AlbumDTO> getAlbumsByArtistWithArtistName(Long artistId) {
         List<Album> albums = albumRepository.findByArtistId(artistId);
 
-        // Get artist name once
         String artistName;
         try {
             artistName = userServiceClient.getUserById(artistId).getArtistName();
@@ -60,16 +94,29 @@ public class AlbumService {
             artistName = "Artist #" + artistId;
         }
 
-        // Convert all albums to DTOs with the artist name
         final String finalArtistName = artistName;
         return albums.stream()
                 .map(album -> AlbumDTO.fromAlbum(album, finalArtistName))
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Crea un nuevo álbum y asocia las canciones indicadas.
+     * <p>
+     * <b>Flujo Transaccional:</b>
+     * <ol>
+     * <li>Guarda la entidad Álbum básica.</li>
+     * <li>Itera sobre la lista de {@code songIds} proporcionada.</li>
+     * <li>Actualiza cada canción para establecer su {@code albumId}, {@code trackNumber} y {@code category}.</li>
+     * </ol>
+     * </p>
+     *
+     * @param request DTO con los datos de creación.
+     * @return El álbum creado y persistido.
+     * @throws RuntimeException Si alguna de las canciones no existe o no pertenece al artista.
+     */
     @Transactional
     public AlbumResponse createAlbum(AlbumCreateRequest request) {
-        // Calcular precio basado en las canciones del álbum
         BigDecimal totalSongPrice = BigDecimal.ZERO;
 
         if (request.getSongIds() != null && !request.getSongIds().isEmpty()) {
@@ -81,7 +128,6 @@ public class AlbumService {
             }
         }
 
-        // Aplicar descuento al precio total de canciones
         double discountPercentage = request.getDiscountPercentage() != null ?
                 request.getDiscountPercentage() : 15.0;
 
@@ -92,7 +138,6 @@ public class AlbumService {
             finalPrice = totalSongPrice.subtract(discount);
         }
 
-        // Si no se pudo calcular precio de canciones, usar el precio proporcionado
         if (finalPrice.compareTo(BigDecimal.ZERO) == 0 && request.getPrice() != null) {
             finalPrice = request.getPrice();
         }
@@ -100,7 +145,6 @@ public class AlbumService {
         log.info("Album price calculation: totalSongPrice={}, discount={}%, finalPrice={}",
                 totalSongPrice, discountPercentage, finalPrice);
 
-        // Crear el álbum
         Album album = Album.builder()
                 .title(request.getTitle())
                 .artistId(request.getArtistId())
@@ -116,7 +160,6 @@ public class AlbumService {
 
         album = albumRepository.save(album);
 
-        // Asociar canciones al álbum
         if (request.getSongIds() != null && !request.getSongIds().isEmpty()) {
             int trackNumber = 1;
             for (Long songId : request.getSongIds()) {
@@ -136,7 +179,14 @@ public class AlbumService {
     }
 
     /**
-     * GA01-162: Al actualizar un álbum, vuelve a estado PENDING
+     * Actualiza un álbum existente.
+     * <p>
+     * GA01-162: Cualquier modificación requiere nueva moderación.
+     * </p>
+     *
+     * @param id      ID del álbum a actualizar.
+     * @param request DTO con los datos de actualización.
+     * @return Optional con el álbum actualizado, o vacío si no existe.
      */
     @Transactional
     public Optional<AlbumResponse> updateAlbum(Long id, AlbumUpdateRequest request) {
@@ -155,7 +205,6 @@ public class AlbumService {
         if (request.getDiscountPercentage() != null)
             album.setDiscountPercentage(request.getDiscountPercentage());
 
-        // GA01-162: Cualquier modificación requiere nueva moderación
         album.setModerationStatus(ModerationStatus.PENDING);
         album.setModeratedBy(null);
         album.setModeratedAt(null);
@@ -168,8 +217,15 @@ public class AlbumService {
     }
 
     /**
-     * GA01-162: Publicar o ocultar un álbum
-     * Solo se puede publicar si está aprobado
+     * Publica o despublica un álbum.
+     * <p>
+     * GA01-162: Solo se puede publicar si el álbum está aprobado.
+     * </p>
+     *
+     * @param id        ID del álbum.
+     * @param published {@code true} para publicar, {@code false} para despublicar.
+     * @return Optional con el álbum actualizado, o vacío si no existe.
+     * @throws IllegalArgumentException Si se intenta publicar un álbum no aprobado.
      */
     @Transactional
     public Optional<AlbumResponse> publishAlbum(Long id, boolean published) {
@@ -180,7 +236,6 @@ public class AlbumService {
 
         Album album = albumOpt.get();
 
-        // GA01-162: Solo se puede publicar si está aprobado
         if (published && album.getModerationStatus() != ModerationStatus.APPROVED) {
             throw new IllegalArgumentException(
                 "No se puede publicar un álbum que no está aprobado. Estado actual: " +
@@ -194,6 +249,22 @@ public class AlbumService {
         return Optional.of(AlbumResponse.fromAlbum(album, songCount));
     }
 
+    /**
+     * Elimina un álbum y desasocia sus canciones.
+     * <p>
+     * <b>Flujo Transaccional:</b>
+     * <ol>
+     * <li>Busca el álbum por ID.</li>
+     * <li>Si no existe, retorna {@code false}.</li>
+     * <li>Busca todas las canciones asociadas al álbum.</li>
+     * <li>Para cada canción, elimina la asociación con el álbum y actualiza su categoría a "Single".</li>
+     * <li>Elimina el álbum.</li>
+     * </ol>
+     * </p>
+     *
+     * @param id ID del álbum a eliminar.
+     * @return {@code true} si se eliminó el álbum, {@code false} si no existía.
+     */
     @Transactional
     public boolean deleteAlbum(Long id) {
         Optional<Album> albumOpt = albumRepository.findById(id);
@@ -201,7 +272,6 @@ public class AlbumService {
             return false;
         }
 
-        // Desasociar canciones del álbum
         List<Song> songs = songRepository.findByAlbumId(id);
         for (Song song : songs) {
             song.setAlbumId(null);
@@ -214,6 +284,12 @@ public class AlbumService {
         return true;
     }
 
+    /**
+     * Obtiene un álbum por ID, incluyendo el conteo de canciones.
+     *
+     * @param id ID del álbum.
+     * @return DTO con los datos del álbum y conteo de canciones, o {@code null} si no existe.
+     */
     public AlbumResponse getAlbumResponseById(Long id) {
         Optional<Album> albumOpt = albumRepository.findById(id);
         if (albumOpt.isEmpty()) {
@@ -225,7 +301,11 @@ public class AlbumService {
         return AlbumResponse.fromAlbum(album, songCount);
     }
 
-    // Métodos públicos que solo retornan contenido publicado
+    /**
+     * Recupera los 20 álbumes publicados más recientes.
+     *
+     * @return Lista de álbumes publicados ordenados por fecha de creación.
+     */
     public List<Album> getRecentPublishedAlbums() {
         return albumRepository.findTop20ByPublishedTrueOrderByCreatedAtDesc();
     }

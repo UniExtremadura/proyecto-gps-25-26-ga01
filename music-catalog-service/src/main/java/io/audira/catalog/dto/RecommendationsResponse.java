@@ -9,8 +9,13 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 /**
- * Response containing personalized recommendations for a user
- * GA01-117: Módulo básico de recomendaciones (placeholder)
+ * DTO de respuesta que agrupa todas las recomendaciones personalizadas para un usuario.
+ * <p>
+ * Implementa la salida del <b>GA01-117: Módulo básico de recomendaciones</b>.
+ * En lugar de una lista plana, categoriza las canciones según la heurística utilizada
+ * (historial, compras, social, etc.) para que el frontend pueda mostrarlas en secciones diferenciadas
+ * (ej: "Porque escuchaste X", "Tendencias", "Novedades").
+ * </p>
  */
 @Data
 @Builder
@@ -18,28 +23,59 @@ import java.util.List;
 @AllArgsConstructor
 public class RecommendationsResponse {
 
+    /** ID del usuario para el cual se generaron estas recomendaciones. */
     private Long userId;
+
+    /** Marca de tiempo de la generación (útil para caché). */
     private LocalDateTime generatedAt;
 
-    // Different categories of recommendations
-    private List<RecommendedSong> basedOnListeningHistory; // Based on user's listening patterns
-    private List<RecommendedSong> basedOnPurchases; // Based on user's purchase history
-    private List<RecommendedSong> fromFollowedArtists; // From artists the user follows
-    private List<RecommendedSong> trending; // Currently trending songs
-    private List<RecommendedSong> newReleases; // Recent releases
-    private List<RecommendedSong> similarToFavorites; // Similar to user's favorite songs
+    // --- Categorías Generales ---
 
-    // NEW: More specific recommendation categories
-    private List<RecommendedSong> byPurchasedGenres; // Songs from genres user has purchased
-    private List<RecommendedSong> byPurchasedArtists; // Songs from artists user has purchased from
-    private List<RecommendedSong> byLikedSongs; // Based on songs rated 4-5 stars
+    /** Recomendaciones basadas en el historial de reproducción reciente (Listening History). */
+    private List<RecommendedSong> basedOnListeningHistory;
 
-    // Metadata
-    private String algorithm; // Which algorithm was used (e.g., "basic_placeholder_v1")
-    private Integer totalRecommendations; // Total number of recommendations across all categories
+    /** Recomendaciones basadas en el historial de compras previas. */
+    private List<RecommendedSong> basedOnPurchases;
+
+    /** Novedades de los artistas que el usuario sigue (Followed Artists). */
+    private List<RecommendedSong> fromFollowedArtists;
+
+    /** Canciones en tendencia global (Popularidad general). */
+    private List<RecommendedSong> trending;
+
+    /** Nuevos lanzamientos generales (New Releases). */
+    private List<RecommendedSong> newReleases;
+
+    /** Recomendaciones por similitud de audio/género con las canciones favoritas del usuario. */
+    private List<RecommendedSong> similarToFavorites;
+
+    // --- Nuevas Categorías Específicas ---
+
+    /** Canciones pertenecientes a los géneros más comprados por el usuario. */
+    private List<RecommendedSong> byPurchasedGenres;
+
+    /** Otras canciones de artistas a los que el usuario ya ha comprado contenido. */
+    private List<RecommendedSong> byPurchasedArtists;
+
+    /** Recomendaciones basadas en canciones marcadas con 4 o 5 estrellas (Liked Songs). */
+    private List<RecommendedSong> byLikedSongs;
+
+    // --- Metadatos del Motor ---
+
+    /** Nombre o versión del algoritmo utilizado (ej: "collaborative_filtering_v2"). */
+    private String algorithm;
+
+    /** Conteo total de recomendaciones únicas incluidas en este objeto. */
+    private Integer totalRecommendations;
 
     /**
-     * Get all recommendations combined from all categories
+     * Método de utilidad para obtener una lista unificada de todas las recomendaciones.
+     * <p>
+     * Combina todas las categorías en una sola lista plana, útil para funcionalidades
+     * como "Reproducir todas las recomendaciones" o "Radio personalizada".
+     * </p>
+     *
+     * @return Lista combinada de {@link RecommendedSong}.
      */
     public List<RecommendedSong> getAllRecommendations() {
         java.util.List<RecommendedSong> all = new java.util.ArrayList<>();

@@ -10,6 +10,14 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Controlador REST para la gestión de subida de archivos (Uploads).
+ * <p>
+ * Expone endpoints diferenciados por tipo de contenido para aplicar validaciones
+ * de seguridad específicas (tipo MIME y tamaño máximo) antes de delegar el
+ * almacenamiento al servicio correspondiente.
+ * </p>
+ */
 @RestController
 @RequestMapping("/api/files/upload")
 @RequiredArgsConstructor
@@ -20,6 +28,19 @@ public class FileUploadController {
     @Value("${file.base-url:http://172.16.0.4:9005}")
     private String baseUrl;
 
+/**
+     * Sube un archivo de audio al servidor.
+     * <p>
+     * Validaciones aplicadas:
+     * <ul>
+     * <li><b>Formato:</b> MP3, WAV, FLAC, MIDI.</li>
+     * <li><b>Tamaño:</b> Máximo 100MB.</li>
+     * </ul>
+     * </p>
+     *
+     * @param file El archivo binario recibido en la petición Multipart.
+     * @return {@link ResponseEntity} con metadatos del archivo subido o mensaje de error.
+     */    
     @PostMapping("/audio")
     public ResponseEntity<?> uploadAudioFile(
             @RequestParam("file") MultipartFile file) {
@@ -64,6 +85,19 @@ public class FileUploadController {
         }
     }
 
+/**
+     * Sube un archivo de imagen al servidor.
+     * <p>
+     * Validaciones aplicadas:
+     * <ul>
+     * <li><b>Formato:</b> JPG, PNG, WEBP.</li>
+     * <li><b>Tamaño:</b> Máximo 10MB.</li>
+     * </ul>
+     * </p>
+     *
+     * @param file El archivo binario de imagen.
+     * @return {@link ResponseEntity} con metadatos de la imagen.
+     */    
     @PostMapping("/image")
     public ResponseEntity<?> uploadImageFile(
             @RequestParam("file") MultipartFile file) {
@@ -108,6 +142,12 @@ public class FileUploadController {
         }
     }
 
+/**
+     * Construye un mapa de error para estandarizar la respuesta JSON.
+     *
+     * @param message Mensaje descriptivo del error.
+     * @return Mapa con la clave "error".
+     */    
     private Map<String, String> createErrorResponse(String message) {
         Map<String, String> error = new HashMap<>();
         error.put("error", message);

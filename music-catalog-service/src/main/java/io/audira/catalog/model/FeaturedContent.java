@@ -13,9 +13,15 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import java.time.LocalDateTime;
 
 /**
- * Entity for managing featured content on the homepage
- * GA01-156: Seleccionar/ordenar contenido destacado
- * GA01-157: Programación de destacados
+ * Entidad que gestiona el contenido destacado (Carrusel/Banners) en la página de inicio.
+ * <p>
+ * Permite referenciar cualquier tipo de entidad (Canción, Álbum, Playlist) de forma polimórfica
+ * y controlar su visualización mediante fechas y prioridades.
+ * </p>
+ * <ul>
+ * <li><b>GA01-156:</b> Selección y ordenación manual.</li>
+ * <li><b>GA01-157:</b> Programación temporal (Scheduling).</li>
+ * </ul>
  */
 @Entity
 @Table(
@@ -33,59 +39,89 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class FeaturedContent {
 
+    /** Identificador único del registro de destacado. */
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    /**
+     * Tipo de contenido referenciado.
+     * <p>Determina en qué tabla buscar el {@code contentId}.</p>
+     */
     @Column(name = "content_type", nullable = false, length = 20)
     @Enumerated(EnumType.STRING)
     private ContentType contentType;
 
+    /**
+     * ID de la entidad referenciada (Song ID, Album ID, etc.).
+     */
     @Column(name = "content_id", nullable = false)
     private Long contentId;
 
-    @Column(name = "display_order", nullable = false)
-    @Builder.Default
-    private Integer displayOrder = 0;
+    // Campos desnormalizados para evitar JOINS costosos al renderizar la Home
 
+    /** Título copiado de la entidad original. */
+    @Column(name = "content_title")
+    private String contentTitle;
+
+    /** URL de la imagen copiada de la entidad original. */
+    @Column(name = "content_image_url")
+    private String contentImageUrl;
+
+    /** Nombre del artista copiado de la entidad original. */
+    @Column(name = "content_artist")
+    private String contentArtist;
+
+    /**
+     * Prioridad de ordenamiento visual.
+     * <p>Los valores numéricos más bajos se muestran primero (izquierda/arriba).</p>
+     */
+    @Column(name = "display_order")
+    private Integer displayOrder;
+
+    /**
+     * Fecha de inicio de la promoción (Opcional).
+     * <p>Si es nula, el contenido se destaca inmediatamente (siempre que {@code isActive} sea true).</p>
+     */
     @Column(name = "start_date")
     private LocalDateTime startDate;
 
+    /**
+     * Fecha de fin de la promoción (Opcional).
+     * <p>Si es nula, el contenido se destaca indefinidamente.</p>
+     */
     @Column(name = "end_date")
     private LocalDateTime endDate;
 
+    /**
+     * Interruptor maestro de visibilidad.
+     * <p>Permite ocultar un contenido sin borrar el registro ni perder la configuración de fechas.</p>
+     */
     @Column(name = "is_active", nullable = false)
     @Builder.Default
     private Boolean isActive = true;
 
-    // Denormalized fields for performance
-    @Column(name = "content_title", length = 255)
-    private String contentTitle;
-
-    @Column(name = "content_image_url", columnDefinition = "TEXT")
-    private String contentImageUrl;
-
-    @Column(name = "content_artist", length = 255)
-    private String contentArtist;
-
+    /** Fecha de creación del registro. */
     @CreationTimestamp
-    @Column(name = "created_at", nullable = false, updatable = false)
+    @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
+    /** Fecha de última modificación. */
     @UpdateTimestamp
-    @Column(name = "updated_at", nullable = false)
+    @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
     /**
-     * Types of content that can be featured
+     * Enumeración interna para los tipos de contenido soportados en el carrusel.
      */
     public enum ContentType {
-        SONG,
-        ALBUM;
+        SONG, ALBUM, ARTIST, PLAYLIST;
 
         /**
-         * Case-insensitive deserialization for JSON
-         * Converts "song", "Song", "SONG" all to SONG enum value
+         * Método factoría para deserializar JSON insensible a mayúsculas/minúsculas.
+         *
+         * @param value Cadena de texto (ej: "song", "Song").
+         * @return La constante del enum correspondiente.
          */
         @JsonCreator
         public static ContentType fromString(String value) {
@@ -97,8 +133,17 @@ public class FeaturedContent {
     }
 
     /**
-     * Checks if the featured content is currently active based on dates
-     * GA01-157: Programación de destacados
+     * Lógica de negocio para determinar si el contenido debe mostrarse <b>ahora mismo</b>.
+     * <p>
+     * Evalúa tres condiciones:
+     * <ol>
+     * <li>El flag {@code isActive} debe ser true.</li>
+     * <li>Si existe {@code startDate}, la fecha actual debe ser posterior.</li>
+     * <li>Si existe {@code endDate}, la fecha actual debe ser anterior.</li>
+     * </ol>
+     * </p>
+     *
+     * @return {@code true} si el contenido es visible actualmente.
      */
     @Transient
     public boolean isScheduledActive() {
@@ -108,12 +153,12 @@ public class FeaturedContent {
 
         LocalDateTime now = LocalDateTime.now();
 
-        // If start date exists and we haven't reached it yet
+        // Si hay fecha de inicio y aún no ha llegado
         if (startDate != null && now.isBefore(startDate)) {
             return false;
         }
 
-        // If end date exists and we've passed it
+        // Si hay fecha de fin y ya pasó
         if (endDate != null && now.isAfter(endDate)) {
             return false;
         }
@@ -122,8 +167,10 @@ public class FeaturedContent {
     }
 
     /**
-     * Gets the schedule status as text
-     * GA01-157: Programación de destacados
+     * Genera un estado textual legible para la interfaz de administración.
+     *
+     * @return "INACTIVE" (apagado manual), "SCHEDULED" (pendiente de fecha),
+     * "EXPIRED" (fecha pasada) o "ACTIVE" (visible).
      */
     @Transient
     public String getScheduleStatus() {
@@ -138,7 +185,7 @@ public class FeaturedContent {
         }
 
         if (endDate != null && now.isAfter(endDate)) {
-            return "FINISHED";
+            return "EXPIRED";
         }
 
         return "ACTIVE";

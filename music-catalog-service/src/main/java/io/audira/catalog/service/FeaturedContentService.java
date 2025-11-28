@@ -21,9 +21,16 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * Service for managing featured content
- * GA01-156: Seleccionar/ordenar contenido destacado
- * GA01-157: Programación de destacados
+ * Servicio encargado de la gestión del contenido destacado en la plataforma.
+ * <p>
+ * Centraliza la lógica para administrar los elementos visuales (Banners/Carruseles) que aparecen
+ * en la página de inicio. Sus responsabilidades incluyen:
+ * <ul>
+ * <li><b>GA01-156:</b> Creación, actualización y reordenamiento manual de destacados.</li>
+ * <li><b>GA01-157:</b> Validación de reglas de programación temporal (fechas de inicio y fin).</li>
+ * <li><b>Desnormalización:</b> Copia de datos (título, imagen) para optimizar la lectura.</li>
+ * </ul>
+ * </p>
  */
 @Service
 @RequiredArgsConstructor
@@ -35,8 +42,14 @@ public class FeaturedContentService {
     private final UserServiceClient userServiceClient;
 
     /**
-     * Get all featured content (admin)
-     * GA01-156
+     * Recupera la lista completa de contenido destacado, sin filtros.
+     * <p>
+     * Este método está diseñado para la <b>vista de administración</b>. Retorna tanto
+     * el contenido activo como el inactivo, programado o expirado, ordenado por
+     * su prioridad de visualización (displayOrder).
+     * </p>
+     *
+     * @return Lista de DTOs con todos los registros de destacados.
      */
     public List<FeaturedContentResponse> getAllFeaturedContent() {
         return featuredContentRepository.findAllByOrderByDisplayOrderAsc()
@@ -46,8 +59,17 @@ public class FeaturedContentService {
     }
 
     /**
-     * Get active scheduled featured content (public)
-     * GA01-157
+     * Recupera únicamente el contenido destacado válido para mostrar al público.
+     * <p>
+     * Aplica las reglas de negocio de <b>GA01-157 (Programación)</b>:
+     * <ol>
+     * <li>El registro debe estar marcado como {@code active = true}.</li>
+     * <li>La fecha actual debe ser posterior a {@code startDate} (si existe).</li>
+     * <li>La fecha actual debe ser anterior a {@code endDate} (si existe).</li>
+     * </ol>
+     * </p>
+     *
+     * @return Lista de DTOs filtrada y ordenada para la Homepage.
      */
     public List<FeaturedContentResponse> getActiveFeaturedContent() {
         return featuredContentRepository.findActiveScheduledContent(LocalDateTime.now())
@@ -67,12 +89,23 @@ public class FeaturedContentService {
     }
 
     /**
-     * Create new featured content
-     * GA01-156, GA01-157
+     * Crea un nuevo registro de contenido destacado.
+     * <p>
+     * Realiza las siguientes validaciones y operaciones:
+     * <ul>
+     * <li>Verifica que la entidad referenciada (Canción/Álbum) realmente exista.</li>
+     * <li>Evita duplicados comprobando si ese contenido ya está destacado.</li>
+     * <li>"Hidrata" el registro copiando el título, imagen y artista de la entidad original
+     * para evitar consultas JOIN complejas en tiempo de lectura.</li>
+     * </ul>
+     * </p>
+     *
+     * @param request DTO con los datos del contenido a destacar.
+     * @return DTO del contenido destacado recién creado.
+     * @throws IllegalArgumentException Si el contenido no existe o ya está destacado.
      */
     @Transactional
     public FeaturedContentResponse createFeaturedContent(FeaturedContentRequest request) {
-        // Validate content type and ID
         if (request.getContentType() == null) {
             throw new IllegalArgumentException("Content type is required");
         }
@@ -80,13 +113,11 @@ public class FeaturedContentService {
             throw new IllegalArgumentException("Content ID is required");
         }
 
-        // Check if content already exists as featured
         if (featuredContentRepository.existsByContentTypeAndContentId(
                 request.getContentType(), request.getContentId())) {
             throw new IllegalArgumentException("This content is already featured");
         }
 
-        // Verify the content exists and is published
         String title = null;
         String imageUrl = null;
         String artist = null;
@@ -102,7 +133,6 @@ public class FeaturedContentService {
             title = song.getTitle();
             imageUrl = song.getCoverImageUrl();
 
-            // Fetch artist name from User service
             UserDTO artistUser = userServiceClient.getUserById(song.getArtistId());
             artist = artistUser.getArtistName() != null ? artistUser.getArtistName() : artistUser.getUsername();
         } else if (request.getContentType() == ContentType.ALBUM) {
@@ -116,19 +146,16 @@ public class FeaturedContentService {
             title = album.getTitle();
             imageUrl = album.getCoverImageUrl();
 
-            // Fetch artist name from User service
             UserDTO artistUser = userServiceClient.getUserById(album.getArtistId());
             artist = artistUser.getArtistName() != null ? artistUser.getArtistName() : artistUser.getUsername();
         }
 
-        // Set display order if not provided
         Integer displayOrder = request.getDisplayOrder();
         if (displayOrder == null || displayOrder > 900) {
             Integer maxOrder = featuredContentRepository.findMaxDisplayOrder();
             displayOrder = (maxOrder != null ? maxOrder + 1 : 0);
         }
 
-        // Create entity
         FeaturedContent entity = FeaturedContent.builder()
                 .contentType(request.getContentType())
                 .contentId(request.getContentId())
@@ -146,15 +173,22 @@ public class FeaturedContentService {
     }
 
     /**
-     * Update featured content
-     * GA01-156, GA01-157
+     * Actualiza un registro existente de contenido destacado.
+     * <p>
+     * Permite modificar la programación (fechas), el orden o incluso cambiar el contenido
+     * al que apunta. Si se cambia el contenido, se vuelven a resolver los metadatos.
+     * </p>
+     *
+     * @param id ID del registro de destacado.
+     * @param request DTO con los nuevos valores.
+     * @return DTO actualizado.
+     * @throws IllegalArgumentException Si el registro no existe.
      */
     @Transactional
     public FeaturedContentResponse updateFeaturedContent(Long id, FeaturedContentRequest request) {
         FeaturedContent entity = featuredContentRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Featured content not found with id: " + id));
 
-        // Update fields if provided
         if (request.getStartDate() != null) {
             entity.setStartDate(request.getStartDate());
         }
@@ -173,8 +207,12 @@ public class FeaturedContentService {
     }
 
     /**
-     * Delete featured content
-     * GA01-156
+     * Elimina un elemento de la lista de destacados.
+     * <p>
+     * Esto solo borra la referencia en la Home; no elimina la Canción o Álbum original.
+     * </p>
+     *
+     * @param id ID del registro de destacado a eliminar.
      */
     @Transactional
     public void deleteFeaturedContent(Long id) {
@@ -185,8 +223,15 @@ public class FeaturedContentService {
     }
 
     /**
-     * Reorder featured content
-     * GA01-156
+     * Reordena masivamente la lista de contenidos destacados.
+     * <p>
+     * Recibe una lista de pares {@code {id, nuevoOrden}} y actualiza la base de datos.
+     * Esencial para la funcionalidad de "Drag & Drop" en el panel de administración.
+     * </p>
+     *
+     * @param request DTO que contiene la lista de elementos con sus nuevas posiciones.
+     * @return La lista completa de destacados con el nuevo orden aplicado.
+     * @throws IllegalArgumentException Si la lista de ítems es nula o vacía.
      */
     @Transactional
     public List<FeaturedContentResponse> reorderFeaturedContent(ReorderRequest request) {
@@ -194,7 +239,6 @@ public class FeaturedContentService {
             throw new IllegalArgumentException("Items list is required for reordering");
         }
 
-        // Update display order for each item
         for (ReorderRequest.ReorderItem item : request.getItems()) {
             FeaturedContent entity = featuredContentRepository.findById(item.getId())
                     .orElseThrow(() -> new IllegalArgumentException("Featured content not found with id: " + item.getId()));
@@ -202,13 +246,18 @@ public class FeaturedContentService {
             featuredContentRepository.save(entity);
         }
 
-        // Return all items in new order
         return getAllFeaturedContent();
     }
 
     /**
-     * Toggle active status
-     * GA01-156
+     * Activa o desactiva rápidamente un contenido destacado.
+     * <p>
+     * Método ligero (PATCH) que evita tener que enviar todo el objeto para un cambio simple de estado.
+     * </p>
+     *
+     * @param id ID del registro.
+     * @param isActive Nuevo estado booleano.
+     * @return DTO con el estado actualizado.
      */
     @Transactional
     public FeaturedContentResponse toggleActive(Long id, boolean isActive) {

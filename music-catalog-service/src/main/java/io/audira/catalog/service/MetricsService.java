@@ -24,9 +24,17 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * Service for calculating artist and song metrics
- * GA01-108: Resumen rápido (plays, valoraciones, ventas, comentarios, evolución)
- * GA01-109: Vista detallada (por fecha/gráfico básico)
+ * Servicio encargado del cálculo y agregación de métricas de rendimiento.
+ * <p>
+ * Centraliza la lógica para generar reportes estadísticos de artistas y canciones,
+ * combinando datos de múltiples fuentes:
+ * <ul>
+ * <li><b>Catálogo:</b> Inventario de canciones, álbumes y reproducciones (Plays).</li>
+ * <li><b>Comercio:</b> Ventas e ingresos (Revenue).</li>
+ * <li><b>Comunidad:</b> Valoraciones (Ratings) y comentarios.</li>
+ * </ul>
+ * Cumple con los requisitos <b>GA01-108 (Resumen)</b> y <b>GA01-109 (Detalle)</b>.
+ * </p>
  */
 @Service
 @RequiredArgsConstructor
@@ -42,62 +50,56 @@ public class MetricsService {
     private final CommerceServiceClient commerceServiceClient;
 
     /**
-     * Get summary metrics for an artist
-     * GA01-108: Resumen rápido
+     * Genera un resumen ejecutivo de las métricas de un artista.
+     * <p>
+     * Proporciona una visión general del rendimiento del artista, incluyendo totales acumulados
+     * y comparativas de crecimiento. Ideal para el dashboard principal.
+     * </p>
+     *
+     * @param artistId Identificador del artista.
+     * @return DTO {@link ArtistMetricsSummary} con los datos consolidados.
      */
     public ArtistMetricsSummary getArtistMetricsSummary(Long artistId) {
         logger.info("Calculating metrics summary for artist {}", artistId);
 
-        // Get artist information
         UserDTO artist = userServiceClient.getUserById(artistId);
         String artistName = artist.getArtistName() != null ? artist.getArtistName() : artist.getUsername();
 
-        // Get artist's songs
         List<Song> artistSongs = songRepository.findByArtistId(artistId);
 
-        // Get artist's albums
         List<Album> artistAlbums = albumRepository.findByArtistId(artistId);
 
-        // Get collaborations
         List<Collaborator> collaborations = collaboratorRepository.findByArtistIdAndStatus(
                 artistId, CollaborationStatus.ACCEPTED
         );
 
-        // Calculate plays metrics
         Long totalPlays = artistSongs.stream()
                 .mapToLong(Song::getPlays)
                 .sum();
 
-        // Find most played song
         Optional<Song> mostPlayedSong = artistSongs.stream()
                 .max(Comparator.comparing(Song::getPlays));
 
-        // Calculate growth (estimated based on recent activity)
         Double playsGrowth = calculateEstimatedGrowth(totalPlays);
 
-        // Get real ratings data from community-service
         RatingStatsDTO ratingStats = ratingServiceClient.getArtistRatingStats(artistId);
         Double averageRating = ratingStats.getAverageRating() != null ? ratingStats.getAverageRating() : 0.0;
         Long totalRatings = ratingStats.getTotalRatings() != null ? ratingStats.getTotalRatings() : 0L;
         Double ratingsGrowth = calculateEstimatedGrowth(totalRatings);
 
-        // Get real sales data from commerce-service
         List<OrderDTO> allOrders = commerceServiceClient.getAllOrders();
 
-        // Calculate sales for this artist's songs
         Map<String, Object> salesMetrics = calculateArtistSales(artistSongs, allOrders);
         Long totalSales = (Long) salesMetrics.get("totalSales");
         BigDecimal totalRevenue = (BigDecimal) salesMetrics.get("totalRevenue");
         Long salesLast30Days = (Long) salesMetrics.get("salesLast30Days");
         BigDecimal revenueLast30Days = (BigDecimal) salesMetrics.get("revenueLast30Days");
         Double salesGrowth = calculateEstimatedGrowth(totalSales);
-        Double revenueGrowth = salesGrowth; // Same growth rate for sales and revenue
+        Double revenueGrowth = salesGrowth;
 
-        // Get real comments data from community-service (ratings with comments)
         Long totalComments = artistSongs.stream()
                 .mapToLong(song -> {
                     RatingStatsDTO songStats = ratingServiceClient.getEntityRatingStats("SONG", song.getId());
-                    // Estimate that 30% of ratings have comments
                     return (long) (songStats.getTotalRatings() * 0.3);
                 })
                 .sum();
@@ -108,30 +110,24 @@ public class MetricsService {
                 .artistId(artistId)
                 .artistName(artistName)
                 .generatedAt(LocalDateTime.now())
-                // Plays
                 .totalPlays(totalPlays)
-                .playsLast30Days(totalPlays / 4) // Estimate 25% in last 30 days
+                .playsLast30Days(totalPlays / 4)
                 .playsGrowthPercentage(playsGrowth)
-                // Ratings
                 .averageRating(averageRating)
                 .totalRatings(totalRatings)
                 .ratingsGrowthPercentage(ratingsGrowth)
-                // Sales
                 .totalSales(totalSales)
                 .totalRevenue(totalRevenue)
                 .salesLast30Days(salesLast30Days)
                 .revenueLast30Days(revenueLast30Days)
                 .salesGrowthPercentage(salesGrowth)
                 .revenueGrowthPercentage(revenueGrowth)
-                // Comments
                 .totalComments(totalComments)
                 .commentsLast30Days(commentsLast30Days)
                 .commentsGrowthPercentage(commentsGrowth)
-                // Content
                 .totalSongs((long) artistSongs.size())
                 .totalAlbums((long) artistAlbums.size())
                 .totalCollaborations((long) collaborations.size())
-                // Top performing
                 .mostPlayedSongId(mostPlayedSong.map(Song::getId).orElse(null))
                 .mostPlayedSongName(mostPlayedSong.map(Song::getTitle).orElse("N/A"))
                 .mostPlayedSongPlays(mostPlayedSong.map(Song::getPlays).orElse(0L))
@@ -139,8 +135,16 @@ public class MetricsService {
     }
 
     /**
-     * Get detailed metrics with timeline for an artist
-     * GA01-109: Vista detallada
+     * Genera un reporte detallado con evolución temporal de métricas.
+     * <p>
+     * Crea puntos de datos diarios para graficar tendencias de reproducciones, ventas e ingresos
+     * en un rango de fechas específico.
+     * </p>
+     *
+     * @param artistId Identificador del artista.
+     * @param startDate Fecha de inicio del reporte.
+     * @param endDate Fecha de fin del reporte.
+     * @return DTO {@link ArtistMetricsDetailed} con listas de métricas diarias.
      */
     public ArtistMetricsDetailed getArtistMetricsDetailed(
             Long artistId,
@@ -150,55 +154,44 @@ public class MetricsService {
         logger.info("Calculating detailed metrics for artist {} from {} to {}",
                 artistId, startDate, endDate);
 
-        // Validate date range
         if (startDate.isAfter(endDate)) {
             throw new IllegalArgumentException("Start date must be before end date");
         }
 
-        // Get artist information
         UserDTO artist = userServiceClient.getUserById(artistId);
         String artistName = artist.getArtistName() != null ? artist.getArtistName() : artist.getUsername();
 
-        // Get artist's songs
         List<Song> artistSongs = songRepository.findByArtistId(artistId);
-        logger.info("📊 Found {} songs for artist {}", artistSongs.size(), artistId);
+        logger.info(" Found {} songs for artist {}", artistSongs.size(), artistId);
 
-        // Log individual song play counts
         artistSongs.forEach(song ->
             logger.info("   Song: '{}' (ID: {}) - Plays: {}",
                 song.getTitle(), song.getId(), song.getPlays())
         );
 
         Long totalPlays = artistSongs.stream().mapToLong(Song::getPlays).sum();
-        logger.info("✅ Total plays calculated: {}", totalPlays);
+        logger.info(" Total plays calculated: {}", totalPlays);
 
-        // Get real orders data
         List<OrderDTO> allOrders = commerceServiceClient.getAllOrders();
-        logger.info("📦 Retrieved {} total orders from commerce service", allOrders.size());
+        logger.info(" Retrieved {} total orders from commerce service", allOrders.size());
 
-        // CRITICAL FIX: Calculate sales BEFORE generating daily metrics
         Map<String, Object> salesMetrics = calculateArtistSales(artistSongs, allOrders);
         Long totalSales = (Long) salesMetrics.get("totalSales");
         BigDecimal totalRevenue = (BigDecimal) salesMetrics.get("totalRevenue");
 
-        // Generate daily metrics for chart based on real data
         List<ArtistMetricsDetailed.DailyMetric> dailyMetrics = generateDailyMetricsWithRealData(
                 artistSongs, allOrders, startDate, endDate, totalPlays
         );
 
-        // CRITICAL FIX: Period totals should be the ACTUAL totals from the database
-        // Not the sum of distributed daily metrics
-        Long periodPlays = totalPlays;  // Use actual total plays from songs database
-        Long periodSales = totalSales;  // Use actual sales from orders
-        BigDecimal periodRevenue = totalRevenue;  // Use actual revenue from orders
+        Long periodPlays = totalPlays;  
+        Long periodSales = totalSales;  
+        BigDecimal periodRevenue = totalRevenue; 
 
         Long periodComments = dailyMetrics.stream()
                 .mapToLong(ArtistMetricsDetailed.DailyMetric::getComments)
                 .sum();
 
-        // CRITICAL FIX: Calculate artist's average rating from their songs
-        // Artist rating = average of all song ratings
-        logger.info("⭐ Calculating artist average rating from song ratings...");
+        logger.info(" Calculating artist average rating from song ratings...");
 
         double totalRatingSum = 0.0;
         int songsWithRatings = 0;
@@ -220,13 +213,13 @@ public class MetricsService {
 
         Double averageRating = songsWithRatings > 0 ? totalRatingSum / songsWithRatings : 0.0;
 
-        logger.info("⭐ Artist rating calculation:");
+        logger.info("Artist rating calculation:");
         logger.info("   Songs with ratings: {} / {}", songsWithRatings, artistSongs.size());
         logger.info("   Sum of song ratings: {}", totalRatingSum);
         logger.info("   Average rating: {} / {} = {}", totalRatingSum, songsWithRatings, averageRating);
         logger.info("   Total individual ratings: {}", totalRatingsCount);
 
-        logger.info("📊 FINAL METRICS SUMMARY for artist {}:", artistId);
+        logger.info("FINAL METRICS SUMMARY for artist {}:", artistId);
         logger.info("   Artist: {}", artistName);
         logger.info("   Period: {} to {}", startDate, endDate);
         logger.info("   Period Plays: {}", periodPlays);
@@ -251,15 +244,20 @@ public class MetricsService {
     }
 
     /**
-     * Get top songs for an artist ranked by plays
+     * Obtiene el ranking de las canciones más exitosas de un artista.
+     * <p>
+     * Ordena el catálogo del artista por número de reproducciones descendente.
+     * </p>
+     *
+     * @param artistId Identificador del artista.
+     * @param limit Número máximo de canciones a retornar.
+     * @return Lista de métricas de las top canciones.
      */
     public List<SongMetrics> getArtistTopSongs(Long artistId, int limit) {
         logger.info("Getting top {} songs for artist {}", limit, artistId);
 
-        // Get all artist's songs
         List<Song> artistSongs = songRepository.findByArtistId(artistId);
 
-        // Sort by plays descending and limit
         return artistSongs.stream()
                 .sorted(Comparator.comparing(Song::getPlays).reversed())
                 .limit(limit)
@@ -268,17 +266,19 @@ public class MetricsService {
     }
 
     /**
-     * Get metrics for a specific song
+     * Obtiene las métricas específicas de una canción individual.
+     *
+     * @param songId Identificador de la canción.
+     * @return DTO {@link SongMetrics} con el rendimiento del track.
+     * @throws RuntimeException Si la canción no existe.
      */
     public SongMetrics getSongMetrics(Long songId) {
         Song song = songRepository.findById(songId)
                 .orElseThrow(() -> new RuntimeException("Song not found: " + songId));
 
-        // Get artist information
         UserDTO artist = userServiceClient.getUserById(song.getArtistId());
         String artistName = artist.getArtistName() != null ? artist.getArtistName() : artist.getUsername();
 
-        // Get artist's all songs to calculate rank
         List<Song> artistSongs = songRepository.findByArtistId(song.getArtistId());
         List<Song> sortedByPlays = artistSongs.stream()
                 .sorted(Comparator.comparing(Song::getPlays).reversed())
@@ -286,15 +286,12 @@ public class MetricsService {
 
         int rank = sortedByPlays.indexOf(song) + 1;
 
-        // Get real rating stats
         RatingStatsDTO ratingStats = ratingServiceClient.getEntityRatingStats("SONG", songId);
         Double averageRating = ratingStats.getAverageRating() != null ? ratingStats.getAverageRating() : 0.0;
         Long totalRatings = ratingStats.getTotalRatings() != null ? ratingStats.getTotalRatings() : 0L;
 
-        // Estimate comments as 30% of ratings
         Long totalComments = (long) (totalRatings * 0.3);
 
-        // Get real sales data
         List<OrderDTO> allOrders = commerceServiceClient.getAllOrders();
         Map<String, Object> songSales = calculateSongSales(songId, allOrders);
         Long totalSales = (Long) songSales.get("totalSales");
@@ -315,15 +312,26 @@ public class MetricsService {
     }
 
     /**
-     * Calculate sales metrics for an artist from order data
-     * CRITICAL FIX: Only counts orders with DELIVERED status (successfully paid orders)
+     * Calcula el volumen total de ventas generadas por un artista.
+     * <p>
+     * Realiza una agregación de todas las transacciones comerciales asociadas al artista.
+     * Esto incluye:
+     * <ul>
+     * <li>Ventas directas de álbumes completos.</li>
+     * <li>Ventas individuales de canciones (Singles o tracks de álbumes).</li>
+     * </ul>
+     * Se comunica con el {@link CommerceServiceClient} para obtener los datos transaccionales.
+     * </p>
+     *
+     * @param artistId Identificador único del artista.
+     * @return Número total de unidades vendidas (Songs + Albums).
      */
     private Map<String, Object> calculateArtistSales(List<Song> artistSongs, List<OrderDTO> allOrders) {
         Set<Long> artistSongIds = artistSongs.stream()
                 .map(Song::getId)
                 .collect(Collectors.toSet());
 
-        logger.info("💰 Calculating sales for artist songs. Artist has {} songs", artistSongs.size());
+        logger.info(" Calculating sales for artist songs. Artist has {} songs", artistSongs.size());
         logger.info("   Processing {} total orders", allOrders.size());
 
         LocalDateTime thirtyDaysAgo = LocalDateTime.now().minusDays(30);
@@ -341,9 +349,8 @@ public class MetricsService {
             logger.debug("   Order ID {} - Status: {} - Created: {}",
                     order.getId(), order.getStatus(), order.getCreatedAt());
 
-            // CRITICAL FIX: Only count DELIVERED orders (successfully paid)
             if (order.getStatus() == null || !"DELIVERED".equals(order.getStatus())) {
-                logger.debug("      ⏭️ Skipped order {} - Status: {} (not DELIVERED)",
+                logger.debug("       Skipped order {} - Status: {} (not DELIVERED)",
                         order.getId(), order.getStatus());
                 skippedOrders++;
                 continue;
@@ -352,7 +359,7 @@ public class MetricsService {
             deliveredOrders++;
 
             if (order.getItems() == null) {
-                logger.debug("      ⚠️ Order {} has no items", order.getId());
+                logger.debug("       Order {} has no items", order.getId());
                 continue;
             }
 
@@ -363,7 +370,7 @@ public class MetricsService {
                     BigDecimal price = item.getPrice() != null ? item.getPrice() : BigDecimal.ZERO;
                     BigDecimal itemRevenue = price.multiply(BigDecimal.valueOf(quantity));
 
-                    logger.info("      ✅ Found sale: Song ID {} - Qty: {} - Price: ${} - Revenue: ${}",
+                    logger.info("       Found sale: Song ID {} - Qty: {} - Price: ${} - Revenue: ${}",
                             item.getItemId(), quantity, price, itemRevenue);
 
                     totalSales += quantity;
@@ -377,7 +384,7 @@ public class MetricsService {
             }
         }
 
-        logger.info("💰 Sales calculation summary:");
+        logger.info(" Sales calculation summary:");
         logger.info("   Total orders processed: {}", allOrders.size());
         logger.info("   DELIVERED orders: {}", deliveredOrders);
         logger.info("   Skipped orders (not DELIVERED): {}", skippedOrders);
@@ -394,15 +401,20 @@ public class MetricsService {
     }
 
     /**
-     * Calculate sales metrics for a specific song from order data
-     * CRITICAL FIX: Only counts orders with DELIVERED status (successfully paid orders)
+     * Calcula las ventas específicas de una canción individual.
+     * <p>
+     * Suma las unidades vendidas de este track específico a través del servicio de comercio.
+     * Es útil para determinar qué canciones están generando más conversión ("Best Sellers").
+     * </p>
+     *
+     * @param songId Identificador de la canción.
+     * @return Cantidad total de veces que la canción ha sido comprada.
      */
     private Map<String, Object> calculateSongSales(Long songId, List<OrderDTO> allOrders) {
         long totalSales = 0;
         BigDecimal totalRevenue = BigDecimal.ZERO;
 
         for (OrderDTO order : allOrders) {
-            // CRITICAL FIX: Only count DELIVERED orders (successfully paid)
             if (order.getStatus() == null || !"DELIVERED".equals(order.getStatus())) {
                 continue;
             }
@@ -427,9 +439,20 @@ public class MetricsService {
     }
 
     /**
-     * Generate daily metrics with real data
-     * Note: Since we don't have historical tracking yet, we distribute current totals
-     * across the date range with realistic variation
+     * Genera datos sintéticos diarios distribuyendo los totales actuales.
+     * <p>
+     * <b>Nota Técnica:</b> Este método es un "Mock" inteligente. En un entorno de producción real,
+     * Audira debería tener un proceso batch nocturno que guarde snapshots diarios en una tabla
+     * {@code historical_metrics}. Como esa tabla no existe en el esquema actual, este método
+     * reconstruye una historia plausible usando aleatoriedad controlada para que los gráficos
+     * del frontend no se vean vacíos.
+     * </p>
+     *
+     * @param start Fecha inicio.
+     * @param end Fecha fin.
+     * @param totalPlays Total de plays actuales (semilla para la distribución).
+     * @param currentRating Rating actual promedio.
+     * @return Lista cronológica de métricas diarias.
      */
     private List<ArtistMetricsDetailed.DailyMetric> generateDailyMetricsWithRealData(
             List<Song> artistSongs,
@@ -445,12 +468,10 @@ public class MetricsService {
         LocalDate currentDate = startDate;
         long daysInRange = endDate.toEpochDay() - startDate.toEpochDay() + 1;
 
-        // Get real sales data
         Map<String, Object> salesMetrics = calculateArtistSales(artistSongs, allOrders);
         Long totalSales = (Long) salesMetrics.get("totalSales");
         logger.info("   Total sales to distribute: {}", totalSales);
 
-        // Get real rating stats
         Set<Long> songIds = artistSongs.stream().map(Song::getId).collect(Collectors.toSet());
         double totalRatingSum = 0.0;
         int ratingCount = 0;
@@ -465,12 +486,8 @@ public class MetricsService {
 
         double avgRating = ratingCount > 0 ? totalRatingSum / ratingCount : 0.0;
 
-        // CRITICAL FIX: Distribute totals properly, handling small values
-        // Instead of dividing (which loses data with small numbers), we'll assign all to today
         Random random = new Random(42); // Fixed seed for consistent data
 
-        // For small numbers, concentrate all activity on the most recent days
-        // For larger numbers, distribute across the period
         long remainingPlays = totalPlays;
         long remainingSales = totalSales;
         long daysToDistribute = Math.min(daysInRange, 7); // Concentrate in last 7 days
@@ -479,15 +496,12 @@ public class MetricsService {
             long dailyPlays = 0;
             long dailySales = 0;
 
-            // If we're in the last 'daysToDistribute' days, assign the metrics
             boolean isRecentDay = (endDate.toEpochDay() - currentDate.toEpochDay()) < daysToDistribute;
 
             if (isRecentDay && remainingPlays > 0) {
-                // For small totals (< 10), assign randomly to recent days
                 if (totalPlays < 10) {
                     dailyPlays = random.nextBoolean() ? remainingPlays : 0;
                 } else {
-                    // For larger totals, distribute more evenly
                     dailyPlays = remainingPlays / daysToDistribute;
                 }
                 remainingPlays -= dailyPlays;
@@ -502,20 +516,16 @@ public class MetricsService {
                 remainingSales -= dailySales;
             }
 
-            // On the last day, assign any remaining metrics
             if (currentDate.equals(endDate)) {
                 dailyPlays += remainingPlays;
                 dailySales += remainingSales;
             }
 
-            // Calculate revenue based on actual sales (assuming average price of $0.99)
             BigDecimal dailyRevenue = BigDecimal.valueOf(dailySales * 0.99)
                     .setScale(2, RoundingMode.HALF_UP);
 
-            // Estimate comments (assuming some ratings have comments)
             long dailyComments = random.nextInt(3);
 
-            // Use real average rating with slight variation
             double dailyRating = avgRating > 0 ? avgRating + (random.nextDouble() * 0.4 - 0.2) : 0.0;
             dailyRating = Math.max(0.0, Math.min(5.0, dailyRating));
 
@@ -537,20 +547,23 @@ public class MetricsService {
         }
 
         long totalDistributed = metrics.stream().mapToLong(ArtistMetricsDetailed.DailyMetric::getPlays).sum();
-        logger.info("📈 Daily metrics generated: {} days, {} total plays distributed", metrics.size(), totalDistributed);
+        logger.info(" Daily metrics generated: {} days, {} total plays distributed", metrics.size(), totalDistributed);
 
         return metrics;
     }
 
     /**
-     * Calculate estimated growth percentage
-     * Note: Since we don't have historical data yet, we estimate based on current activity
-     * In a production system, this would compare current period to previous period
+     * Calcula un porcentaje de crecimiento estimado.
+     * <p>
+     * Al no tener datos históricos reales almacenados, se estima una tendencia
+     * basada en el volumen actual de actividad.
+     * </p>
+     *
+     * @param currentValue Valor actual de la métrica.
+     * @return Porcentaje de crecimiento estimado (positivo).
      */
     private Double calculateEstimatedGrowth(Long currentValue) {
         if (currentValue == 0) return 0.0;
-        // Estimate growth based on activity level (higher values suggest more growth)
-        // This is a simplified estimate; real implementation would compare historical data
         double growthFactor = Math.min(currentValue / 100.0, 1.0);
         return growthFactor * 15.0; // 0-15% estimated growth
     }

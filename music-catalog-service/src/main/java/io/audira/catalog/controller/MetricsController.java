@@ -12,9 +12,11 @@ import org.springframework.web.bind.annotation.*;
 import java.time.LocalDate;
 
 /**
- * Controller for artist and song metrics
- * GA01-108: Resumen rápido (plays, valoraciones, ventas, comentarios, evolución)
- * GA01-109: Vista detallada (por fecha/gráfico básico)
+ * Controlador para la consulta de métricas de rendimiento.
+ * <p>
+ * GA01-108: Resumen rápido (plays, valoraciones, ventas).
+ * GA01-109: Vista detallada y gráficos.
+ * </p>
  */
 @RestController
 @RequestMapping("/api/metrics")
@@ -25,11 +27,10 @@ public class MetricsController {
     private final MetricsService metricsService;
 
     /**
-     * Get summary metrics for an artist
-     * GA01-108: Resumen rápido
+     * Obtiene un resumen ejecutivo de las métricas de un artista.
      *
-     * @param artistId Artist ID
-     * @return Summary with plays, ratings, sales, comments, and growth
+     * @param artistId ID del artista.
+     * @return DTO con totales acumulados (plays, ventas, ratings).
      */
     @GetMapping("/artists/{artistId}")
     public ResponseEntity<ArtistMetricsSummary> getArtistMetricsSummary(
@@ -40,13 +41,15 @@ public class MetricsController {
     }
 
     /**
-     * Get detailed metrics with timeline for an artist
-     * GA01-109: Vista detallada (por fecha/gráfico básico)
+     * Obtiene métricas detalladas de un artista en un rango de fechas.
+     * <p>
+     * Si no se especifican fechas, devuelve los últimos 30 días por defecto.
+     * </p>
      *
-     * @param artistId Artist ID
-     * @param startDate Start date (optional, defaults to 30 days ago)
-     * @param endDate End date (optional, defaults to today)
-     * @return Detailed metrics with daily breakdown for charts
+     * @param artistId ID del artista.
+     * @param startDate Fecha inicio (opcional).
+     * @param endDate Fecha fin (opcional).
+     * @return Datos detallados para graficar evolución.
      */
     @GetMapping("/artists/{artistId}/detailed")
     public ResponseEntity<ArtistMetricsDetailed> getArtistMetricsDetailed(
@@ -54,7 +57,6 @@ public class MetricsController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate
     ) {
-        // Default to last 30 days if not specified
         if (startDate == null) {
             startDate = LocalDate.now().minusDays(30);
         }
@@ -69,10 +71,10 @@ public class MetricsController {
     }
 
     /**
-     * Get metrics for a specific song
+     * Obtiene métricas específicas de rendimiento para una sola canción.
      *
-     * @param songId Song ID
-     * @return Song metrics
+     * @param songId ID de la canción.
+     * @return Métricas de la canción.
      */
     @GetMapping("/songs/{songId}")
     public ResponseEntity<SongMetrics> getSongMetrics(
@@ -83,12 +85,11 @@ public class MetricsController {
     }
 
     /**
-     * Get top songs for an artist (for compatibility with existing frontend)
-     * GA01-108: Part of summary
+     * Obtiene el ranking de las canciones más exitosas de un artista.
      *
-     * @param artistId Artist ID
-     * @param limit Number of top songs to return
-     * @return List of top songs by plays
+     * @param artistId ID del artista.
+     * @param limit Cantidad de canciones a retornar.
+     * @return Lista de métricas de las top canciones.
      */
     @GetMapping("/artists/{artistId}/top-songs")
     public ResponseEntity<java.util.List<SongMetrics>> getArtistTopSongs(

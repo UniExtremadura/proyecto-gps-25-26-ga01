@@ -1,3 +1,11 @@
+io.audira.catalog
+io.audira.catalog.client
+io.audira.catalog.config
+io.audira.catalog.controller
+io.audira.catalog.dto
+io.audira.catalog.model
+io.audira.catalog.repository
+io.audira.catalog.service
 io.audira.commerce
 io.audira.commerce.client
 io.audira.commerce.config
@@ -17,3 +25,7 @@ io.audira.community.repository
 io.audira.community.security
 io.audira.community.service
 io.audira.community.util
+io.audira.config
+io.audira.discovery
+io.audira.gateway
+io.audira.gateway.config
