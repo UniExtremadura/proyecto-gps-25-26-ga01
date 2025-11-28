@@ -173,7 +173,7 @@ class StudioDashboardScreen extends StatelessWidget {
               delay: 900,
               isLessProminent: true,
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 120),
           ],
         ),
       ),

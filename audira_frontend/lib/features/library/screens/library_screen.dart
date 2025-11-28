@@ -275,28 +275,31 @@ class _LibraryScreenState extends State<LibraryScreen>
         ),
       ),
       // FAB solo para Playlists
-      floatingActionButton: ValueListenableBuilder(
-        valueListenable: _tabController.animation!,
-        builder: (context, value, child) {
-          return _tabController.index == 2
-              ? FloatingActionButton.extended(
-                  onPressed: () async {
-                    final result =
-                        await Navigator.pushNamed(context, '/playlist/create');
-                    if (result == true) {
-                      if (!currentContext.mounted) return;
-                      _loadPlaylists(Provider.of<AuthProvider>(currentContext,
-                              listen: false)
-                          .currentUser!
-                          .id);
-                    }
-                  },
-                  backgroundColor: AppTheme.primaryBlue,
-                  icon: const Icon(Icons.add_rounded),
-                  label: const Text("Nueva Playlist"),
-                ).animate().scale()
-              : const SizedBox.shrink();
-        },
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(bottom: 80.0),
+        child: ValueListenableBuilder(
+          valueListenable: _tabController.animation!,
+          builder: (context, value, child) {
+            return _tabController.index == 2
+                ? FloatingActionButton.extended(
+                    onPressed: () async {
+                      final result = await Navigator.pushNamed(
+                          context, '/playlist/create');
+                      if (result == true) {
+                        if (!currentContext.mounted) return;
+                        _loadPlaylists(Provider.of<AuthProvider>(currentContext,
+                                listen: false)
+                            .currentUser!
+                            .id);
+                      }
+                    },
+                    backgroundColor: AppTheme.primaryBlue,
+                    icon: const Icon(Icons.add_rounded),
+                    label: const Text("Nueva Playlist"),
+                  ).animate().scale()
+                : const SizedBox.shrink();
+          },
+        ),
       ),
     );
   }
@@ -524,7 +527,7 @@ class _LibraryScreenState extends State<LibraryScreen>
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16 + 120),
       itemCount: filtered.length,
       itemBuilder: (context, index) {
         final song = filtered[index];
@@ -550,7 +553,7 @@ class _LibraryScreenState extends State<LibraryScreen>
     if (filtered.isEmpty) return _buildEmptyState("álbumes", Icons.album);
 
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16 + 120),
       itemCount: filtered.length,
       itemBuilder: (context, index) {
         final album = filtered[index];
@@ -584,7 +587,7 @@ class _LibraryScreenState extends State<LibraryScreen>
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16 + 120),
       itemCount: filtered.length,
       itemBuilder: (context, index) {
         final playlist = filtered[index];
@@ -622,7 +625,7 @@ class _LibraryScreenState extends State<LibraryScreen>
     }
 
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16 + 120),
       children: [
         if (favSongs.isNotEmpty) ...[
           const Padding(
@@ -676,7 +679,7 @@ class _LibraryScreenState extends State<LibraryScreen>
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16 + 120),
       itemCount: filtered.length,
       itemBuilder: (context, index) {
         final download = filtered[index];

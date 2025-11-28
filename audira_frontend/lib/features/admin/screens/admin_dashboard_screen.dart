@@ -115,7 +115,7 @@ class AdminDashboardScreen extends StatelessWidget {
             ),
             _buildSectionHeader('SOPORTE Y SEGURIDAD'),
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 40),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 16 + 100),
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
                   _buildListTile(
@@ -148,7 +148,8 @@ class AdminDashboardScreen extends StatelessWidget {
                           child: _buildCompactTile(context, 'Inbox',
                               Icons.mail_outline, '/admin/contacts', 650)),
                     ],
-                  )
+                  ),
+                  const SizedBox(width: 120),
                 ]),
               ),
             ),

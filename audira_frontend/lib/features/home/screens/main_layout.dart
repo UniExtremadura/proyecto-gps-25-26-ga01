@@ -1,11 +1,16 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:animations/animations.dart';
-import 'package:flutter_animate/flutter_animate.dart'; // Asegúrate de tener esto importado
+import 'package:flutter_animate/flutter_animate.dart';
+
+// Imports de tu proyecto
 import '../../../config/theme.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/providers/cart_provider.dart';
 import '../../common/widgets/mini_player.dart';
+
+// Pantallas
 import 'home_screen.dart';
 import '../../store/screens/store_screen.dart';
 import '../../library/screens/library_screen.dart';
@@ -24,17 +29,17 @@ class MainLayout extends StatefulWidget {
 class _MainLayoutState extends State<MainLayout> {
   int _currentIndex = 0;
 
-  // Mantenemos la lógica exacta de pantallas
-  List<Widget> get _screens {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+  // --- PANTALLAS Y NAVEGACIÓN ---
+
+  List<Widget> _buildScreens(AuthProvider authProvider) {
     final isAuthenticated = authProvider.isAuthenticated;
     final userRole = authProvider.currentUser?.role;
 
     return [
-      const HomeScreen(),
-      const StoreScreen(),
-      if (isAuthenticated) const LibraryScreen(),
-      const CartScreen(),
+      const HomeScreen(), // 0
+      const StoreScreen(), // 1
+      if (isAuthenticated) const LibraryScreen(), // 2
+      const CartScreen(), // 3 (o 2 si no auth)
       if (isAuthenticated && userRole == 'ARTIST')
         const StudioDashboardScreen(),
       if (isAuthenticated && userRole == 'ADMIN') const AdminDashboardScreen(),
@@ -42,213 +47,235 @@ class _MainLayoutState extends State<MainLayout> {
     ];
   }
 
-  // Mantenemos la lógica exacta de destinos
-  List<NavigationDestination> get _destinations {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+  List<_NavItem> _buildNavItems(AuthProvider authProvider) {
     final isAuthenticated = authProvider.isAuthenticated;
     final userRole = authProvider.currentUser?.role;
 
     return [
-      const NavigationDestination(
-        icon: Icon(Icons.home_outlined),
-        selectedIcon: Icon(Icons.home),
-        label: 'Inicio',
-      ),
-      const NavigationDestination(
-        icon: Icon(Icons.store_outlined),
-        selectedIcon: Icon(Icons.store),
-        label: 'Tienda',
-      ),
+      _NavItem(
+          icon: Icons.home_outlined, activeIcon: Icons.home, label: 'Inicio'),
+      _NavItem(
+          icon: Icons.store_outlined, activeIcon: Icons.store, label: 'Tienda'),
       if (isAuthenticated)
-        const NavigationDestination(
-          icon: Icon(Icons.library_music_outlined),
-          selectedIcon: Icon(Icons.library_music),
-          label: 'Biblioteca',
-        ),
-      const NavigationDestination(
-        icon: Icon(Icons.shopping_cart_outlined),
-        selectedIcon: Icon(Icons.shopping_cart),
-        label: 'Carrito',
-      ),
+        _NavItem(
+            icon: Icons.library_music_outlined,
+            activeIcon: Icons.library_music,
+            label: 'Biblio'),
+      _NavItem(
+          icon: Icons.shopping_cart_outlined,
+          activeIcon: Icons.shopping_cart,
+          label: 'Carrito'),
       if (isAuthenticated && userRole == 'ARTIST')
-        const NavigationDestination(
-          icon: Icon(Icons.mic_outlined),
-          selectedIcon: Icon(Icons.mic),
-          label: 'Studio',
-        ),
+        _NavItem(
+            icon: Icons.mic_none_outlined,
+            activeIcon: Icons.mic,
+            label: 'Studio'),
       if (isAuthenticated && userRole == 'ADMIN')
-        const NavigationDestination(
-          icon: Icon(Icons.admin_panel_settings_outlined),
-          selectedIcon: Icon(Icons.admin_panel_settings),
-          label: 'Admin',
-        ),
+        _NavItem(
+            icon: Icons.admin_panel_settings_outlined,
+            activeIcon: Icons.admin_panel_settings,
+            label: 'Admin'),
       if (isAuthenticated)
-        const NavigationDestination(
-          icon: Icon(Icons.person_outline),
-          selectedIcon: Icon(Icons.person),
-          label: 'Perfil',
-        ),
+        _NavItem(
+            icon: Icons.person_outline,
+            activeIcon: Icons.person,
+            label: 'Perfil'),
     ];
   }
 
-  void _onDestinationSelected(int index) async {
+  void _onDestinationSelected(int index, AuthProvider authProvider) {
     setState(() {
       _currentIndex = index;
     });
 
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final cartProvider = Provider.of<CartProvider>(context, listen: false);
-
-    if (_isCartTab(index) && authProvider.currentUser != null) {
-      debugPrint('=== Cart tab selected, reloading cart ===');
-      await cartProvider.loadCart(authProvider.currentUser!.id);
+    if (authProvider.isAuthenticated) {
+      final cartProvider = Provider.of<CartProvider>(context, listen: false);
+      cartProvider.loadCart(authProvider.currentUser!.id);
     }
   }
 
-  bool _isCartTab(int index) {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    return authProvider.isAuthenticated ? index == 3 : index == 2;
-  }
+  // --- BUILD PRINCIPAL ---
 
   @override
   Widget build(BuildContext context) {
-    // Usamos el Consumer para obtener el estado de autenticación y redibujar si cambia
     return Consumer<AuthProvider>(
       builder: (context, authProvider, _) {
+        final screens = _buildScreens(authProvider);
+        final navItems = _buildNavItems(authProvider);
+        final isAuthenticated = authProvider.isAuthenticated;
+
+        // Protección contra índice fuera de rango (logout crash fix)
+        if (_currentIndex >= screens.length) {
+          _currentIndex = 0;
+        }
+
         return Scaffold(
           backgroundColor: AppTheme.backgroundBlack,
-          // Eliminamos el AppBar por defecto para usar uno personalizado
-          body: SafeArea(
-            child: Column(
-              children: [
-                // 1. GLOBAL HEADER PERSONALIZADO
-                _buildGlobalHeader(context),
+          body: Stack(
+            children: [
+              // CAPA 1: CONTENIDO DE LA APP
+              Column(
+                children: [
+                  // A. HEADER GLOBAL Y BANNER
+                  Container(
+                    color: AppTheme.backgroundBlack,
+                    child: SafeArea(
+                      bottom: false,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // SIEMPRE MOSTRAMOS EL HEADER CON LOS BOTONES
+                          _buildGlobalHeader(context),
+                          if (!isAuthenticated) _buildLoginBanner(context),
+                        ],
+                      ),
+                    ),
+                  ),
 
-                // 2. BANNER DE LOGIN (Si no está autenticado)
-                if (!authProvider.isAuthenticated) _buildLoginBanner(context),
+                  // B. PANTALLAS
+                  Expanded(
+                    child: MediaQuery.removePadding(
+                      context: context,
+                      removeTop: true,
+                      child: PageTransitionSwitcher(
+                        duration: const Duration(milliseconds: 300),
+                        transitionBuilder:
+                            (child, primaryAnimation, secondaryAnimation) {
+                          return FadeThroughTransition(
+                            animation: primaryAnimation,
+                            secondaryAnimation: secondaryAnimation,
+                            fillColor: AppTheme.backgroundBlack,
+                            child: child,
+                          );
+                        },
+                        child: screens[_currentIndex],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
 
-                // 3. CONTENIDO DE PANTALLAS
-                Expanded(
-                  child: PageTransitionSwitcher(
-                    duration: const Duration(milliseconds: 300),
-                    transitionBuilder:
-                        (child, primaryAnimation, secondaryAnimation) {
-                      return FadeThroughTransition(
-                        animation: primaryAnimation,
-                        secondaryAnimation: secondaryAnimation,
-                        fillColor: AppTheme.backgroundBlack,
-                        child: child,
-                      );
-                    },
-                    child: _screens[_currentIndex],
+              // CAPA 2: UI FLOTANTE (Abajo)
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: SafeArea(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const MiniPlayer(bottomPadding: 12),
+                      _buildFloatingNavBar(navItems, authProvider),
+                    ],
                   ),
                 ),
-
-                // 4. MINI PLAYER (Siempre visible si hay audio)
-                const MiniPlayer(),
-              ],
-            ),
+              ),
+            ],
           ),
-
-          // 5. BOTTOM NAVIGATION BAR REFINADO
-          bottomNavigationBar: _buildBottomNavBar(),
         );
       },
     );
   }
 
-  // --- WIDGETS PERSONALIZADOS ---
+  // --- WIDGETS VISUALES ---
 
   Widget _buildGlobalHeader(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       decoration: const BoxDecoration(
-        color: AppTheme.backgroundBlack,
-        border: Border(bottom: BorderSide(color: AppTheme.surfaceBlack)),
+        border: Border(bottom: BorderSide(color: Colors.white10, width: 1)),
       ),
       child: Row(
         children: [
-          // Logo / Título
-          const Icon(Icons.graphic_eq, color: AppTheme.primaryBlue, size: 24),
-          const SizedBox(width: 8),
+          // Logo Branding
+          const Icon(Icons.graphic_eq, color: AppTheme.primaryBlue, size: 28),
+          const SizedBox(width: 10),
           const Text(
             'AUDIRA',
             style: TextStyle(
               fontFamily: 'Poppins',
               fontWeight: FontWeight.w900,
               fontSize: 20,
-              letterSpacing: 2,
+              letterSpacing: 3,
               color: Colors.white,
             ),
           ),
 
           const Spacer(),
 
-          // Acciones Globales
-          _buildHeaderAction(
-            icon: Icons.search,
-            onTap: () => Navigator.pushNamed(context, '/search'),
-          ),
-          _buildHeaderAction(
-            icon: Icons.help_outline,
-            onTap: () => Navigator.pushNamed(context, '/faq'),
-          ),
-          _buildHeaderAction(
-            icon: Icons.support_agent,
-            onTap: () => Navigator.pushNamed(context, '/contact'),
-          ),
+          // --- ACCIONES RÁPIDAS (AQUÍ ESTÁN LOS BOTONES) ---
 
-          // Carrito con Badge
-          Consumer<CartProvider>(
-            builder: (context, cartProvider, child) {
-              return Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  _buildHeaderAction(
-                    icon: Icons.notifications_outlined,
-                    onTap: () => Navigator.pushNamed(context, '/notifications'),
-                  ),
-                  if (cartProvider.itemCount > 0)
-                    Positioned(
-                      right: 4,
-                      top: 4,
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: const BoxDecoration(
-                          color: AppTheme.errorRed,
-                          shape: BoxShape.circle,
-                        ),
-                        constraints:
-                            const BoxConstraints(minWidth: 16, minHeight: 16),
-                        child: Text(
-                          '${cartProvider.itemCount}',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      )
-                          .animate()
-                          .scale(duration: 200.ms, curve: Curves.easeOutBack),
-                    ),
-                ],
-              );
-            },
-          ),
+          // 1. Búsqueda
+          _buildHeaderIcon(context,
+              icon: Icons.search_rounded,
+              onTap: () => Navigator.pushNamed(context, '/search')),
+          const SizedBox(width: 4), // Espacio pequeño entre iconos
+
+          // 2. FAQs (Preguntas Frecuentes)
+          _buildHeaderIcon(context,
+              icon: Icons.help_outline_rounded,
+              onTap: () => Navigator.pushNamed(context, '/faq')),
+          const SizedBox(width: 4),
+
+          // 3. Contacto (Soporte)
+          _buildHeaderIcon(context,
+              icon: Icons.support_agent_rounded,
+              onTap: () => Navigator.pushNamed(context, '/contact')),
+          const SizedBox(width: 4),
+
+          // 4. Notificaciones + Carrito
+          _buildNotificationIcon(context),
         ],
       ),
     );
   }
 
-  Widget _buildHeaderAction(
+  Widget _buildHeaderIcon(BuildContext context,
       {required IconData icon, required VoidCallback onTap}) {
-    return IconButton(
-      icon: Icon(icon, color: AppTheme.textGrey, size: 22),
-      onPressed: onTap,
-      splashRadius: 20,
-      visualDensity: VisualDensity.compact,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(50),
+        child: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Icon(icon, color: AppTheme.textGrey, size: 24),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNotificationIcon(BuildContext context) {
+    return Consumer<CartProvider>(
+      builder: (context, cartProvider, _) {
+        return Stack(
+          clipBehavior: Clip.none,
+          children: [
+            _buildHeaderIcon(context,
+                icon: Icons.notifications_none_rounded,
+                onTap: () => Navigator.pushNamed(context, '/notifications')),
+            if (cartProvider.itemCount > 0)
+              Positioned(
+                right: 6,
+                top: 6,
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: const BoxDecoration(
+                    color: AppTheme.errorRed,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Text(
+                    '${cartProvider.itemCount}',
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold),
+                  ),
+                ).animate().scale(duration: 200.ms, curve: Curves.elasticOut),
+              ),
+          ],
+        );
+      },
     );
   }
 
@@ -260,7 +287,7 @@ class _MainLayoutState extends State<MainLayout> {
         gradient: LinearGradient(
           colors: [
             AppTheme.primaryBlue.withValues(alpha: 0.8),
-            AppTheme.darkBlue,
+            AppTheme.darkBlue
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -275,41 +302,34 @@ class _MainLayoutState extends State<MainLayout> {
         ],
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.2),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.lock_open_rounded,
-                    color: Colors.white, size: 18),
-              ),
-              const SizedBox(width: 12),
-              const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Acceso Limitado',
-                    style: TextStyle(
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.2),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.lock_open_rounded,
+                color: Colors.white, size: 20),
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Acceso Limitado',
+                  style: TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                    ),
-                  ),
-                  Text(
-                    'Inicia sesión para desbloquear todo',
-                    style: TextStyle(
-                      color: Colors.white70,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            ],
+                      fontSize: 14),
+                ),
+                Text(
+                  'Inicia sesión para comprar y guardar.',
+                  style: TextStyle(color: Colors.white70, fontSize: 12),
+                ),
+              ],
+            ),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pushNamed(context, '/login'),
@@ -317,53 +337,104 @@ class _MainLayoutState extends State<MainLayout> {
               backgroundColor: Colors.white,
               foregroundColor: AppTheme.primaryBlue,
               elevation: 0,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8)),
-              minimumSize: const Size(0, 32),
+              minimumSize: const Size(0, 36),
             ),
             child: const Text('Entrar',
                 style: TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),
-    ).animate().slideY(begin: -0.5, duration: 400.ms).fadeIn();
+    ).animate().fadeIn().slideY(begin: -0.5);
   }
 
-  Widget _buildBottomNavBar() {
-    return NavigationBarTheme(
-      data: NavigationBarThemeData(
-        labelTextStyle: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) {
-            return const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.textWhite,
-                fontFamily: 'Poppins');
-          }
-          return const TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.normal,
-              color: AppTheme.textGrey,
-              fontFamily: 'Poppins');
-        }),
-        indicatorColor: AppTheme.primaryBlue.withValues(alpha: 0.2),
-        iconTheme: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) {
-            return const IconThemeData(color: AppTheme.primaryBlue);
-          }
-          return const IconThemeData(color: AppTheme.textGrey);
-        }),
+  Widget _buildFloatingNavBar(List<_NavItem> items, AuthProvider authProvider) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+      height: 65,
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E1E1E).withValues(alpha: 0.95),
+        borderRadius: BorderRadius.circular(35),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.5),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
       ),
-      child: NavigationBar(
-        selectedIndex: _currentIndex,
-        onDestinationSelected: _onDestinationSelected,
-        destinations: _destinations,
-        backgroundColor: AppTheme.surfaceBlack,
-        elevation: 0,
-        height: 65,
-        animationDuration: const Duration(milliseconds: 500),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(35),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: List.generate(items.length, (index) {
+              final item = items[index];
+              final isSelected = index == _currentIndex;
+
+              return GestureDetector(
+                onTap: () => _onDestinationSelected(index, authProvider),
+                behavior: HitTestBehavior.opaque,
+                child: SizedBox(
+                  width: 50,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 300),
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? AppTheme.primaryBlue.withValues(alpha: 0.2)
+                              : Colors.transparent,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          isSelected ? item.activeIcon : item.icon,
+                          color:
+                              isSelected ? AppTheme.primaryBlue : Colors.grey,
+                          size: 24,
+                        ).animate(target: isSelected ? 1 : 0).scale(
+                            begin: const Offset(1, 1),
+                            end: const Offset(1.15, 1.15),
+                            duration: 200.ms),
+                      ),
+                      if (isSelected)
+                        Container(
+                          margin: const EdgeInsets.only(top: 4),
+                          width: 4,
+                          height: 4,
+                          decoration: const BoxDecoration(
+                            color: AppTheme.primaryBlue,
+                            shape: BoxShape.circle,
+                          ),
+                        ).animate().fadeIn().scale(),
+                    ],
+                  ),
+                ),
+              );
+            }),
+          ),
+        ),
       ),
-    );
+    )
+        .animate()
+        .slideY(begin: 1, end: 0, duration: 500.ms, curve: Curves.easeOutQuart);
   }
+}
+
+class _NavItem {
+  final IconData icon;
+  final IconData activeIcon;
+  final String label;
+
+  _NavItem({
+    required this.icon,
+    required this.activeIcon,
+    required this.label,
+  });
 }
