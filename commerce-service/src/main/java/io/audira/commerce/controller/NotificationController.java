@@ -67,7 +67,7 @@ public class NotificationController {
             String message = (String) notificationRequest.get("message");
             String typeStr = (String) notificationRequest.get("type");
 
-            log.info("Received notification for user {}: {}", userId, title);
+            log.info("📨 Received notification for user {}: {}", userId, title);
 
             io.audira.commerce.model.NotificationType type;
             try {
@@ -76,8 +76,30 @@ public class NotificationController {
                 type = io.audira.commerce.model.NotificationType.SYSTEM_NOTIFICATION;
             }
 
+            // 1. Intentar enviar notificación FCM push
+            boolean fcmSent = false;
+            try {
+                fcmSent = firebaseMessagingService.sendNotification(
+                    userId, title, message, typeStr, null, null
+                );
+                if (fcmSent) {
+                    log.info("✅ FCM push notification sent to user {}", userId);
+                } else {
+                    log.warn("⚠️  FCM notification not sent to user {} (Firebase may not be configured or no tokens)", userId);
+                }
+            } catch (Exception e) {
+                log.error("❌ Error sending FCM notification to user {}: {}", userId, e.getMessage());
+                // Continuar para guardar en DB aunque FCM falle
+            }
+
+            // 2. Guardar en base de datos (bandeja de entrada)
             notificationService.createNotification(userId, title, message, type, null, null);
-            return ResponseEntity.ok(Map.of("message", "Notification created successfully"));
+            log.info("💾 Notification saved to database for user {}", userId);
+
+            return ResponseEntity.ok(Map.of(
+                "message", "Notification created successfully",
+                "fcmSent", String.valueOf(fcmSent)
+            ));
         } catch (Exception e) {
             log.error("Error creating notification: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
