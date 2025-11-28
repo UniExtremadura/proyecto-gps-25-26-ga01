@@ -167,14 +167,14 @@ class LocalNotificationService {
 
       debugPrint('Navigating based on type: $type, referenceId: $referenceId, referenceType: $referenceType');
 
-      _navigateBasedOnPayload(type, referenceId, referenceType);
+      navigateBasedOnPayload(type, referenceId, referenceType);
     } catch (e) {
       debugPrint('Error parsing notification payload: $e');
     }
   }
 
   /// Navigate based on notification payload
-  void _navigateBasedOnPayload(String? type, int? referenceId, String? referenceType) {
+  void navigateBasedOnPayload(String? type, int? referenceId, String? referenceType) {
     final context = navigatorKey.currentContext;
     if (context == null) {
       debugPrint('Navigation context is null');
