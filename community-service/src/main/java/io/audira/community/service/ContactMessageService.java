@@ -33,9 +33,9 @@ public class ContactMessageService {
     /**
      * ID del usuario administrador principal que recibe notificaciones de nuevos tickets.
      * Configurable mediante la propiedad {@code admin.user.id}.
-     * Valor por defecto: 1
+     * Valor por defecto: 70
      */
-    @org.springframework.beans.factory.annotation.Value("${admin.user.id:1}")
+    @org.springframework.beans.factory.annotation.Value("${admin.user.id:70}")
     private Long adminUserId;
 
     // --- Métodos de Consulta ---
