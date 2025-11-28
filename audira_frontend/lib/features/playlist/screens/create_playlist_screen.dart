@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+
+// Imports de tu proyecto
 import '../../../core/providers/library_provider.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/models/song.dart';
@@ -9,10 +11,8 @@ import '../../../core/api/services/playlist_service.dart';
 import '../../../config/theme.dart';
 import 'song_selector_screen.dart';
 
-/// Pantalla para crear o editar playlists
-/// GA01-113: Crear lista con nombre
 class CreatePlaylistScreen extends StatefulWidget {
-  final int? playlistId; // null = crear nueva
+  final int? playlistId;
 
   const CreatePlaylistScreen({super.key, this.playlistId});
 
@@ -26,7 +26,7 @@ class _CreatePlaylistScreenState extends State<CreatePlaylistScreen> {
   final _descriptionController = TextEditingController();
   final PlaylistService _playlistService = PlaylistService();
 
-  bool _isPublic = false;
+  bool _isPublic = false; // Mantenemos la variable aunque por defecto sea false
   bool _isLoading = false;
   bool _isLoadingData = false;
   bool _showPreview = false;
@@ -49,38 +49,29 @@ class _CreatePlaylistScreenState extends State<CreatePlaylistScreen> {
     super.dispose();
   }
 
-  /// Cargar datos de la playlist si estamos editando
+  // --- LÓGICA DE CARGA Y GUARDADO ---
+
   Future<void> _loadPlaylistData() async {
     setState(() => _isLoadingData = true);
-
     try {
       final response =
           await _playlistService.getPlaylistWithSongs(widget.playlistId!);
       if (response.success && response.data != null) {
         _originalPlaylist = response.data?['playlist'];
         _selectedSongs = response.data?['songs'] ?? [];
-
         _nameController.text = _originalPlaylist!.name;
         _descriptionController.text = _originalPlaylist!.description ?? '';
         _isPublic = _originalPlaylist!.isPublic;
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al cargar playlist: $e')),
-        );
-      }
+      if (mounted) _showSnackBar('Error cargando playlist: $e', isError: true);
     } finally {
-      setState(() => _isLoadingData = false);
+      if (mounted) setState(() => _isLoadingData = false);
     }
   }
 
-  /// Guardar o actualizar playlist
   Future<void> _savePlaylist() async {
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
-
+    if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
 
     try {
@@ -88,11 +79,11 @@ class _CreatePlaylistScreenState extends State<CreatePlaylistScreen> {
       final libraryProvider = context.read<LibraryProvider>();
 
       if (!authProvider.isAuthenticated) {
-        throw Exception('Debes iniciar sesión para crear playlists');
+        throw Exception('Inicia sesión primero');
       }
 
       if (widget.playlistId == null) {
-        // CREAR NUEVA PLAYLIST
+        // CREAR
         final playlist = await libraryProvider.createPlaylist(
           userId: authProvider.currentUser!.id,
           name: _nameController.text.trim(),
@@ -103,25 +94,18 @@ class _CreatePlaylistScreenState extends State<CreatePlaylistScreen> {
         );
 
         if (playlist != null) {
-          // Añadir canciones seleccionadas
           for (final song in _selectedSongs) {
             await libraryProvider.addSongToPlaylist(playlist.id, song.id);
           }
-
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content:
-                    Text('Playlist "${playlist.name}" creada exitosamente'),
-                backgroundColor: Colors.green,
-              ),
-            );
+            _showSnackBar('Playlist creada');
             Navigator.pop(context, true);
           }
         } else {
-          throw Exception('No se pudo crear la playlist');
+          throw Exception('Error al crear playlist');
         }
       } else {
+        // ACTUALIZAR
         await libraryProvider.updatePlaylist(
           playlistId: widget.playlistId!,
           name: _nameController.text.trim(),
@@ -130,59 +114,35 @@ class _CreatePlaylistScreenState extends State<CreatePlaylistScreen> {
               : _descriptionController.text.trim(),
           isPublic: _isPublic,
         );
-
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Playlist actualizada exitosamente'),
-              backgroundColor: Colors.green,
-            ),
-          );
+          _showSnackBar('Playlist actualizada');
           Navigator.pop(context, true);
         }
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      if (mounted) _showSnackBar('Error: $e', isError: true);
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  /// Eliminar playlist
   Future<void> _deletePlaylist() async {
     final currentContext = context;
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppTheme.surfaceBlack,
-        title: Row(
-          children: const [
-            Icon(Icons.warning, color: Colors.red),
-            SizedBox(width: 12),
-            Text('Eliminar Playlist'),
-          ],
-        ),
-        content: Text(
-          '¿Estás seguro de que deseas eliminar "${_nameController.text}"?\n\nEsta acción no se puede deshacer.',
-          style: const TextStyle(fontSize: 16),
-        ),
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF252836),
+        title: const Text('Eliminar Playlist',
+            style: TextStyle(color: Colors.white)),
+        content: const Text('¿Estás seguro? No se puede deshacer.',
+            style: TextStyle(color: Colors.white70)),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancelar')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: AppTheme.errorRed),
             child: const Text('Eliminar'),
           ),
         ],
@@ -191,340 +151,277 @@ class _CreatePlaylistScreenState extends State<CreatePlaylistScreen> {
 
     if (confirmed == true && widget.playlistId != null) {
       setState(() => _isLoading = true);
-
       try {
-        if(!currentContext.mounted) return;
-        final libraryProvider = currentContext.read<LibraryProvider>();
-        await libraryProvider.deletePlaylist(widget.playlistId!);
-
+        if (!currentContext.mounted) return;
+        await currentContext
+            .read<LibraryProvider>()
+            .deletePlaylist(widget.playlistId!);
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Playlist eliminada exitosamente'),
-              backgroundColor: Colors.green,
-            ),
-          );
+          _showSnackBar('Playlist eliminada');
           Navigator.pop(context, true);
         }
       } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Error al eliminar: $e'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
+        if (mounted) _showSnackBar('Error: $e', isError: true);
       } finally {
-        if (mounted) {
-          setState(() => _isLoading = false);
-        }
+        if (mounted) setState(() => _isLoading = false);
       }
     }
   }
 
-  void _togglePreview() {
-    setState(() => _showPreview = !_showPreview);
-  }
-
-  /// Abrir pantalla de selección de canciones
   Future<void> _addSongsToPlaylist() async {
     final currentContext = context;
     final currentSongIds = _selectedSongs.map((s) => s.id).toList();
-    final playlistName = _nameController.text.trim().isEmpty
-        ? 'Nueva Playlist'
-        : _nameController.text.trim();
-
-    final List<Song>? selectedSongs = await Navigator.push(
+    final result = await Navigator.push<List<Song>>(
       context,
       MaterialPageRoute(
-        builder: (context) => SongSelectorScreen(
+        builder: (_) => SongSelectorScreen(
           currentSongIds: currentSongIds,
-          playlistName: playlistName,
+          playlistName: _nameController.text.isEmpty
+              ? 'Nueva Playlist'
+              : _nameController.text,
         ),
       ),
     );
 
-    if (selectedSongs != null && selectedSongs.isNotEmpty) {
-      // Si estamos editando, añadir directamente al backend
+    if (result != null && result.isNotEmpty) {
       if (widget.playlistId != null) {
+        // Si editamos, guardamos directo
         setState(() => _isLoading = true);
         try {
-          if(!currentContext.mounted) return;
-          final libraryProvider = currentContext.read<LibraryProvider>();
-          for (final song in selectedSongs) {
-            await libraryProvider.addSongToPlaylist(widget.playlistId!, song.id);
+          if (!currentContext.mounted) return;
+          final lib = currentContext.read<LibraryProvider>();
+          for (final s in result) {
+            await lib.addSongToPlaylist(widget.playlistId!, s.id);
           }
-          // Recargar datos
           await _loadPlaylistData();
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                    '${selectedSongs.length} canción${selectedSongs.length == 1 ? "" : "es"} añadida${selectedSongs.length == 1 ? "" : "s"}'),
-                backgroundColor: Colors.green,
-              ),
-            );
-          }
+          if (mounted) _showSnackBar('${result.length} canciones añadidas');
         } catch (e) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-            );
-          }
+          if (mounted) _showSnackBar('Error: $e', isError: true);
         } finally {
-          setState(() => _isLoading = false);
+          if (mounted) setState(() => _isLoading = false);
         }
       } else {
-        // Si estamos creando, añadir a la lista temporal
-        setState(() {
-          _selectedSongs.addAll(selectedSongs);
-        });
+        // Si creamos, solo actualizamos lista local
+        setState(() => _selectedSongs.addAll(result));
       }
     }
   }
 
-  /// Eliminar canción de la playlist
   Future<void> _removeSong(Song song) async {
-    final currentContext = context;
     if (widget.playlistId != null) {
-      final confirmed = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Eliminar canción'),
-          content: Text('¿Eliminar "${song.name}" de esta playlist?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancelar'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(context, true),
-              style: TextButton.styleFrom(foregroundColor: Colors.red),
-              child: const Text('Eliminar'),
-            ),
-          ],
-        ),
-      );
-
-      if (confirmed == true) {
-        setState(() => _isLoading = true);
-        try {
-          if(!currentContext.mounted) return;
-          final libraryProvider = currentContext.read<LibraryProvider>();
-          await libraryProvider.removeSongFromPlaylist(
-              widget.playlistId!, song.id);
-          await _loadPlaylistData();
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Canción eliminada'),
-                backgroundColor: Colors.green,
-              ),
-            );
-          }
-        } catch (e) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-            );
-          }
-        } finally {
-          setState(() => _isLoading = false);
-        }
+      setState(() => _isLoading = true);
+      try {
+        await context
+            .read<LibraryProvider>()
+            .removeSongFromPlaylist(widget.playlistId!, song.id);
+        await _loadPlaylistData();
+        if (mounted) _showSnackBar('Canción eliminada');
+      } catch (e) {
+        if (mounted) _showSnackBar('Error: $e', isError: true);
+      } finally {
+        if (mounted) setState(() => _isLoading = false);
       }
     } else {
-      setState(() {
-        _selectedSongs.remove(song);
-      });
+      setState(() => _selectedSongs.remove(song));
     }
   }
+
+  void _showSnackBar(String msg, {bool isError = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: isError ? AppTheme.errorRed : AppTheme.successGreen,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  // --- UI ---
 
   @override
   Widget build(BuildContext context) {
     if (_isLoadingData) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Cargando...')),
-        body: const Center(child: CircularProgressIndicator()),
+      return const Scaffold(
+        backgroundColor: AppTheme.backgroundBlack,
+        body: Center(
+            child: CircularProgressIndicator(color: AppTheme.primaryBlue)),
       );
     }
 
     return Scaffold(
+      backgroundColor: AppTheme.backgroundBlack,
       appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        centerTitle: true,
         title: Text(
-          widget.playlistId == null ? 'Crear Playlist' : 'Editar Playlist',
-        ),
+            widget.playlistId == null ? 'Nueva Playlist' : 'Editar Playlist'),
         actions: [
+          IconButton(
+            icon: Icon(
+                _showPreview ? Icons.edit_note : Icons.remove_red_eye_outlined),
+            tooltip: _showPreview ? 'Editar' : 'Vista Previa',
+            onPressed: () => setState(() => _showPreview = !_showPreview),
+          ),
           if (widget.playlistId != null)
             IconButton(
-              icon: const Icon(Icons.delete, color: Colors.red),
+              icon: const Icon(Icons.delete_outline, color: AppTheme.errorRed),
               onPressed: _deletePlaylist,
-              tooltip: 'Eliminar playlist',
             ),
-          IconButton(
-            icon: Icon(_showPreview ? Icons.edit : Icons.preview),
-            onPressed: _togglePreview,
-            tooltip: _showPreview ? 'Editar' : 'Vista previa',
-          ),
         ],
       ),
-      body: _showPreview ? _buildPreview() : _buildForm(),
+      body: _showPreview ? _buildPreview() : _buildEditor(),
       bottomNavigationBar: _buildBottomBar(),
     );
   }
 
-  Widget _buildForm() {
+  Widget _buildEditor() {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(24),
       child: Form(
         key: _formKey,
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Playlist name
+            // COVER PLACEHOLDER (Estético)
+            Center(
+              child: Container(
+                width: 160,
+                height: 160,
+                decoration: BoxDecoration(
+                  color: AppTheme.surfaceBlack,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.3),
+                        blurRadius: 20,
+                        offset: const Offset(0, 10))
+                  ],
+                  border: Border.all(color: Colors.white10),
+                ),
+                child: const Center(
+                  child: Icon(Icons.playlist_play_rounded,
+                      size: 64, color: AppTheme.primaryBlue),
+                ),
+              ).animate().scale(duration: 400.ms, curve: Curves.elasticOut),
+            ),
+
+            const SizedBox(height: 32),
+
+            // INPUTS
             TextFormField(
               controller: _nameController,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               decoration: InputDecoration(
-                labelText: 'Nombre de la Playlist',
-                border: const OutlineInputBorder(),
-                prefixIcon: const Icon(Icons.playlist_play),
+                labelText: 'Nombre',
+                labelStyle: TextStyle(color: AppTheme.textGrey),
                 filled: true,
                 fillColor: AppTheme.surfaceBlack,
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none),
+                prefixIcon:
+                    const Icon(Icons.title, color: AppTheme.primaryBlue),
               ),
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'Por favor ingresa un nombre';
-                }
-                if (value.trim().length < 3) {
-                  return 'El nombre debe tener al menos 3 caracteres';
-                }
-                return null;
-              },
-            ).animate().fadeIn(duration: 300.ms),
+              validator: (v) => (v == null || v.trim().length < 3)
+                  ? 'Mínimo 3 caracteres'
+                  : null,
+            ).animate().fadeIn().slideX(),
 
             const SizedBox(height: 16),
 
-            // Description
             TextFormField(
               controller: _descriptionController,
+              maxLines: 3,
+              style: const TextStyle(fontSize: 14),
               decoration: InputDecoration(
-                labelText: 'Descripción (opcional)',
-                border: const OutlineInputBorder(),
-                prefixIcon: const Icon(Icons.description),
-                alignLabelWithHint: true,
+                labelText: 'Descripción (Opcional)',
+                labelStyle: TextStyle(color: AppTheme.textGrey),
                 filled: true,
                 fillColor: AppTheme.surfaceBlack,
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none),
+                alignLabelWithHint: true,
               ),
-              maxLines: 3,
-            ).animate().fadeIn(delay: 100.ms, duration: 300.ms),
+            ).animate().fadeIn(delay: 100.ms).slideX(),
 
-            const SizedBox(height: 16),
+            const SizedBox(height: 32),
 
-            // Public/Private toggle - REMOVED
-            // Las playlists son siempre privadas porque se hacen con canciones compradas
-            // y otros usuarios no pueden escucharlas si no las tienen compradas
-
-            const SizedBox(height: 24),
-
+            // SONGS HEADER
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Canciones',
-                      style:
-                          TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                    ),
-                    Text(
-                      '${_selectedSongs.length} ${_selectedSongs.length == 1 ? "canción" : "canciones"}',
-                      style: const TextStyle(color: AppTheme.textGrey),
-                    ),
-                  ],
-                ),
-                ElevatedButton.icon(
+                Text('Canciones (${_selectedSongs.length})',
+                    style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white)),
+                TextButton.icon(
                   onPressed: _isLoading ? null : _addSongsToPlaylist,
-                  icon: const Icon(Icons.add),
+                  icon: const Icon(Icons.add_circle_outline, size: 18),
                   label: const Text('Añadir'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primaryBlue,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 12),
-                  ),
+                  style: TextButton.styleFrom(
+                      foregroundColor: AppTheme.primaryBlue),
                 ),
               ],
-            ).animate().fadeIn(delay: 300.ms, duration: 300.ms),
+            ).animate().fadeIn(delay: 200.ms),
 
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
 
-// Selected songs list
+            // SONGS LIST
             if (_selectedSongs.isEmpty)
-              Center(
-                child: Container(
-                  padding: const EdgeInsets.all(32),
-                  child: Column(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: AppTheme.primaryBlue.withValues(alpha: 0.1),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.music_note,
-                          size: 64,
-                          color: AppTheme.primaryBlue,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      const Text(
-                        'No hay canciones',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Toca "Añadir" para seleccionar canciones',
-                        style: TextStyle(
-                          color: AppTheme.textSecondary,
-                          fontSize: 14,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  ),
+              Container(
+                padding: const EdgeInsets.all(32),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  border: Border.all(
+                      color: Colors.white10, style: BorderStyle.solid),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-              ).animate().fadeIn(delay: 400.ms)
+                child: Column(
+                  children: const [
+                    Icon(Icons.queue_music, size: 48, color: Colors.white24),
+                    SizedBox(height: 8),
+                    Text('Lista vacía',
+                        style: TextStyle(color: Colors.white38)),
+                  ],
+                ),
+              ).animate().fadeIn(delay: 300.ms)
             else
               ..._selectedSongs.asMap().entries.map((entry) {
                 final index = entry.key;
                 final song = entry.value;
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  color: AppTheme.surfaceBlack,
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
                   child: ListTile(
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                    tileColor: AppTheme.surfaceBlack,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
                     leading: CircleAvatar(
-                      backgroundColor: AppTheme.primaryBlue,
-                      child: Text(
-                        '${index + 1}',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
+                      backgroundColor: Colors.white10,
+                      child: Text('${index + 1}',
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold)),
                     ),
-                    title: Text(song.name),
-                    subtitle: Text(
-                      '${song.artistName} • ${song.durationFormatted}',
-                      style: const TextStyle(color: AppTheme.textGrey),
-                    ),
+                    title: Text(song.name,
+                        style: const TextStyle(fontWeight: FontWeight.w600)),
+                    subtitle: Text(song.artistName,
+                        style: const TextStyle(
+                            fontSize: 12, color: Colors.white54)),
                     trailing: IconButton(
-                      icon: const Icon(Icons.close, color: Colors.red),
+                      icon: const Icon(Icons.remove_circle_outline,
+                          color: AppTheme.errorRed),
                       onPressed: () => _removeSong(song),
                     ),
                   ),
-                ).animate(delay: (index * 50).ms).fadeIn().slideX(begin: -0.1);
+                ).animate(delay: (50 * index).ms).fadeIn().slideX();
               }),
+
+            const SizedBox(height: 100), // Espacio para el bottom bar
           ],
         ),
       ),
@@ -533,118 +430,91 @@ class _CreatePlaylistScreenState extends State<CreatePlaylistScreen> {
 
   Widget _buildPreview() {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(24),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Header card
+          // PREVIEW CARD
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              gradient: LinearGradient(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF2C3E50), Color(0xFF000000)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [AppTheme.primaryBlue, AppTheme.darkBlue],
               ),
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(24),
               boxShadow: [
                 BoxShadow(
-                  color: AppTheme.primaryBlue.withValues(alpha: 0.3),
-                  blurRadius: 20,
-                  spreadRadius: 5,
-                ),
+                    color: Colors.black.withValues(alpha: 0.5),
+                    blurRadius: 30,
+                    offset: const Offset(0, 10))
               ],
             ),
             child: Column(
               children: [
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.2),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.playlist_play,
-                      size: 60, color: Colors.white),
-                ),
+                const Icon(Icons.playlist_play_rounded,
+                    size: 80, color: Colors.white),
                 const SizedBox(height: 16),
                 Text(
-                  _nameController.text.trim().isEmpty
-                      ? 'Sin nombre'
-                      : _nameController.text.trim(),
+                  _nameController.text.isEmpty
+                      ? 'Sin Título'
+                      : _nameController.text,
                   style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white),
                   textAlign: TextAlign.center,
                 ),
-                if (_descriptionController.text.trim().isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    _descriptionController.text.trim(),
-                    style: const TextStyle(
-                      color: Colors.white70,
-                      fontSize: 14,
+                if (_descriptionController.text.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text(
+                      _descriptionController.text,
+                      style: const TextStyle(color: Colors.white70),
+                      textAlign: TextAlign.center,
                     ),
-                    textAlign: TextAlign.center,
                   ),
-                ],
-                const SizedBox(height: 16),
-                // Público/Privado indicator REMOVED
+                const SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _Badge(
+                        icon: Icons.music_note,
+                        text: '${_selectedSongs.length} Tracks'),
+                    const SizedBox(width: 12),
+                    const _Badge(icon: Icons.lock_outline, text: 'Privada'),
+                  ],
+                ),
               ],
             ),
-          )
-              .animate()
-              .fadeIn(duration: 400.ms)
-              .scale(begin: const Offset(0.9, 0.9)),
+          ).animate().fadeIn().scale(),
 
-          const SizedBox(height: 24),
-
-          const Text(
-            'Vista Previa',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          const SizedBox(height: 32),
+          const Align(
+            alignment: Alignment.centerLeft,
+            child: Text("Vista Previa de Canciones",
+                style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white)),
           ),
-          const SizedBox(height: 8),
-          Text(
-            'Así es como se verá tu playlist',
-            style: TextStyle(color: AppTheme.textSecondary),
-          ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
 
           if (_selectedSongs.isEmpty)
-            Center(
-              child: Column(
-                children: [
-                  const Icon(Icons.music_note,
-                      size: 64, color: AppTheme.textGrey),
-                  const SizedBox(height: 16),
-                  Text(
-                    'No hay canciones en esta playlist',
-                    style: TextStyle(color: AppTheme.textSecondary),
-                  ),
-                ],
-              ),
-            )
+            const Text("No hay canciones añadidas.",
+                style: TextStyle(color: Colors.white54))
           else
-            ..._selectedSongs.asMap().entries.map((entry) {
-              final index = entry.key;
-              final song = entry.value;
-              return Card(
-                color: AppTheme.surfaceBlack,
-                margin: const EdgeInsets.only(bottom: 8),
-                child: ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: AppTheme.primaryBlue,
-                    child: Text('${index + 1}'),
-                  ),
-                  title: Text(song.name),
-                  subtitle: Text(
-                    '${song.artistName} • ${song.durationFormatted}',
-                  ),
-                  trailing: const Icon(Icons.play_arrow),
-                ),
-              ).animate(delay: (index * 50).ms).fadeIn().slideX(begin: -0.2);
-            }),
+            ..._selectedSongs.map((s) => ListTile(
+                  leading: const Icon(Icons.music_note, color: Colors.white54),
+                  title:
+                      Text(s.name, style: const TextStyle(color: Colors.white)),
+                  subtitle: Text(s.artistName,
+                      style: const TextStyle(color: Colors.white38)),
+                  trailing: Text(s.durationFormatted,
+                      style: const TextStyle(color: Colors.white38)),
+                )),
+
+          const SizedBox(height: 100),
         ],
       ),
     );
@@ -655,16 +525,8 @@ class _CreatePlaylistScreenState extends State<CreatePlaylistScreen> {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppTheme.surfaceBlack,
-        border: Border(
-          top: BorderSide(color: AppTheme.textGrey.withValues(alpha: 0.2)),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.2),
-            blurRadius: 10,
-            offset: const Offset(0, -2),
-          ),
-        ],
+        border:
+            Border(top: BorderSide(color: Colors.white.withValues(alpha: 0.1))),
       ),
       child: SafeArea(
         child: Row(
@@ -673,9 +535,13 @@ class _CreatePlaylistScreenState extends State<CreatePlaylistScreen> {
               child: OutlinedButton(
                 onPressed: _isLoading ? null : () => Navigator.pop(context),
                 style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: Colors.grey),
                   padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
                 ),
-                child: const Text('Cancelar'),
+                child: const Text('Cancelar',
+                    style: TextStyle(color: Colors.white)),
               ),
             ),
             const SizedBox(width: 16),
@@ -686,29 +552,53 @@ class _CreatePlaylistScreenState extends State<CreatePlaylistScreen> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.primaryBlue,
                   padding: const EdgeInsets.symmetric(vertical: 16),
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
                 ),
                 child: _isLoading
                     ? const SizedBox(
                         height: 20,
                         width: 20,
                         child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
+                            color: Colors.white, strokeWidth: 2))
                     : Text(
                         widget.playlistId == null
                             ? 'Crear Playlist'
-                            : 'Guardar Cambios',
+                            : 'Guardar',
                         style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            color: Colors.white)),
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _Badge extends StatelessWidget {
+  final IconData icon;
+  final String text;
+  const _Badge({required this.icon, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 14, color: Colors.white70),
+          const SizedBox(width: 6),
+          Text(text,
+              style: const TextStyle(color: Colors.white70, fontSize: 12)),
+        ],
       ),
     );
   }
