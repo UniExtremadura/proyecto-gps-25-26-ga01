@@ -98,17 +98,19 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
           // Asumiendo que este widget existe o es un placeholder
           groupValue: user.role,
           onChanged: (value) => Navigator.pop(context, value),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: ['USER', 'ARTIST', 'ADMIN'].map((role) {
-              return RadioListTile<String>(
-                title: Text(role, style: TextStyle(color: lightText)),
-                value: role,
-                groupValue: user.role,
-                onChanged: (val) => Navigator.pop(context, val),
-                activeColor: AppTheme.primaryBlue,
-              );
-            }).toList(),
+          child: RadioGroup<String>(
+            groupValue: user.role,
+            onChanged: (val) => Navigator.pop(context, val),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: ['USER', 'ARTIST', 'ADMIN'].map((role) {
+                return RadioListTile<String>(
+                  title: Text(role, style: TextStyle(color: lightText)),
+                  value: role,
+                  activeColor: AppTheme.primaryBlue,
+                );
+              }).toList(),
+            ),
           ),
         ),
       ),
