@@ -16,11 +16,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Cliente REST para la comunicación con el Servicio de Usuarios (Community/User Service).
- * <p>
- * Permite hidratar los objetos del catálogo con información personal del usuario
- * (nombre, avatar) y gestionar relaciones sociales (seguidores).
- * </p>
+ * REST client for communication with Community Service (User management)
  */
 @Component
 @RequiredArgsConstructor
@@ -33,10 +29,10 @@ public class UserServiceClient {
     private String userServiceUrl;
 
     /**
-     * Obtiene la información pública de un usuario o artista por su ID.
+     * Get user/artist information by ID
      *
-     * @param userId ID del usuario.
-     * @return DTO con la información del usuario, o un usuario "dummy" (Fallback) si falla la petición.
+     * @param userId User ID
+     * @return UserDTO with user information
      */
     public UserDTO getUserById(Long userId) {
         String url = userServiceUrl + "/" + userId;
@@ -71,10 +67,11 @@ public class UserServiceClient {
     }
 
     /**
-     * Obtiene la lista de IDs de los usuarios que siguen a un artista.
+     * Get list of artist IDs that a user follows
+     * GA01-117: For recommendations based on followed artists
      *
-     * @param artistId ID del artista.
-     * @return Lista de IDs de seguidores, o lista vacía si hay error.
+     * @param userId User ID
+     * @return List of artist IDs
      */
     public List<Long> getFollowedArtistIds(Long userId) {
         String url = userServiceUrl + "/" + userId + "/following/artists";
@@ -82,18 +79,23 @@ public class UserServiceClient {
         try {
             log.debug("Fetching followed artists for userId: {} from URL: {}", userId, url);
 
-            ResponseEntity<List<Long>> response = restTemplate.exchange(
+            ResponseEntity<List<UserDTO>> response = restTemplate.exchange(
                     url,
                     HttpMethod.GET,
                     null,
-                    new ParameterizedTypeReference<List<Long>>() {}
+                    new ParameterizedTypeReference<List<UserDTO>>() {}
             );
 
-            List<Long> artistIds = response.getBody();
-            if (artistIds == null) {
+            List<UserDTO> artists = response.getBody();
+            if (artists == null) {
                 log.warn("Received null response for followed artists for userId: {}", userId);
                 return new ArrayList<>();
             }
+
+            // Extract IDs from UserDTO objects
+            List<Long> artistIds = artists.stream()
+                    .map(UserDTO::getId)
+                    .toList();
 
             log.debug("Followed artists retrieved successfully for userId: {}, count: {}",
                     userId, artistIds.size());
@@ -116,19 +118,11 @@ public class UserServiceClient {
     }
 
     /**
-     * Obtiene la lista de identificadores (IDs) de los seguidores de un usuario.
-     * <p>
-     * Este método consulta al Servicio de Usuarios (Community Service) para recuperar
-     * las relaciones sociales. Es fundamental para funcionalidades de difusión masiva,
-     * como notificar nuevos lanzamientos a toda la base de fans.
-     * </p>
-     * <p>
-     * Implementa tolerancia a fallos: si el servicio de usuarios no responde, retorna
-     * una lista vacía para evitar que el proceso de notificación rompa el flujo principal.
-     * </p>
+     * Get list of user IDs that follow a specific artist
+     * Used for notifying followers about new content
      *
-     * @param userId El ID del usuario (generalmente un artista) del cual se buscan los seguidores.
-     * @return Una lista de {@link Long} conteniendo los IDs de los seguidores. Retorna lista vacía si hay error.
+     * @param artistId Artist ID
+     * @return List of follower user IDs
      */
     public List<Long> getFollowerIds(Long artistId) {
         String url = userServiceUrl + "/" + artistId + "/followers";
@@ -136,18 +130,23 @@ public class UserServiceClient {
         try {
             log.debug("Fetching followers for artistId: {} from URL: {}", artistId, url);
 
-            ResponseEntity<List<Long>> response = restTemplate.exchange(
+            ResponseEntity<List<UserDTO>> response = restTemplate.exchange(
                     url,
                     HttpMethod.GET,
                     null,
-                    new ParameterizedTypeReference<List<Long>>() {}
+                    new ParameterizedTypeReference<List<UserDTO>>() {}
             );
 
-            List<Long> followerIds = response.getBody();
-            if (followerIds == null) {
+            List<UserDTO> followers = response.getBody();
+            if (followers == null) {
                 log.warn("Received null response for followers of artistId: {}", artistId);
                 return new ArrayList<>();
             }
+
+            // Ahora se extraen los IDs de los objetos UserDTO
+            List<Long> followerIds = followers.stream()
+                    .map(UserDTO::getId)
+                    .toList();
 
             log.debug("Followers retrieved successfully for artistId: {}, count: {}",
                     artistId, followerIds.size());
@@ -170,14 +169,7 @@ public class UserServiceClient {
     }
 
     /**
-     * Crea un usuario temporal de respaldo (Fallback User).
-     * <p>
-     * Se utiliza cuando el servicio de usuarios no responde, permitiendo que la aplicación
-     * muestre al menos el ID o un nombre genérico en lugar de fallar.
-     * </p>
-     *
-     * @param userId ID del usuario solicitado.
-     * @return UserDTO con datos genéricos ("User #123").
+     * Create a fallback user when the service is unavailable
      */
     private UserDTO createFallbackUser(Long userId) {
         return UserDTO.builder()
