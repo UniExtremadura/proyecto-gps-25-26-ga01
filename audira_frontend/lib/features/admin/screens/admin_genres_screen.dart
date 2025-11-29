@@ -1,3 +1,5 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../../config/theme.dart';
@@ -14,6 +16,12 @@ class AdminGenresScreen extends StatefulWidget {
 class _AdminGenresScreenState extends State<AdminGenresScreen> {
   final MusicService _musicService = MusicService();
   final TextEditingController _searchController = TextEditingController();
+
+  // --- Colores del Tema Oscuro ---
+  final Color darkBg = Colors.black;
+  final Color darkCardBg = const Color(0xFF212121);
+  final Color lightText = Colors.white;
+  final Color subText = Colors.grey;
 
   List<Genre> _genres = [];
   List<Genre> _filteredGenres = [];
@@ -72,8 +80,10 @@ class _AdminGenresScreenState extends State<AdminGenresScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete Genre'),
-        content: const Text('Are you sure you want to delete this genre?'),
+        backgroundColor: darkCardBg,
+        title: Text('Delete Genre', style: TextStyle(color: lightText)),
+        content: Text('Are you sure you want to delete this genre?',
+            style: TextStyle(color: subText)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -81,7 +91,7 @@ class _AdminGenresScreenState extends State<AdminGenresScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
             child: const Text('Delete'),
           ),
         ],
@@ -92,132 +102,294 @@ class _AdminGenresScreenState extends State<AdminGenresScreen> {
       final currentContext = context;
       try {
         final response = await _musicService.deleteGenre(genreId);
-        if(!currentContext.mounted) return;
+        if (!currentContext.mounted) return;
+
         if (response.success) {
-          if(!currentContext.mounted) return;
-          ScaffoldMessenger.of(currentContext).showSnackBar(
-            const SnackBar(content: Text('Genre deleted successfully')),
-          );
+          _showSnack('Genre deleted successfully');
           _loadGenres();
         } else {
-          if(!currentContext.mounted) return;
-          ScaffoldMessenger.of(currentContext).showSnackBar(
-            SnackBar(
-              content: Text(response.error ?? 'Failed to delete genre'),
-            ),
-          );
+          _showSnack(response.error ?? 'Failed to delete genre', isError: true);
         }
       } catch (e) {
-        if(!currentContext.mounted) return;
-        ScaffoldMessenger.of(currentContext).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
+        if (!currentContext.mounted) return;
+        _showSnack('Error: $e', isError: true);
       }
     }
+  }
+
+  void _showSnack(String msg, {bool isError = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(msg),
+      backgroundColor: isError ? Colors.red[900] : Colors.green[800],
+    ));
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: darkBg, // FONDO NEGRO
       appBar: AppBar(
-        title: const Text('Manage Genres'),
+        backgroundColor: darkBg,
+        elevation: 0,
+        centerTitle: false,
+        title: Text(
+          'Manage Genres',
+          style: TextStyle(
+              color: AppTheme.primaryBlue, fontWeight: FontWeight.w800),
+        ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: () => _showGenreForm(null),
+          Container(
+            margin: const EdgeInsets.only(right: 16),
+            decoration: BoxDecoration(
+              color: AppTheme.primaryBlue.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: IconButton(
+              icon: Icon(Icons.add, color: AppTheme.primaryBlue),
+              tooltip: 'Add Genre',
+              onPressed: () => _showGenreForm(null),
+            ),
           ),
         ],
       ),
       body: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: 'Search genres...',
-                prefixIcon: const Icon(Icons.search),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+          // 1. HEADER STATS & SEARCH
+          Container(
+            padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
+            color: darkBg,
+            child: Column(
+              children: [
+                // Stats Card
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                      color: darkCardBg,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.grey[850]!),
+                      image: DecorationImage(
+                        image: const NetworkImage(
+                            'https://source.unsplash.com/random/800x200/?abstract,music'), // Opcional: Patrón de fondo
+                        colorFilter: ColorFilter.mode(
+                            Colors.black.withValues(alpha: 0.8),
+                            BlendMode.darken),
+                        fit: BoxFit.cover,
+                      )),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                            color: AppTheme.primaryBlue.withValues(alpha: 0.2),
+                            shape: BoxShape.circle),
+                        child: Icon(Icons.category,
+                            color: AppTheme.primaryBlue, size: 28),
+                      ),
+                      const SizedBox(width: 16),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Total Genres',
+                              style: TextStyle(color: subText, fontSize: 13)),
+                          Text(_genres.length.toString(),
+                              style: TextStyle(
+                                  color: lightText,
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              onChanged: _filterGenres,
+
+                const SizedBox(height: 20),
+
+                // Search Bar
+                Container(
+                  decoration: BoxDecoration(
+                    color: darkCardBg,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.grey[800]!),
+                  ),
+                  child: TextField(
+                    controller: _searchController,
+                    style: TextStyle(color: lightText),
+                    decoration: InputDecoration(
+                      hintText: 'Search genres...',
+                      hintStyle: TextStyle(color: subText),
+                      prefixIcon: Icon(Icons.search, color: subText),
+                      border: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 14),
+                    ),
+                    onChanged: _filterGenres,
+                  ),
+                ),
+              ],
             ),
-          ).animate().fadeIn().slideY(begin: -0.2, end: 0),
+          ).animate().slideY(begin: -0.2, end: 0, duration: 300.ms),
+
+          // 2. GRID DE GÉNEROS
           Expanded(
             child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
+                ? const Center(
+                    child:
+                        CircularProgressIndicator(color: AppTheme.primaryBlue))
                 : _error != null
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.error_outline,
-                                size: 64, color: Colors.red),
-                            const SizedBox(height: 16),
-                            Text(_error!),
-                            ElevatedButton(
-                              onPressed: _loadGenres,
-                              child: const Text('Retry'),
-                            ),
-                          ],
-                        ),
-                      )
+                    ? _buildErrorState()
                     : _filteredGenres.isEmpty
-                        ? const Center(child: Text('No genres found'))
+                        ? const Center(
+                            child: Text('No genres found',
+                                style: TextStyle(color: Colors.grey)))
                         : GridView.builder(
-                            padding: const EdgeInsets.all(16),
+                            padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
                             gridDelegate:
                                 const SliverGridDelegateWithFixedCrossAxisCount(
                               crossAxisCount: 2,
-                              crossAxisSpacing: 12,
-                              mainAxisSpacing: 12,
-                              childAspectRatio: 1.5,
+                              crossAxisSpacing: 16,
+                              mainAxisSpacing: 16,
+                              childAspectRatio:
+                                  1.3, // Tarjetas más rectangulares
                             ),
                             itemCount: _filteredGenres.length,
                             itemBuilder: (context, index) {
-                              final genre = _filteredGenres[index];
-                              return Card(
-                                child: InkWell(
-                                  onTap: () => _showGenreForm(genre),
-                                  child: Stack(
-                                    children: [
-                                      Center(
-                                        child: Column(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          children: [
-                                            Icon(Icons.music_note,
-                                                size: 40,
-                                                color: AppTheme.primaryBlue),
-                                            const SizedBox(height: 8),
-                                            Text(
-                                              genre.name,
-                                              style: const TextStyle(
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                              textAlign: TextAlign.center,
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      Positioned(
-                                        top: 4,
-                                        right: 4,
-                                        child: IconButton(
-                                          icon: const Icon(Icons.delete,
-                                              color: Colors.red, size: 20),
-                                          onPressed: () =>
-                                              _deleteGenre(genre.id),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ).animate().fadeIn(delay: (index * 50).ms);
+                              return _buildGenreCard(
+                                  _filteredGenres[index], index);
                             },
                           ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGenreCard(Genre genre, int index) {
+    // Generar un color pseudo-aleatorio basado en el ID para variedad visual
+    final List<Color> cardColors = [
+      Colors.blueAccent,
+      Colors.purpleAccent,
+      Colors.orangeAccent,
+      Colors.tealAccent,
+      Colors.pinkAccent,
+    ];
+    final Color accentColor = cardColors[genre.id % cardColors.length];
+
+    return InkWell(
+      onTap: () => _showGenreForm(genre),
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        decoration: BoxDecoration(
+            color: darkCardBg,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.grey[850]!),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.3),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              )
+            ]),
+        child: Stack(
+          children: [
+            // Fondo con icono grande y translúcido (Efecto artístico)
+            Positioned(
+              right: -20,
+              bottom: -20,
+              child: Icon(
+                Icons.music_note,
+                size: 100,
+                color: accentColor.withValues(alpha: 0.05),
+              ),
+            ),
+
+            // Contenido
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: accentColor.withValues(alpha: 0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(Icons.graphic_eq,
+                            color: accentColor, size: 18),
+                      ),
+                      // Botón eliminar discreto
+                      InkWell(
+                        onTap: () => _deleteGenre(genre.id),
+                        borderRadius: BorderRadius.circular(20),
+                        child: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: Colors.red.withValues(alpha: 0.1),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(Icons.close,
+                                color: Colors.red[300], size: 16)),
+                      ),
+                    ],
+                  ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        genre.name,
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: lightText,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        genre.description != null &&
+                                genre.description!.isNotEmpty
+                            ? genre.description!
+                            : 'No description',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: subText,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    )
+        .animate()
+        .fadeIn(delay: (index * 50).ms)
+        .scale(begin: const Offset(0.9, 0.9));
+  }
+
+  Widget _buildErrorState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.error_outline, size: 64, color: Colors.red[900]),
+          const SizedBox(height: 16),
+          Text(_error!, style: const TextStyle(color: Colors.red)),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: _loadGenres,
+            style:
+                ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryBlue),
+            child: const Text('Retry'),
           ),
         ],
       ),
@@ -233,23 +405,37 @@ class _AdminGenresScreenState extends State<AdminGenresScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(isEditing ? 'Edit Genre' : 'Add New Genre'),
+        backgroundColor: darkCardBg,
+        title: Text(isEditing ? 'Edit Genre' : 'Add New Genre',
+            style: TextStyle(color: lightText)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: nameController,
-              decoration: const InputDecoration(
+              style: TextStyle(color: lightText),
+              decoration: InputDecoration(
                 labelText: 'Genre Name',
-                border: OutlineInputBorder(),
+                labelStyle: TextStyle(color: subText),
+                enabledBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: Colors.grey[700]!)),
+                focusedBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: AppTheme.primaryBlue)),
+                prefixIcon: Icon(Icons.label, color: subText),
               ),
             ),
             const SizedBox(height: 16),
             TextField(
               controller: descriptionController,
-              decoration: const InputDecoration(
+              style: TextStyle(color: lightText),
+              decoration: InputDecoration(
                 labelText: 'Description',
-                border: OutlineInputBorder(),
+                labelStyle: TextStyle(color: subText),
+                enabledBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: Colors.grey[700]!)),
+                focusedBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: AppTheme.primaryBlue)),
+                prefixIcon: Icon(Icons.description, color: subText),
               ),
               maxLines: 3,
             ),
@@ -261,22 +447,19 @@ class _AdminGenresScreenState extends State<AdminGenresScreen> {
             child: const Text('Cancel'),
           ),
           ElevatedButton(
+            style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryBlue,
+                foregroundColor: Colors.white),
             onPressed: () {
               final name = nameController.text.trim();
               if (name.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Genre name is required')),
-                );
+                _showSnack('Genre name is required', isError: true);
                 return;
               }
               Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(isEditing
-                      ? 'Genre updated successfully'
-                      : 'Genre created successfully'),
-                ),
-              );
+              _showSnack(isEditing
+                  ? 'Genre updated successfully'
+                  : 'Genre created successfully');
               _loadGenres();
             },
             child: Text(isEditing ? 'Update' : 'Create'),
