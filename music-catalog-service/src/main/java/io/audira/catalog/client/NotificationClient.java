@@ -135,7 +135,7 @@ public class NotificationClient {
     public boolean notifyArtistApproved(Long artistId, String productType, String productTitle) {
         String title = "Contenido aprobado";
         String message = String.format(
-            "Tu %s \"%s\" ha sido aprobado y publicado",
+            "Tu %s \"%s\" ha sido aprobado",
             productType.equalsIgnoreCase("SONG") ? "canción" : "álbum",
             productTitle
         );
