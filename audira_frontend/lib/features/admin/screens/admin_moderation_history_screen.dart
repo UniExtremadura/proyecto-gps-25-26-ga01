@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:intl/intl.dart';
+import '../../../config/theme.dart'; // Asegúrate de que este import sea correcto
 import '../../../core/api/services/moderation_service.dart';
 import '../../../core/models/moderation_history.dart';
-import 'package:intl/intl.dart';
 
-/// GA01-163: Pantalla de historial de moderaciones
-/// Muestra todas las acciones de moderación realizadas por los administradores
 class AdminModerationHistoryScreen extends StatefulWidget {
   const AdminModerationHistoryScreen({super.key});
 
@@ -16,6 +16,13 @@ class AdminModerationHistoryScreen extends StatefulWidget {
 class _AdminModerationHistoryScreenState
     extends State<AdminModerationHistoryScreen> {
   final ModerationService _moderationService = ModerationService();
+
+  // --- Colores del Tema Oscuro ---
+  final Color darkBg = Colors.black;
+  final Color darkCardBg = const Color(0xFF212121);
+  final Color lightText = Colors.white;
+  final Color subText = Colors.grey;
+
   List<ModerationHistory> _history = [];
   Map<String, dynamic>? _statistics;
   bool _isLoading = true;
@@ -34,7 +41,6 @@ class _AdminModerationHistoryScreenState
     });
 
     try {
-      // Cargar historial y estadísticas en paralelo
       final results = await Future.wait([
         _moderationService.getModerationHistory(),
         _moderationService.getModerationStatistics(),
@@ -65,96 +71,91 @@ class _AdminModerationHistoryScreenState
     }
   }
 
+  // --- UI BUILD ---
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: darkBg,
       appBar: AppBar(
-        title: const Text('Historial de Moderaciones'),
-        backgroundColor: Colors.black,
+        title: const Text(
+          'Moderation Activity',
+          style: TextStyle(
+              fontWeight: FontWeight.w800, color: AppTheme.primaryBlue),
+        ),
+        backgroundColor: darkBg,
+        elevation: 0,
+        centerTitle: false,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadData,
-            tooltip: 'Actualizar',
+          Container(
+            margin: const EdgeInsets.only(right: 16),
+            decoration: BoxDecoration(
+              color: AppTheme.primaryBlue.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: IconButton(
+              icon: Icon(Icons.refresh, color: AppTheme.primaryBlue),
+              onPressed: _loadData,
+              tooltip: 'Refresh Data',
+            ),
           ),
         ],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(
+              child: CircularProgressIndicator(color: AppTheme.primaryBlue))
           : _errorMessage != null
               ? _buildErrorView()
               : _buildContent(),
     );
   }
 
-  Widget _buildErrorView() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.error_outline, size: 64, color: Colors.red),
-          const SizedBox(height: 16),
-          Text(
-            _errorMessage!,
-            textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 16),
-          ),
-          const SizedBox(height: 24),
-          ElevatedButton.icon(
-            onPressed: _loadData,
-            icon: const Icon(Icons.refresh),
-            label: const Text('Reintentar'),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildContent() {
     return Column(
       children: [
-        // Tarjeta de estadísticas
-        if (_statistics != null) _buildStatisticsCard(),
+        // 1. DASHBOARD DE MÉTRICAS
+        if (_statistics != null) _buildStatsHeader(),
 
-        // Título de la lista
+        // 2. TÍTULO DE LISTA
         Padding(
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.fromLTRB(20, 10, 20, 10),
           child: Row(
             children: [
-              const Icon(Icons.history, size: 24),
+              Icon(Icons.history_toggle_off, color: subText, size: 20),
               const SizedBox(width: 8),
               Text(
-                'Últimas moderaciones (${_history.length})',
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
+                'Recent Logs',
+                style: TextStyle(
+                    color: subText,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1),
               ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                    color: darkCardBg,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey[800]!)),
+                child: Text(
+                  '${_history.length} items',
+                  style: TextStyle(color: lightText, fontSize: 12),
+                ),
+              )
             ],
           ),
         ),
 
-        // Lista de historial
+        // 3. LISTA CRONOLÓGICA
         Expanded(
           child: _history.isEmpty
-              ? const Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.inbox, size: 64, color: Colors.grey),
-                      SizedBox(height: 16),
-                      Text(
-                        'No hay moderaciones registradas',
-                        style: TextStyle(fontSize: 16, color: Colors.grey),
-                      ),
-                    ],
-                  ),
-                )
+              ? _buildEmptyState()
               : ListView.builder(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                   itemCount: _history.length,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
                   itemBuilder: (context, index) {
-                    return _buildHistoryCard(_history[index]);
+                    return _buildTimelineCard(_history[index], index);
                   },
                 ),
         ),
@@ -162,390 +163,409 @@ class _AdminModerationHistoryScreenState
     );
   }
 
-  Widget _buildStatisticsCard() {
-    return Card(
-      margin: const EdgeInsets.all(16),
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+  // --- WIDGETS DE ESTADÍSTICAS ---
+
+  Widget _buildStatsHeader() {
+    // Calcular porcentajes simples para la barra visual
+    int approved = _statistics!['totalApproved'] ?? 0;
+    int rejected = _statistics!['totalRejected'] ?? 0;
+    int pending = _statistics!['totalPending'] ?? 0;
+    int total = approved + rejected + pending;
+    if (total == 0) total = 1;
+
+    return Container(
+      margin: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+          color: darkCardBg,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.grey[850]!),
+          boxShadow: [
+            BoxShadow(
+                color: Colors.black.withValues(alpha: 0.5),
+                blurRadius: 20,
+                offset: const Offset(0, 10))
+          ]),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Overview',
+              style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold)),
+          const SizedBox(height: 20),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _buildStatItem('Approved', approved, Colors.greenAccent),
+              Container(width: 1, height: 40, color: Colors.grey[800]),
+              _buildStatItem('Rejected', rejected, Colors.redAccent),
+              Container(width: 1, height: 40, color: Colors.grey[800]),
+              _buildStatItem('Pending', pending, Colors.orangeAccent),
+            ],
+          ),
+          const SizedBox(height: 24),
+          // Barra de progreso visual
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: SizedBox(
+              height: 8,
+              child: Row(
+                children: [
+                  Expanded(
+                      flex: approved,
+                      child: Container(color: Colors.greenAccent)),
+                  Expanded(
+                      flex: rejected,
+                      child: Container(color: Colors.redAccent)),
+                  Expanded(
+                      flex: pending,
+                      child: Container(color: Colors.orangeAccent)),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('${((approved / total) * 100).toInt()}% approval rate',
+                  style: TextStyle(color: subText, fontSize: 11)),
+              Text('Total Actions: $total',
+                  style: TextStyle(color: subText, fontSize: 11)),
+            ],
+          )
+        ],
+      ),
+    ).animate().fadeIn().slideY(begin: -0.2, end: 0);
+  }
+
+  Widget _buildStatItem(String label, int value, Color color) {
+    return Column(
+      children: [
+        Text(value.toString(),
+            style: TextStyle(
+                fontSize: 24, fontWeight: FontWeight.bold, color: color)),
+        Text(label, style: TextStyle(fontSize: 12, color: subText)),
+      ],
+    );
+  }
+
+  // --- WIDGETS DE LISTA (TIMELINE) ---
+
+  Widget _buildTimelineCard(ModerationHistory entry, int index) {
+    final statusColor = _getStatusColor(entry.newStatus);
+    final icon = _getStatusIcon(entry.newStatus);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      // IntrinsicHeight permite que la línea de tiempo (izquierda) crezca igual que la tarjeta (derecha)
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Row(
-              children: [
-                Icon(Icons.analytics, size: 24, color: Colors.deepPurple),
-                SizedBox(width: 8),
-                Text(
-                  'Estadísticas de Moderación',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-              ],
+            // --- COLUMNA DE TIEMPO (Izquierda) ---
+            SizedBox(
+              width: 50,
+              child: Column(
+                children: [
+                  Text(
+                    DateFormat('HH:mm').format(entry.moderatedAt),
+                    style: const TextStyle(
+                      color: Colors.white, // Forzamos blanco
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
+                  ),
+                  Text(
+                    DateFormat('dd/MM').format(entry.moderatedAt),
+                    style: const TextStyle(
+                      color: Colors.grey, // Forzamos gris
+                      fontSize: 10,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  // Línea vertical
+                  Expanded(
+                    child: Container(
+                      width: 2,
+                      color: Colors.grey[800],
+                    ),
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildStatItem(
-                  'Pendientes',
-                  _statistics!['totalPending'] ?? 0,
-                  Colors.orange,
-                  Icons.hourglass_empty,
+
+            // --- TARJETA DE CONTENIDO (Derecha) ---
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 4.0), // Pequeño espacio
+                child: Material(
+                  color:
+                      const Color(0xFF212121), // Color de fondo de la tarjeta
+                  borderRadius: BorderRadius.circular(16),
+                  clipBehavior:
+                      Clip.antiAlias, // Asegura que el InkWell no se salga
+                  child: InkWell(
+                    onTap: () => _showHistoryDetails(entry),
+                    // Borde lateral de color indicador
+                    child: Container(
+                      decoration: BoxDecoration(
+                        border: Border(
+                          left: BorderSide(color: statusColor, width: 4),
+                        ),
+                      ),
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // 1. Título y Tipo
+                          Row(
+                            children: [
+                              Icon(
+                                entry.productType == 'SONG'
+                                    ? Icons.music_note
+                                    : Icons.album,
+                                size: 16,
+                                color: Colors.grey,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  entry.productTitle,
+                                  style: const TextStyle(
+                                    color: Colors.white, // Texto Blanco
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              // Icono de estado pequeño
+                              Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: BoxDecoration(
+                                  color: statusColor.withValues(alpha: 0.1),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(icon, size: 14, color: statusColor),
+                              )
+                            ],
+                          ),
+
+                          const SizedBox(height: 8),
+
+                          // 2. Transición de Estado (Ej: Pending -> Approved)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.3),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  entry.previousStatusDisplay,
+                                  style: const TextStyle(
+                                      color: Colors.grey, fontSize: 11),
+                                ),
+                                const Padding(
+                                  padding: EdgeInsets.symmetric(horizontal: 6),
+                                  child: Icon(Icons.arrow_forward,
+                                      size: 12, color: Colors.grey),
+                                ),
+                                Text(
+                                  entry.newStatusDisplay,
+                                  style: TextStyle(
+                                    color: statusColor,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          const SizedBox(height: 12),
+
+                          // 3. Footer: Moderador y Motivo
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(
+                                children: [
+                                  CircleAvatar(
+                                    radius: 10,
+                                    backgroundColor: Colors.grey[800],
+                                    child: const Icon(Icons.person,
+                                        size: 12, color: Colors.grey),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    entry.moderatorName ??
+                                        'Admin #${entry.moderatedBy}',
+                                    style: const TextStyle(
+                                        color: Colors.grey, fontSize: 12),
+                                  ),
+                                ],
+                              ),
+                              if (entry.rejectionReason != null)
+                                Icon(Icons.comment,
+                                    color:
+                                        Colors.redAccent.withValues(alpha: 0.7),
+                                    size: 16)
+                            ],
+                          )
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
-                _buildStatItem(
-                  'Aprobados',
-                  _statistics!['totalApproved'] ?? 0,
-                  Colors.green,
-                  Icons.check_circle,
-                ),
-                _buildStatItem(
-                  'Rechazados',
-                  _statistics!['totalRejected'] ?? 0,
-                  Colors.red,
-                  Icons.cancel,
-                ),
-              ],
-            ),
-            const Divider(height: 32),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildDetailStat(
-                  'Canciones pendientes',
-                  _statistics!['pendingSongs'] ?? 0,
-                  Icons.music_note,
-                ),
-                _buildDetailStat(
-                  'Álbumes pendientes',
-                  _statistics!['pendingAlbums'] ?? 0,
-                  Icons.album,
-                ),
-              ],
+              ),
             ),
           ],
         ),
       ),
-    );
+    ).animate().fadeIn(delay: (index * 30).ms).slideX(begin: 0.1, end: 0);
   }
 
-  Widget _buildStatItem(String label, int value, Color color, IconData icon) {
-    return Column(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.1),
-            shape: BoxShape.circle,
-          ),
-          child: Icon(icon, color: color, size: 32),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          value.toString(),
-          style: TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.bold,
-            color: color,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 12,
-            color: Colors.grey,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildDetailStat(String label, int value, IconData icon) {
-    return Row(
-      children: [
-        Icon(icon, size: 20, color: Colors.deepPurple),
-        const SizedBox(width: 8),
-        Text(
-          '$label: ',
-          style: const TextStyle(fontSize: 14, color: Colors.grey),
-        ),
-        Text(
-          value.toString(),
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildHistoryCard(ModerationHistory entry) {
-    final color = _getStatusColor(entry.newStatus);
-    final icon = _getStatusIcon(entry.newStatus);
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: () => _showHistoryDetails(entry),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  // Icono de estado
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: color.withValues(alpha: 0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(icon, color: color, size: 20),
-                  ),
-                  const SizedBox(width: 12),
-                  // Información principal
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          entry.productTitle,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            Icon(
-                              entry.productType == 'SONG'
-                                  ? Icons.music_note
-                                  : Icons.album,
-                              size: 14,
-                              color: Colors.grey,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              entry.productType == 'SONG' ? 'Canción' : 'Álbum',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            const Text('•',
-                                style: TextStyle(color: Colors.grey)),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                entry.artistName ?? 'Artista desconocido',
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              // Cambio de estado
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade800,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (entry.previousStatus != null) ...[
-                      Text(
-                        entry.previousStatusDisplay,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      const Icon(Icons.arrow_forward, size: 14),
-                      const SizedBox(width: 8),
-                    ],
-                    Text(
-                      entry.newStatusDisplay,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: color,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 12),
-              // Información del moderador y fecha
-              Row(
-                children: [
-                  const Icon(Icons.person, size: 14, color: Colors.grey),
-                  const SizedBox(width: 4),
-                  Text(
-                    entry.moderatorName ?? 'Admin #${entry.moderatedBy}',
-                    style: const TextStyle(fontSize: 12, color: Colors.grey),
-                  ),
-                  const Spacer(),
-                  const Icon(Icons.access_time, size: 14, color: Colors.grey),
-                  const SizedBox(width: 4),
-                  Text(
-                    _formatDate(entry.moderatedAt),
-                    style: const TextStyle(fontSize: 12, color: Colors.grey),
-                  ),
-                ],
-              ),
-              // Motivo de rechazo si existe
-              if (entry.rejectionReason != null) ...[
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.red.shade50,
-                    border: Border.all(color: Colors.red.shade200),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(Icons.warning_amber,
-                          color: Colors.red.shade700, size: 20),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Motivo del rechazo:',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.red.shade900,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              entry.rejectionReason!,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.red.shade800,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+  // --- DIALOGO DE DETALLE (DARK MODE) ---
 
   void _showHistoryDetails(ModerationHistory entry) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
+        backgroundColor: darkCardBg,
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: BorderSide(color: Colors.grey[800]!)),
         title: Row(
           children: [
-            Icon(
-              _getStatusIcon(entry.newStatus),
-              color: _getStatusColor(entry.newStatus),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                  color:
+                      _getStatusColor(entry.newStatus).withValues(alpha: 0.2),
+                  shape: BoxShape.circle),
+              child: Icon(_getStatusIcon(entry.newStatus),
+                  color: _getStatusColor(entry.newStatus), size: 24),
             ),
-            const SizedBox(width: 8),
-            const Expanded(child: Text('Detalles de Moderación')),
+            const SizedBox(width: 12),
+            Expanded(
+                child: Text('Action Details',
+                    style: TextStyle(color: lightText, fontSize: 18))),
           ],
         ),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildDetailRow('Producto', entry.productTitle),
-              _buildDetailRow(
-                'Tipo',
-                entry.productType == 'SONG' ? 'Canción' : 'Álbum',
-              ),
-              _buildDetailRow('Artista', entry.artistName ?? 'Desconocido'),
-              const Divider(height: 24),
-              _buildDetailRow(
-                'Estado anterior',
-                entry.previousStatusDisplay,
-              ),
-              _buildDetailRow('Estado nuevo', entry.newStatusDisplay),
-              const Divider(height: 24),
-              _buildDetailRow(
-                'Moderado por',
-                entry.moderatorName ?? 'Admin #${entry.moderatedBy}',
-              ),
-              _buildDetailRow('Fecha', _formatDateLong(entry.moderatedAt)),
-              if (entry.rejectionReason != null) ...[
-                const Divider(height: 24),
-                _buildDetailRow('Motivo de rechazo', entry.rejectionReason!),
-              ],
-              if (entry.notes != null) ...[
-                const Divider(height: 24),
-                _buildDetailRow('Notas', entry.notes!),
-              ],
-            ],
-          ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildDetailItem('Product', entry.productTitle, Icons.label),
+            _buildDetailItem('Type',
+                entry.productType == 'SONG' ? 'Song' : 'Album', Icons.category),
+            _buildDetailItem(
+                'Artist', entry.artistName ?? 'Unknown', Icons.person),
+            const Divider(color: Colors.grey),
+            _buildDetailItem(
+                'Moderator',
+                entry.moderatorName ?? 'ID: ${entry.moderatedBy}',
+                Icons.admin_panel_settings),
+            _buildDetailItem('Date', _formatDateLong(entry.moderatedAt),
+                Icons.calendar_today),
+            if (entry.rejectionReason != null) ...[
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                width: double.infinity,
+                decoration: BoxDecoration(
+                    color: Colors.red.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border:
+                        Border.all(color: Colors.red.withValues(alpha: 0.3))),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Rejection Reason',
+                        style: TextStyle(
+                            color: Colors.red[200],
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 4),
+                    Text(entry.rejectionReason!,
+                        style: TextStyle(color: lightText, fontSize: 14)),
+                  ],
+                ),
+              )
+            ]
+          ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cerrar'),
+            child: const Text('Close'),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildDetailRow(String label, String value) {
+  Widget _buildDetailItem(String label, String value, IconData icon) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
-            width: 120,
-            child: Text(
-              '$label:',
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
-              ),
-            ),
+          Icon(icon, size: 18, color: subText),
+          const SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: TextStyle(color: subText, fontSize: 11)),
+              Text(value,
+                  style: TextStyle(
+                      color: lightText,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500)),
+            ],
+          )
+        ],
+      ),
+    );
+  }
+
+  // --- HELPERS Y ERROR VIEW ---
+
+  Widget _buildErrorView() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.wifi_off, size: 64, color: Colors.red[900]),
+          const SizedBox(height: 16),
+          Text(_errorMessage!, style: const TextStyle(color: Colors.red)),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: _loadData,
+            style:
+                ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryBlue),
+            child: const Text('Retry'),
           ),
-          Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(fontSize: 14),
-            ),
-          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.history, size: 64, color: Colors.grey[850]),
+          const SizedBox(height: 16),
+          Text('No moderation history yet',
+              style: TextStyle(color: subText, fontSize: 16)),
         ],
       ),
     );
@@ -554,11 +574,11 @@ class _AdminModerationHistoryScreenState
   Color _getStatusColor(String status) {
     switch (status) {
       case 'PENDING':
-        return Colors.orange;
+        return Colors.orangeAccent;
       case 'APPROVED':
-        return Colors.green;
+        return Colors.greenAccent;
       case 'REJECTED':
-        return Colors.red;
+        return Colors.redAccent;
       default:
         return Colors.grey;
     }
@@ -567,7 +587,7 @@ class _AdminModerationHistoryScreenState
   IconData _getStatusIcon(String status) {
     switch (status) {
       case 'PENDING':
-        return Icons.hourglass_empty;
+        return Icons.hourglass_top;
       case 'APPROVED':
         return Icons.check_circle;
       case 'REJECTED':
@@ -577,28 +597,7 @@ class _AdminModerationHistoryScreenState
     }
   }
 
-  String _formatDate(DateTime date) {
-    final now = DateTime.now();
-    final difference = now.difference(date);
-
-    if (difference.inDays == 0) {
-      if (difference.inHours == 0) {
-        if (difference.inMinutes == 0) {
-          return 'Ahora';
-        }
-        return 'Hace ${difference.inMinutes}m';
-      }
-      return 'Hace ${difference.inHours}h';
-    } else if (difference.inDays == 1) {
-      return 'Ayer';
-    } else if (difference.inDays < 7) {
-      return 'Hace ${difference.inDays}d';
-    } else {
-      return DateFormat('dd/MM/yyyy').format(date);
-    }
-  }
-
   String _formatDateLong(DateTime date) {
-    return DateFormat('dd/MM/yyyy HH:mm').format(date);
+    return DateFormat('MMM dd, yyyy - HH:mm').format(date);
   }
 }

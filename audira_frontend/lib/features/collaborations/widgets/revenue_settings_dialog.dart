@@ -1,11 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../../../config/theme.dart';
 import '../../../core/models/collaborator.dart';
 import '../../../core/api/services/collaboration_service.dart';
 
-/// Dialog for setting revenue percentage for a collaborator
-/// GA01-155: Definir porcentaje de ganancias
 class RevenueSettingsDialog extends StatefulWidget {
   final Collaborator collaboration;
 
@@ -23,9 +20,15 @@ class _RevenueSettingsDialogState extends State<RevenueSettingsDialog> {
   final _percentageController = TextEditingController();
   final CollaborationService _collaborationService = CollaborationService();
 
+  // --- Colores ---
+  final Color darkCardBg = const Color(0xFF212121);
+  final Color moneyColor = Colors.greenAccent;
+  final Color lightText = Colors.white;
+  final Color subText = Colors.grey;
+
   bool _isLoading = false;
-  double? _currentTotalRevenue;
-  bool _loadingTotalRevenue = false;
+  double?
+      _currentTotalRevenue; // % total asignado actualmente (incluyendo este collab)
 
   @override
   void initState() {
@@ -42,8 +45,6 @@ class _RevenueSettingsDialogState extends State<RevenueSettingsDialog> {
   }
 
   Future<void> _loadTotalRevenue() async {
-    setState(() => _loadingTotalRevenue = true);
-
     try {
       final response = widget.collaboration.isForSong
           ? await _collaborationService
@@ -52,23 +53,14 @@ class _RevenueSettingsDialogState extends State<RevenueSettingsDialog> {
               .getAlbumTotalRevenue(widget.collaboration.albumId!);
 
       if (response.success && response.data != null) {
-        setState(() {
-          _currentTotalRevenue = response.data;
-        });
+        setState(() => _currentTotalRevenue = response.data);
       }
-    } catch (e) {
-      // Silently fail - total revenue is just informational
-    } finally {
-      setState(() => _loadingTotalRevenue = false);
-    }
+    } catch (_) {
+    } finally {}
   }
 
   Future<void> _updateRevenue() async {
-    final currentContext = context;
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
-
+    if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
 
     try {
@@ -79,26 +71,17 @@ class _RevenueSettingsDialogState extends State<RevenueSettingsDialog> {
       );
 
       if (response.success) {
-        if(!currentContext.mounted) return;
-        ScaffoldMessenger.of(currentContext).showSnackBar(
-          const SnackBar(
-            content: Text('Porcentaje de ganancias actualizado'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        if(!currentContext.mounted) return;
-        Navigator.pop(currentContext, true); // Return true to indicate success
+        if (!mounted) return;
+        Navigator.pop(context, true);
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Revenue updated'), backgroundColor: Colors.green));
       } else {
-        throw Exception(response.error ?? 'Error desconocido');
+        throw Exception(response.error ?? 'Unknown error');
       }
     } catch (e) {
-      if(!currentContext.mounted) return;
-      ScaffoldMessenger.of(currentContext).showSnackBar(
-        SnackBar(
-          content: Text('Error: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
     } finally {
       setState(() => _isLoading = false);
     }
@@ -106,281 +89,191 @@ class _RevenueSettingsDialogState extends State<RevenueSettingsDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final entityType = widget.collaboration.isForSong ? 'Canción' : 'Álbum';
-    final availablePercentage = _currentTotalRevenue != null
-        ? 100 - (_currentTotalRevenue! - widget.collaboration.revenuePercentage)
-        : null;
+    // Calcular cuánto queda disponible para ASIGNAR AHORA.
+    // Lógica: 100 - (Total actual - Lo que tiene este usuario actualmente) = Máximo teórico para este usuario
+    final double currentAssignedToOthers =
+        (_currentTotalRevenue ?? 0) - widget.collaboration.revenuePercentage;
+    final double maxAssignable = 100.0 - currentAssignedToOthers;
 
-    return AlertDialog(
-      backgroundColor: AppTheme.surfaceBlack,
-      title: Row(
-        children: [
-          const Icon(Icons.attach_money, color: Colors.green),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              'Porcentaje de Ganancias',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-          ),
-        ],
-      ),
-      content: SingleChildScrollView(
+    return Dialog(
+      backgroundColor: darkCardBg,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 400),
+        padding: const EdgeInsets.all(24),
         child: Form(
           key: _formKey,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Collaboration info
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppTheme.backgroundBlack,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: AppTheme.primaryBlue.withValues(alpha: 0.3),
+              // Header
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                        color: moneyColor.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8)),
+                    child: Icon(Icons.attach_money, color: moneyColor),
+                  ),
+                  const SizedBox(width: 12),
+                  Text('Revenue Share',
+                      style: TextStyle(
+                          color: lightText,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold)),
+                ],
+              ),
+              const SizedBox(height: 24),
+
+              // Distribution Bar
+              if (_currentTotalRevenue != null) ...[
+                Text('Current Distribution',
+                    style: TextStyle(
+                        color: subText,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: SizedBox(
+                    height: 10,
+                    child: Row(
+                      children: [
+                        // Parte de otros
+                        Expanded(
+                            flex: (currentAssignedToOthers * 10).toInt(),
+                            child: Container(color: Colors.blueGrey)),
+                        // Parte actual de este usuario
+                        Expanded(
+                            flex: (widget.collaboration.revenuePercentage * 10)
+                                .toInt(),
+                            child: Container(color: moneyColor)),
+                        // Parte disponible (Libre)
+                        Expanded(
+                            flex: ((100 - _currentTotalRevenue!) * 10).toInt(),
+                            child: Container(color: Colors.grey[800])),
+                      ],
+                    ),
                   ),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                const SizedBox(height: 4),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Row(
-                      children: [
-                        Icon(
-                          widget.collaboration.isForSong
-                              ? Icons.music_note
-                              : Icons.album,
-                          size: 20,
-                          color: AppTheme.primaryBlue,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            '$entityType ID: ${widget.collaboration.entityId}',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        const Icon(Icons.person,
-                            size: 16, color: AppTheme.textGrey),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Artista ID: ${widget.collaboration.artistId}',
-                          style: const TextStyle(color: AppTheme.textGrey),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        const Icon(Icons.work,
-                            size: 16, color: AppTheme.textGrey),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Rol: ${widget.collaboration.role}',
-                          style: const TextStyle(color: AppTheme.textGrey),
-                        ),
-                      ],
-                    ),
+                    Text('Used: ${currentAssignedToOthers.toStringAsFixed(1)}%',
+                        style: TextStyle(color: subText, fontSize: 10)),
+                    Text('Max for user: ${maxAssignable.toStringAsFixed(1)}%',
+                        style: TextStyle(
+                            color: moneyColor,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold)),
                   ],
                 ),
-              ),
-              const SizedBox(height: 20),
-
-              // Current total revenue
-              if (_loadingTotalRevenue)
-                const Center(child: CircularProgressIndicator())
-              else if (_currentTotalRevenue != null) ...[
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.orange.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: Colors.orange.withValues(alpha: 0.3),
-                    ),
-                  ),
-                  child: Column(
-                    children: [
-                      Row(
-                        children: [
-                          const Icon(Icons.pie_chart,
-                              color: Colors.orange, size: 20),
-                          const SizedBox(width: 8),
-                          const Text(
-                            'Distribución actual',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text('Total asignado:',
-                              style: TextStyle(color: AppTheme.textGrey)),
-                          Text(
-                            '${_currentTotalRevenue!.toStringAsFixed(1)}%',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: Colors.orange,
-                            ),
-                          ),
-                        ],
-                      ),
-                      if (availablePercentage != null) ...[
-                        const SizedBox(height: 4),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Text('Disponible:',
-                                style: TextStyle(color: AppTheme.textGrey)),
-                            Text(
-                              '${availablePercentage.toStringAsFixed(1)}%',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: availablePercentage > 0
-                                    ? Colors.green
-                                    : Colors.red,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 20),
               ],
 
-              // Percentage input
-              const Text(
-                'Porcentaje de ganancias (%)',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.textWhite,
-                ),
-              ),
+              // Input
+              Text('Percentage Share',
+                  style: TextStyle(
+                      color: subText,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
               TextFormField(
                 controller: _percentageController,
-                decoration: InputDecoration(
-                  hintText: '0.0 - 100.0',
-                  prefixIcon: const Icon(Icons.percent),
-                  suffixText: '%',
-                  border: const OutlineInputBorder(),
-                  filled: true,
-                  fillColor: AppTheme.backgroundBlack,
-                  helperText: availablePercentage != null
-                      ? 'Máximo disponible: ${availablePercentage.toStringAsFixed(1)}%'
-                      : null,
-                  helperStyle: TextStyle(
-                    color:
-                        availablePercentage != null && availablePercentage > 0
-                            ? Colors.green
-                            : Colors.orange,
-                  ),
-                ),
+                style: TextStyle(
+                    color: lightText,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold),
                 keyboardType:
                     const TextInputType.numberWithOptions(decimal: true),
                 inputFormatters: [
-                  FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
+                  FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}'))
                 ],
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Por favor ingresa un porcentaje';
-                  }
-                  final percentage = double.tryParse(value);
-                  if (percentage == null) {
-                    return 'Porcentaje inválido';
-                  }
-                  if (percentage < 0 || percentage > 100) {
-                    return 'El porcentaje debe estar entre 0 y 100';
-                  }
-                  if (availablePercentage != null &&
-                      percentage > availablePercentage) {
-                    return 'Excede el porcentaje disponible (${availablePercentage.toStringAsFixed(1)}%)';
+                decoration: InputDecoration(
+                  suffixText: '%',
+                  suffixStyle: TextStyle(
+                      color: moneyColor,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold),
+                  filled: true,
+                  fillColor: Colors.black,
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none),
+                  focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: moneyColor)),
+                ),
+                validator: (val) {
+                  final n = double.tryParse(val ?? '');
+                  if (n == null) return 'Invalid number';
+                  if (n < 0) return 'Cannot be negative';
+                  if (n > maxAssignable) {
+                    return 'Max allowed: ${maxAssignable.toStringAsFixed(1)}%';
                   }
                   return null;
                 },
               ),
+
               const SizedBox(height: 16),
 
-              // Quick percentage buttons
-              const Text(
-                'Selección rápida',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: AppTheme.textGrey,
-                ),
-              ),
-              const SizedBox(height: 8),
+              // Quick Buttons
               Wrap(
                 spacing: 8,
-                runSpacing: 4,
-                children: [10.0, 20.0, 25.0, 33.3, 50.0].map((percentage) {
-                  final isAvailable = availablePercentage == null ||
-                      percentage <= availablePercentage;
+                children: [10, 20, 25, 50].map((p) {
+                  final isPossible = p <= maxAssignable;
                   return ActionChip(
-                    label: Text(
-                      '${percentage.toStringAsFixed(percentage == 33.3 ? 1 : 0)}%',
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                    onPressed: isAvailable
-                        ? () {
-                            _percentageController.text =
-                                percentage.toStringAsFixed(1);
-                          }
-                        : null,
-                    backgroundColor: isAvailable
-                        ? AppTheme.surfaceBlack
-                        : AppTheme.backgroundBlack,
+                    label: Text('$p%',
+                        style: TextStyle(
+                            fontSize: 12,
+                            color: isPossible ? lightText : Colors.grey)),
+                    backgroundColor: Colors.transparent,
                     side: BorderSide(
-                      color: isAvailable
-                          ? AppTheme.primaryBlue
-                          : AppTheme.textGrey.withValues(alpha: 0.3),
-                    ),
+                        color:
+                            isPossible ? Colors.grey[700]! : Colors.grey[900]!),
+                    onPressed: isPossible
+                        ? () => _percentageController.text = p.toString()
+                        : null,
                   );
                 }).toList(),
               ),
+
+              const SizedBox(height: 24),
+
+              // Actions
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Cancel')),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    onPressed: _isLoading ? null : _updateRevenue,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: moneyColor,
+                      foregroundColor: Colors
+                          .black, // Texto negro sobre verde brillante para contraste
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8)),
+                    ),
+                    child: _isLoading
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.black))
+                        : const Text('Save Changes'),
+                  ),
+                ],
+              )
             ],
           ),
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: _isLoading ? null : () => Navigator.pop(context),
-          child: const Text('Cancelar'),
-        ),
-        ElevatedButton(
-          onPressed: _isLoading ? null : _updateRevenue,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.green,
-          ),
-          child: _isLoading
-              ? const SizedBox(
-                  height: 20,
-                  width: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.white,
-                  ),
-                )
-              : const Text('Guardar'),
-        ),
-      ],
     );
   }
 }
