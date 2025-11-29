@@ -605,19 +605,21 @@ class _AdminContactsScreenState extends State<AdminContactsScreen> {
       builder: (context) => AlertDialog(
         backgroundColor: darkCardBg,
         title: Text('Update Status', style: TextStyle(color: lightText)),
-        content: StatefulBuilder(
-          builder: (context, setState) => Column(
-            mainAxisSize: MainAxisSize.min,
-            children: ContactStatus.values
+        content: RadioGroup<ContactStatus>(
+          groupValue: selected,
+          onChanged: (val) => setState(() => selected = val),
+          child: StatefulBuilder(
+            builder: (context, setState) => Column(
+              mainAxisSize: MainAxisSize.min,
+              children: ContactStatus.values
                 .map((status) => RadioListTile<ContactStatus>(
                       title: Text(status.label,
                           style: TextStyle(color: lightText)),
                       value: status,
-                      groupValue: selected,
                       activeColor: AppTheme.primaryBlue,
-                      onChanged: (val) => setState(() => selected = val),
                     ))
                 .toList(),
+            ),
           ),
         ),
         actions: [
