@@ -7,8 +7,6 @@ import '../../../core/models/user.dart';
 import '../../../core/api/services/collaboration_service.dart';
 import '../../../core/api/services/user_service.dart';
 
-/// Dialog for inviting collaborators to songs or albums
-/// GA01-154: Añadir colaboradores
 class AddCollaboratorDialog extends StatefulWidget {
   final List<Song> songs;
   final List<Album> albums;
@@ -30,6 +28,12 @@ class _AddCollaboratorDialogState extends State<AddCollaboratorDialog> {
   final CollaborationService _collaborationService = CollaborationService();
   final UserService _userService = UserService();
 
+  // --- Colores del Tema Oscuro ---
+  final Color darkCardBg = const Color(0xFF212121);
+  final Color inputBg = Colors.black;
+  final Color lightText = Colors.white;
+  final Color subText = Colors.grey;
+
   String _entityType = 'song'; // 'song' or 'album'
   int? _selectedEntityId;
   User? _selectedArtist;
@@ -39,13 +43,11 @@ class _AddCollaboratorDialogState extends State<AddCollaboratorDialog> {
   Timer? _debounceTimer;
 
   final List<String> _suggestedRoles = [
-    'Artista destacado',
-    'Productor',
-    'Compositor',
-    'Vocalista',
-    'Instrumentista',
-    'Mezclador',
-    'Masterizador',
+    'Featured Artist',
+    'Producer',
+    'Songwriter',
+    'Vocalist',
+    'Mixing Engineer',
   ];
 
   @override
@@ -56,10 +58,10 @@ class _AddCollaboratorDialogState extends State<AddCollaboratorDialog> {
     super.dispose();
   }
 
-  void _onSearchChanged(String query) {
-    // Cancel previous timer
-    _debounceTimer?.cancel();
+  // --- LOGIC ---
 
+  void _onSearchChanged(String query) {
+    _debounceTimer?.cancel();
     if (query.trim().length < 2) {
       setState(() {
         _searchResults = [];
@@ -67,75 +69,35 @@ class _AddCollaboratorDialogState extends State<AddCollaboratorDialog> {
       });
       return;
     }
-
-    // Set searching state immediately
     setState(() => _isSearching = true);
-
-    // Create new timer with 500ms delay
     _debounceTimer = Timer(const Duration(milliseconds: 500), () {
       _searchArtists(query);
     });
   }
 
   Future<void> _searchArtists(String query) async {
-    if (query.trim().length < 2) {
-      setState(() {
-        _searchResults = [];
-        _isSearching = false;
-      });
-      return;
-    }
-
     try {
       final response = await _userService.searchArtists(query);
-      if (response.success && response.data != null) {
-        if (mounted) {
-          setState(() {
-            _searchResults = response.data!;
-            _isSearching = false;
-          });
-        }
-      } else {
-        if (mounted) {
-          setState(() {
-            _searchResults = [];
-            _isSearching = false;
-          });
-        }
-      }
-    } catch (e) {
       if (mounted) {
         setState(() {
-          _searchResults = [];
+          _searchResults = response.success ? (response.data ?? []) : [];
           _isSearching = false;
         });
       }
+    } catch (e) {
+      if (mounted) setState(() => _isSearching = false);
     }
   }
 
   Future<void> _inviteCollaborator() async {
-    final currentContext = context;
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
+    if (!_formKey.currentState!.validate()) return;
 
     if (_selectedEntityId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Por favor selecciona una canción o álbum'),
-          backgroundColor: Colors.orange,
-        ),
-      );
+      _showError('Please select a song or album.');
       return;
     }
-
     if (_selectedArtist == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Por favor selecciona un artista'),
-          backgroundColor: Colors.orange,
-        ),
-      );
+      _showError('Please select an artist.');
       return;
     }
 
@@ -158,468 +120,391 @@ class _AddCollaboratorDialogState extends State<AddCollaboratorDialog> {
             );
 
       if (response.success) {
-        if(!currentContext.mounted) return;
-        ScaffoldMessenger.of(currentContext).showSnackBar(
+        if (!mounted) return;
+        Navigator.pop(context, true);
+        ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Colaborador invitado exitosamente'),
-            backgroundColor: Colors.green,
-          ),
+              content: Text('Invitation sent successfully'),
+              backgroundColor: Colors.green),
         );
-        if(!currentContext.mounted) return;
-        Navigator.pop(currentContext, true); // Return true to indicate success
       } else {
-        throw Exception(response.error ?? 'Error desconocido');
+        throw Exception(response.error ?? 'Unknown error');
       }
     } catch (e) {
-      if(!currentContext.mounted) return;
-      ScaffoldMessenger.of(currentContext).showSnackBar(
-        SnackBar(
-          content: Text('Error: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      _showError(e.toString());
     } finally {
       setState(() => _isLoading = false);
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      backgroundColor: AppTheme.surfaceBlack,
-      title: const Row(
-        children: [
-          Icon(Icons.person_add, color: AppTheme.primaryBlue),
-          SizedBox(width: 12),
-          Text('Invitar Colaborador'),
-        ],
-      ),
-      content: SingleChildScrollView(
-        child: Form(
-          key: _formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Entity type selection
-              const Text(
-                'Tipo de contenido',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.textWhite,
-                ),
-              ),
-              const SizedBox(height: 8),
-              SegmentedButton<String>(
-                segments: const [
-                  ButtonSegment(
-                    value: 'song',
-                    label: Text('Canción'),
-                    icon: Icon(Icons.music_note),
-                  ),
-                  ButtonSegment(
-                    value: 'album',
-                    label: Text('Álbum'),
-                    icon: Icon(Icons.album),
-                  ),
-                ],
-                selected: {_entityType},
-                onSelectionChanged: (Set<String> newSelection) {
-                  setState(() {
-                    _entityType = newSelection.first;
-                    _selectedEntityId = null; // Reset selection
-                  });
-                },
-              ),
-              const SizedBox(height: 16),
-
-              // Entity selection
-              Text(
-                _entityType == 'song'
-                    ? 'Seleccionar canción'
-                    : 'Seleccionar álbum',
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.textWhite,
-                ),
-              ),
-              const SizedBox(height: 8),
-              if (_entityType == 'song')
-                _buildSongDropdown()
-              else
-                _buildAlbumDropdown(),
-
-              const SizedBox(height: 16),
-
-              // Artist Search with Autocomplete
-              const Text(
-                'Buscar artista',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.textWhite,
-                ),
-              ),
-              const SizedBox(height: 8),
-              _buildArtistAutocomplete(),
-
-              const SizedBox(height: 16),
-
-              // Role
-              const Text(
-                'Rol del colaborador',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.textWhite,
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: _roleController,
-                decoration: const InputDecoration(
-                  hintText: 'Ej: Productor, Compositor, etc.',
-                  prefixIcon: Icon(Icons.work),
-                  border: OutlineInputBorder(),
-                  filled: true,
-                  fillColor: AppTheme.backgroundBlack,
-                ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Por favor ingresa el rol';
-                  }
-                  if (value.trim().length < 2) {
-                    return 'El rol debe tener al menos 2 caracteres';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 8),
-
-              // Role suggestions
-              Wrap(
-                spacing: 8,
-                runSpacing: 4,
-                children: _suggestedRoles.map((role) {
-                  return ActionChip(
-                    label: Text(
-                      role,
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                    onPressed: () {
-                      _roleController.text = role;
-                    },
-                    backgroundColor: AppTheme.surfaceBlack,
-                    side: const BorderSide(color: AppTheme.primaryBlue),
-                  );
-                }).toList(),
-              ),
-            ],
-          ),
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: _isLoading ? null : () => Navigator.pop(context),
-          child: const Text('Cancelar'),
-        ),
-        ElevatedButton(
-          onPressed: _isLoading ? null : _inviteCollaborator,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppTheme.primaryBlue,
-          ),
-          child: _isLoading
-              ? const SizedBox(
-                  height: 20,
-                  width: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.white,
-                  ),
-                )
-              : const Text('Invitar'),
-        ),
-      ],
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
     );
   }
 
-  Widget _buildArtistAutocomplete() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Search field
-        TextFormField(
-          controller: _searchController,
-          decoration: InputDecoration(
-            hintText: 'Escribe el nombre del artista',
-            prefixIcon: const Icon(Icons.search),
-            suffixIcon: _isSearching
-                ? const Padding(
-                    padding: EdgeInsets.all(12),
-                    child: SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                  )
-                : _selectedArtist != null
-                    ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () {
-                          setState(() {
-                            _searchController.clear();
-                            _selectedArtist = null;
-                            _searchResults = [];
-                          });
-                        },
-                      )
-                    : null,
-            border: const OutlineInputBorder(),
-            filled: true,
-            fillColor: AppTheme.backgroundBlack,
-          ),
-          onChanged: (value) {
-            _onSearchChanged(value);
-            // Clear selection if user is typing
-            if (_selectedArtist != null) {
-              setState(() => _selectedArtist = null);
-            }
-          },
-          validator: (value) {
-            if (_selectedArtist == null) {
-              return 'Por favor selecciona un artista de la lista';
-            }
-            return null;
-          },
-        ),
+  // --- UI BUILD ---
 
-        // Selected artist display
-        if (_selectedArtist != null) ...[
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: AppTheme.primaryBlue.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: AppTheme.primaryBlue.withValues(alpha: 0.3),
-              ),
-            ),
-            child: Row(
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: darkCardBg,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      insetPadding: const EdgeInsets.all(16),
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 500, maxHeight: 700),
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          children: [
+            // Header
+            Row(
               children: [
-                CircleAvatar(
-                  backgroundColor: AppTheme.primaryBlue,
-                  child: Text(
-                    (_selectedArtist!.displayName).substring(0, 1).toUpperCase(),
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                      color: AppTheme.primaryBlue.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8)),
+                  child:
+                      const Icon(Icons.person_add, color: AppTheme.primaryBlue),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        _selectedArtist!.displayName,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
+                      Text('Invite Collaborator',
+                          style: TextStyle(
+                              color: lightText,
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold)),
+                      Text('Add an artist to your project',
+                          style: TextStyle(color: subText, fontSize: 12)),
+                    ],
+                  ),
+                ),
+                IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: Icon(Icons.close, color: subText))
+              ],
+            ),
+            const Divider(color: Colors.grey, height: 32),
+
+            // Scrollable Content
+            Expanded(
+              child: SingleChildScrollView(
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // 1. Content Type Selector
+                      _buildSectionLabel('1. Project Type'),
+                      Row(
+                        children: [
+                          Expanded(
+                              child: _buildTypeOption(
+                                  'Song', Icons.music_note, 'song')),
+                          const SizedBox(width: 12),
+                          Expanded(
+                              child: _buildTypeOption(
+                                  'Album', Icons.album, 'album')),
+                        ],
                       ),
-                      Text(
-                        '@${_selectedArtist!.username} • ID: ${_selectedArtist!.id}',
-                        style: const TextStyle(
-                          color: AppTheme.textGrey,
-                          fontSize: 12,
-                        ),
+                      const SizedBox(height: 20),
+
+                      // 2. Entity Dropdown
+                      _buildSectionLabel(_entityType == 'song'
+                          ? '2. Select Song'
+                          : '2. Select Album'),
+                      _buildEntityDropdown(),
+                      const SizedBox(height: 20),
+
+                      // 3. Artist Search
+                      _buildSectionLabel('3. Find Artist'),
+                      if (_selectedArtist != null)
+                        _buildSelectedArtistCard()
+                      else
+                        _buildSearchField(),
+
+                      const SizedBox(height: 20),
+
+                      // 4. Role Input
+                      _buildSectionLabel('4. Assign Role'),
+                      TextFormField(
+                        controller: _roleController,
+                        style: TextStyle(color: lightText),
+                        decoration: _inputDecoration('e.g. Producer, Vocalist',
+                            icon: Icons.work_outline),
+                        validator: (val) =>
+                            val!.trim().isEmpty ? 'Role is required' : null,
+                      ),
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: _suggestedRoles
+                            .map((role) => _buildRoleChip(role))
+                            .toList(),
                       ),
                     ],
                   ),
                 ),
-                const Icon(Icons.check_circle, color: Colors.green),
-              ],
-            ),
-          ),
-        ],
-
-        // Search results dropdown
-        if (_searchResults.isNotEmpty && _selectedArtist == null) ...[
-          const SizedBox(height: 8),
-          Container(
-            constraints: const BoxConstraints(maxHeight: 200),
-            decoration: BoxDecoration(
-              color: AppTheme.backgroundBlack,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: AppTheme.textGrey.withValues(alpha: 0.3),
               ),
             ),
-            child: ListView.builder(
+
+            // Footer Actions
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton(
+                onPressed: _isLoading ? null : _inviteCollaborator,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryBlue,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                  elevation: 0,
+                ),
+                child: _isLoading
+                    ? const SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(
+                            color: Colors.white, strokeWidth: 2))
+                    : const Text('Send Invitation',
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // --- WIDGETS ---
+
+  Widget _buildSectionLabel(String label) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Text(label,
+          style: TextStyle(
+              color: subText,
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 0.5)),
+    );
+  }
+
+  Widget _buildTypeOption(String label, IconData icon, String value) {
+    final isSelected = _entityType == value;
+    return InkWell(
+      onTap: () => setState(() {
+        _entityType = value;
+        _selectedEntityId = null;
+      }),
+      borderRadius: BorderRadius.circular(10),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          color: isSelected ? AppTheme.primaryBlue : inputBg,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+              color: isSelected ? AppTheme.primaryBlue : Colors.grey[800]!),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon,
+                size: 18, color: isSelected ? Colors.white : Colors.grey),
+            const SizedBox(width: 8),
+            Text(label,
+                style: TextStyle(
+                    color: isSelected ? Colors.white : Colors.grey,
+                    fontWeight: FontWeight.bold)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEntityDropdown() {
+    final items = _entityType == 'song' ? widget.songs : widget.albums;
+
+    if (items.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.orange.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.warning_amber, color: Colors.orange, size: 20),
+            const SizedBox(width: 8),
+            Expanded(
+                child: Text('No ${_entityType}s found.',
+                    style: const TextStyle(color: Colors.orange))),
+          ],
+        ),
+      );
+    }
+
+    return DropdownButtonFormField<int>(
+      initialValue: _selectedEntityId,
+      dropdownColor: const Color(0xFF303030),
+      style: TextStyle(color: lightText),
+      decoration: _inputDecoration('Select $_entityType...',
+          icon: _entityType == 'song' ? Icons.music_note : Icons.album),
+      items: items.map((item) {
+        // Handle dynamic typing for Song vs Album
+        final id = (item as dynamic).id;
+        final name = (item as dynamic).name;
+        return DropdownMenuItem<int>(
+          value: id,
+          child: Text(name, overflow: TextOverflow.ellipsis),
+        );
+      }).toList(),
+      onChanged: (val) => setState(() => _selectedEntityId = val),
+    );
+  }
+
+  Widget _buildSearchField() {
+    return Column(
+      children: [
+        TextFormField(
+          controller: _searchController,
+          style: TextStyle(color: lightText),
+          decoration: _inputDecoration('Search artist by name...',
+              icon: Icons.search,
+              suffix: _isSearching
+                  ? const Padding(
+                      padding: EdgeInsets.all(10),
+                      child: SizedBox(
+                          width: 10,
+                          height: 10,
+                          child: CircularProgressIndicator(strokeWidth: 2)))
+                  : null),
+          onChanged: _onSearchChanged,
+        ),
+        if (_searchResults.isNotEmpty)
+          Container(
+            margin: const EdgeInsets.only(top: 4),
+            constraints: const BoxConstraints(maxHeight: 180),
+            decoration: BoxDecoration(
+              color: const Color(0xFF303030),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.grey[800]!),
+            ),
+            child: ListView.separated(
               shrinkWrap: true,
+              padding: EdgeInsets.zero,
               itemCount: _searchResults.length,
+              separatorBuilder: (c, i) =>
+                  const Divider(height: 1, color: Colors.grey),
               itemBuilder: (context, index) {
                 final artist = _searchResults[index];
                 return ListTile(
+                  dense: true,
                   leading: CircleAvatar(
+                    radius: 14,
                     backgroundColor: AppTheme.primaryBlue,
-                    child: Text(
-                      artist.displayName.substring(0, 1).toUpperCase(),
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
+                    child: Text(artist.username[0].toUpperCase(),
+                        style:
+                            const TextStyle(color: Colors.white, fontSize: 10)),
                   ),
-                  title: Text(artist.displayName),
-                  subtitle: Text(
-                    '@${artist.username}',
-                    style: const TextStyle(color: AppTheme.textGrey),
-                  ),
-                  trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                  onTap: () {
-                    setState(() {
-                      _selectedArtist = artist;
-                      _searchController.text = artist.displayName;
-                      _searchResults = [];
-                    });
-                  },
+                  title:
+                      Text(artist.fullName, style: TextStyle(color: lightText)),
+                  subtitle: Text('@${artist.username}',
+                      style: TextStyle(color: subText)),
+                  onTap: () => setState(() {
+                    _selectedArtist = artist;
+                    _searchResults = [];
+                    _searchController.clear();
+                  }),
                 );
               },
             ),
-          ),
-        ],
-
-        // Helper text
-        if (_searchResults.isEmpty &&
-            _searchController.text.isNotEmpty &&
-            !_isSearching &&
-            _selectedArtist == null) ...[
-          const SizedBox(height: 8),
-          Text(
-            _searchController.text.length < 2
-                ? 'Escribe al menos 2 caracteres para buscar'
-                : 'No se encontraron artistas',
-            style: const TextStyle(
-              color: AppTheme.textGrey,
-              fontSize: 12,
-              fontStyle: FontStyle.italic,
-            ),
-          ),
-        ],
+          )
       ],
     );
   }
 
-  Widget _buildSongDropdown() {
-    if (widget.songs.isEmpty) {
-      return Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: AppTheme.backgroundBlack,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: AppTheme.textGrey.withValues(alpha: 0.3)),
-        ),
-        child: const Row(
-          children: [
-            Icon(Icons.info_outline, color: AppTheme.textGrey),
-            SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                'No tienes canciones publicadas',
-                style: TextStyle(color: AppTheme.textGrey),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return DropdownButtonFormField<int>(
-      initialValue: _selectedEntityId,
-      decoration: const InputDecoration(
-        hintText: 'Seleccionar canción',
-        prefixIcon: Icon(Icons.music_note),
-        border: OutlineInputBorder(),
-        filled: true,
-        fillColor: AppTheme.backgroundBlack,
+  Widget _buildSelectedArtistCard() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppTheme.primaryBlue.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppTheme.primaryBlue.withValues(alpha: 0.5)),
       ),
-      items: widget.songs.map((song) {
-        return DropdownMenuItem(
-          value: song.id,
-          child: Text(
-            song.name,
-            overflow: TextOverflow.ellipsis,
+      child: Row(
+        children: [
+          CircleAvatar(
+            backgroundColor: AppTheme.primaryBlue,
+            child: const Icon(Icons.person, color: Colors.white),
           ),
-        );
-      }).toList(),
-      onChanged: (value) {
-        setState(() => _selectedEntityId = value);
-      },
-      validator: (value) {
-        if (value == null) {
-          return 'Por favor selecciona una canción';
-        }
-        return null;
-      },
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(_selectedArtist!.fullName,
+                    style: TextStyle(
+                        color: lightText, fontWeight: FontWeight.bold)),
+                Text('@${_selectedArtist!.username}',
+                    style: TextStyle(color: subText, fontSize: 12)),
+              ],
+            ),
+          ),
+          IconButton(
+            onPressed: () => setState(() => _selectedArtist = null),
+            icon: const Icon(Icons.close, color: Colors.redAccent),
+            tooltip: 'Remove',
+          )
+        ],
+      ),
     );
   }
 
-  Widget _buildAlbumDropdown() {
-    if (widget.albums.isEmpty) {
-      return Container(
-        padding: const EdgeInsets.all(16),
+  Widget _buildRoleChip(String label) {
+    return InkWell(
+      onTap: () => _roleController.text = label,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: AppTheme.backgroundBlack,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: AppTheme.textGrey.withValues(alpha: 0.3)),
+          color: inputBg,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.grey[700]!),
         ),
-        child: const Row(
-          children: [
-            Icon(Icons.info_outline, color: AppTheme.textGrey),
-            SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                'No tienes álbumes publicados',
-                style: TextStyle(color: AppTheme.textGrey),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return DropdownButtonFormField<int>(
-      initialValue: _selectedEntityId,
-      decoration: const InputDecoration(
-        hintText: 'Selecciona un álbum',
-        prefixIcon: Icon(Icons.album),
-        border: OutlineInputBorder(),
-        filled: true,
-        fillColor: AppTheme.backgroundBlack,
+        child: Text(label, style: TextStyle(color: subText, fontSize: 12)),
       ),
-      items: widget.albums.map((album) {
-        return DropdownMenuItem(
-          value: album.id,
-          child: Text(
-            album.name,
-            overflow: TextOverflow.ellipsis,
-          ),
-        );
-      }).toList(),
-      onChanged: (value) {
-        setState(() => _selectedEntityId = value);
-      },
-      validator: (value) {
-        if (value == null) {
-          return 'Por favor selecciona un álbum';
-        }
-        return null;
-      },
+    );
+  }
+
+  InputDecoration _inputDecoration(String hint,
+      {IconData? icon, Widget? suffix}) {
+    return InputDecoration(
+      hintText: hint,
+      hintStyle: TextStyle(color: Colors.grey[600]),
+      prefixIcon:
+          icon != null ? Icon(icon, color: Colors.grey[600], size: 20) : null,
+      suffixIcon: suffix,
+      filled: true,
+      fillColor: inputBg,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+      enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(color: Colors.grey[800]!)),
+      focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: AppTheme.primaryBlue)),
     );
   }
 }
