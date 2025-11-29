@@ -359,16 +359,31 @@ class _AdminSongsScreenState extends State<AdminSongsScreen> {
         children: [
           Icon(icon, color: color, size: 20),
           const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(value,
+          // 1. Usamos Expanded para restringir el ancho de la columna
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  value,
+                  // 2. Agregamos estas dos propiedades
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
                   style: TextStyle(
-                      color: lightText,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16)),
-              Text(label, style: TextStyle(color: subText, fontSize: 11)),
-            ],
+                    color: lightText,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+                Text(
+                  label,
+                  // 2. Lo mismo para el label si quieres que también tenga ...
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                  style: TextStyle(color: subText, fontSize: 11),
+                ),
+              ],
+            ),
           )
         ],
       ),

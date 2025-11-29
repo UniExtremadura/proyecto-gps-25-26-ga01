@@ -179,23 +179,32 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
             child: Icon(icon, color: color, size: 24),
           ),
           const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                value,
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: lightText,
+          // 1. Envolvemos la columna en Expanded
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  value,
+                  // 2. Propiedades para cortar el texto con ...
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: lightText,
+                  ),
                 ),
-              ),
-              Text(
-                title,
-                style: TextStyle(fontSize: 12, color: subText),
-              ),
-            ],
+                Text(
+                  title,
+                  // 3. Propiedades para el subtítulo también
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                  style: TextStyle(fontSize: 12, color: subText),
+                ),
+              ],
+            ),
           ),
         ],
       ),

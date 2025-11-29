@@ -141,7 +141,7 @@ class AdminStatsScreen extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildSectionTitle('Crecimiento de Usuarios'),
+                      _buildSectionTitle('Usuarios'),
                       _buildGraphCard([
                         _buildBarStat('Activos', 987, 1200, Colors.green,
                             Icons.check_circle),
@@ -336,12 +336,18 @@ class AdminStatsScreen extends StatelessWidget {
             children: [
               Icon(icon, size: 16, color: subText),
               const SizedBox(width: 8),
-              Text(label,
+              Expanded(
+                child: Text(
+                  label,
+                  maxLines: 1, // Aseguramos una sola línea
+                  overflow: TextOverflow.ellipsis, // Pone "..." si no cabe
                   style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
-                      color: lightText.withValues(alpha: 0.9))),
-              const Spacer(),
+                      color: lightText.withValues(alpha: 0.9)),
+                ),
+              ),
+              const SizedBox(width: 8), // Un pequeño espacio antes del valor
               Text(value.toString(),
                   style: TextStyle(
                       fontSize: 12, fontWeight: FontWeight.bold, color: color)),
@@ -352,7 +358,6 @@ class AdminStatsScreen extends StatelessWidget {
             borderRadius: BorderRadius.circular(4),
             child: LinearProgressIndicator(
               value: value / total,
-              // Fondo de la barra más oscuro
               backgroundColor: Colors.grey[800],
               valueColor: AlwaysStoppedAnimation<Color>(color),
               minHeight: 6,
