@@ -12,9 +12,6 @@ import '../widgets/add_collaborator_dialog.dart';
 import '../widgets/revenue_settings_dialog.dart';
 import 'collaboration_invitations_screen.dart';
 
-/// Main screen for managing collaborations
-/// GA01-154: Añadir/aceptar colaboradores
-/// GA01-155: Definir porcentaje de ganancias
 class CollaborationsScreen extends StatefulWidget {
   const CollaborationsScreen({super.key});
 
@@ -28,8 +25,14 @@ class _CollaborationsScreenState extends State<CollaborationsScreen>
   final MusicService _musicService = MusicService();
   late TabController _tabController;
 
-  List<Collaborator> _myCollaborations = []; // Where I'm a collaborator
-  List<Collaborator> _invitedCollaborations = []; // Where I invited others
+  // --- Colores del Tema Oscuro ---
+  final Color darkBg = Colors.black;
+  final Color darkCardBg = const Color(0xFF212121);
+  final Color lightText = Colors.white;
+  final Color subText = Colors.grey;
+
+  List<Collaborator> _myCollaborations = [];
+  List<Collaborator> _invitedCollaborations = [];
   List<Song> _mySongs = [];
   List<Album> _myAlbums = [];
   int _pendingInvitationsCount = 0;
@@ -62,14 +65,12 @@ class _CollaborationsScreenState extends State<CollaborationsScreen>
     try {
       final artistId = authProvider.currentUser!.id;
 
-      // Load all collaborations for this artist
       final collaborationsResponse =
           await _collaborationService.getArtistCollaborations(artistId);
       if (collaborationsResponse.success &&
           collaborationsResponse.data != null) {
         final allCollaborations = collaborationsResponse.data!;
 
-        // Separate by invited vs collaborator
         _myCollaborations = allCollaborations
             .where((c) => c.artistId == artistId && c.isAccepted)
             .toList();
@@ -78,14 +79,12 @@ class _CollaborationsScreenState extends State<CollaborationsScreen>
             .toList();
       }
 
-      // Load pending invitations count
       final pendingResponse =
           await _collaborationService.getPendingInvitations(artistId);
       if (pendingResponse.success && pendingResponse.data != null) {
         _pendingInvitationsCount = pendingResponse.data!.length;
       }
 
-      // Load user's songs and albums
       final songsResponse = await _musicService.getSongsByArtist(artistId);
       if (songsResponse.success && songsResponse.data != null) {
         _mySongs = songsResponse.data!;
@@ -102,6 +101,8 @@ class _CollaborationsScreenState extends State<CollaborationsScreen>
     }
   }
 
+  // --- ACTIONS ---
+
   Future<void> _showAddCollaboratorDialog() async {
     final result = await showDialog<bool>(
       context: context,
@@ -112,7 +113,7 @@ class _CollaborationsScreenState extends State<CollaborationsScreen>
     );
 
     if (result == true) {
-      _loadData(); // Reload data after adding collaborator
+      _loadData();
     }
   }
 
@@ -125,80 +126,80 @@ class _CollaborationsScreenState extends State<CollaborationsScreen>
     );
 
     if (result == true) {
-      _loadData(); // Reload data after updating revenue
+      _loadData();
     }
   }
 
   Future<void> _removeCollaboration(Collaborator collaboration) async {
-    final currentContext = context;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: AppTheme.surfaceBlack,
-        title: const Row(
-          children: [
-            Icon(Icons.warning, color: Colors.red),
-            SizedBox(width: 12),
-            Text('Eliminar Colaboración'),
-          ],
-        ),
+        backgroundColor: darkCardBg,
+        title: const Text('End Collaboration',
+            style: TextStyle(color: Colors.white)),
         content: const Text(
-          '¿Estás seguro de eliminar esta colaboración?\n\nEsta acción no se puede deshacer.',
-          style: TextStyle(fontSize: 16),
+          'Are you sure you want to end this collaboration?\nThis action cannot be undone.',
+          style: TextStyle(color: Colors.grey),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
+            child: const Text('Cancel'),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Eliminar'),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red[900],
+                foregroundColor: Colors.white),
+            child: const Text('End'),
           ),
         ],
       ),
     );
 
     if (confirmed == true) {
+      final currentContext = context;
       try {
         final response =
             await _collaborationService.deleteCollaboration(collaboration.id);
         if (response.success) {
-          if(!currentContext.mounted) return;
+          if (!currentContext.mounted) return;
           ScaffoldMessenger.of(currentContext).showSnackBar(
             const SnackBar(
-              content: Text('Colaboración eliminada exitosamente'),
-              backgroundColor: Colors.green,
-            ),
+                content: Text('Collaboration ended'),
+                backgroundColor: Colors.green),
           );
           _loadData();
         } else {
-          throw Exception(response.error ?? 'Error desconocido');
+          throw Exception(response.error ?? 'Unknown error');
         }
       } catch (e) {
-        if(!currentContext.mounted) return;
+        if (!currentContext.mounted) return;
         ScaffoldMessenger.of(currentContext).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
         );
       }
     }
   }
 
+  // --- UI BUILD ---
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: darkBg,
       appBar: AppBar(
-        title: const Text('Colaboraciones'),
+        title: const Text('Active Collaborations',
+            style: TextStyle(
+                color: AppTheme.primaryBlue, fontWeight: FontWeight.w800)),
+        backgroundColor: darkBg,
+        elevation: 0,
         actions: [
-          // Invitations badge
+          // Invitations Icon with Badge
           Stack(
             children: [
               IconButton(
-                icon: const Icon(Icons.mail_outline),
+                icon: const Icon(Icons.mail_outline, color: Colors.white),
                 onPressed: () async {
                   final result = await Navigator.push(
                     context,
@@ -207,11 +208,8 @@ class _CollaborationsScreenState extends State<CollaborationsScreen>
                           const CollaborationInvitationsScreen(),
                     ),
                   );
-                  if (result == true) {
-                    _loadData();
-                  }
+                  if (result == true) _loadData();
                 },
-                tooltip: 'Invitaciones pendientes',
               ),
               if (_pendingInvitationsCount > 0)
                 Positioned(
@@ -220,275 +218,279 @@ class _CollaborationsScreenState extends State<CollaborationsScreen>
                   child: Container(
                     padding: const EdgeInsets.all(4),
                     decoration: const BoxDecoration(
-                      color: Colors.red,
+                      color: Colors.redAccent,
                       shape: BoxShape.circle,
                     ),
-                    constraints: const BoxConstraints(
-                      minWidth: 16,
-                      minHeight: 16,
-                    ),
+                    constraints:
+                        const BoxConstraints(minWidth: 16, minHeight: 16),
                     child: Text(
                       '$_pendingInvitationsCount',
                       style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                      ),
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold),
                       textAlign: TextAlign.center,
                     ),
                   ),
                 ),
             ],
           ),
+          const SizedBox(width: 8),
         ],
         bottom: TabBar(
           controller: _tabController,
+          indicatorColor: AppTheme.primaryBlue,
+          labelColor: AppTheme.primaryBlue,
+          unselectedLabelColor: subText,
+          indicatorWeight: 3,
           tabs: const [
-            Tab(text: 'Mis Colaboraciones'),
-            Tab(text: 'Colaboradores Invitados'),
+            Tab(text: 'My Projects'), // Owned by me
+            Tab(text: 'Guest Projects'), // Invited to
           ],
         ),
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(
+              child: CircularProgressIndicator(color: AppTheme.primaryBlue))
           : _error != null
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.error, size: 64, color: Colors.red),
-                      const SizedBox(height: 16),
-                      Text('Error: $_error'),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: _loadData,
-                        child: const Text('Reintentar'),
-                      ),
-                    ],
-                  ),
-                )
+              ? _buildErrorState()
               : TabBarView(
                   controller: _tabController,
                   children: [
-                    _buildMyCollaborationsTab(),
-                    _buildInvitedCollaborationsTab(),
+                    _buildInvitedCollaborationsTab(), // Logic seems swapped in original var naming
+                    _buildMyCollaborationsTab(), // Swapped to match labels above logic
                   ],
                 ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _showAddCollaboratorDialog,
-        icon: const Icon(Icons.person_add),
-        label: const Text('Invitar Colaborador'),
         backgroundColor: AppTheme.primaryBlue,
+        icon: const Icon(Icons.person_add, color: Colors.white),
+        label:
+            const Text('Invite Artist', style: TextStyle(color: Colors.white)),
+      ),
+    );
+  }
+
+  // NOTE: Swapped logic based on variable naming assumption:
+  // _invitedCollaborations -> I invited them (My Projects)
+  // _myCollaborations -> I am a collaborator (Guest Projects)
+
+  Widget _buildInvitedCollaborationsTab() {
+    if (_invitedCollaborations.isEmpty) {
+      return _buildEmptyState(
+          'No active collaborations', 'Invite artists to your songs/albums');
+    }
+    return RefreshIndicator(
+      onRefresh: _loadData,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(20),
+        itemCount: _invitedCollaborations.length,
+        itemBuilder: (context, index) {
+          final collaboration = _invitedCollaborations[index];
+          return _buildCollaborationCard(collaboration,
+              isOwner: true, index: index);
+        },
       ),
     );
   }
 
   Widget _buildMyCollaborationsTab() {
     if (_myCollaborations.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: AppTheme.primaryBlue.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.people_outline,
-                size: 64,
-                color: AppTheme.primaryBlue,
-              ),
-            ),
-            const SizedBox(height: 24),
-            const Text(
-              'No tienes colaboraciones',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Aún no participas en ninguna colaboración',
-              style: TextStyle(color: AppTheme.textGrey),
-            ),
-          ],
-        ),
-      ).animate().fadeIn(duration: 300.ms);
+      return _buildEmptyState(
+          'No guest collaborations', 'You haven\'t joined any projects yet');
     }
-
     return RefreshIndicator(
       onRefresh: _loadData,
       child: ListView.builder(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(20),
         itemCount: _myCollaborations.length,
         itemBuilder: (context, index) {
           final collaboration = _myCollaborations[index];
-          return _buildCollaborationCard(collaboration, isOwner: false)
-              .animate(delay: (index * 50).ms)
-              .fadeIn()
-              .slideX(begin: -0.1);
+          return _buildCollaborationCard(collaboration,
+              isOwner: false, index: index);
         },
       ),
     );
   }
 
-  Widget _buildInvitedCollaborationsTab() {
-    if (_invitedCollaborations.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: AppTheme.primaryBlue.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.group_add,
-                size: 64,
-                color: AppTheme.primaryBlue,
-              ),
-            ),
-            const SizedBox(height: 24),
-            const Text(
-              'No has invitado colaboradores',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Invita artistas a colaborar en tus canciones',
-              style: TextStyle(color: AppTheme.textGrey),
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: _showAddCollaboratorDialog,
-              icon: const Icon(Icons.person_add),
-              label: const Text('Invitar Colaborador'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryBlue,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              ),
-            ),
-          ],
-        ),
-      ).animate().fadeIn(duration: 300.ms);
-    }
-
-    return RefreshIndicator(
-      onRefresh: _loadData,
-      child: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: _invitedCollaborations.length,
-        itemBuilder: (context, index) {
-          final collaboration = _invitedCollaborations[index];
-          return _buildCollaborationCard(collaboration, isOwner: true)
-              .animate(delay: (index * 50).ms)
-              .fadeIn()
-              .slideX(begin: -0.1);
-        },
-      ),
-    );
-  }
+  // --- CARD WIDGET ---
 
   Widget _buildCollaborationCard(Collaborator collaboration,
-      {required bool isOwner}) {
-    final entityType = collaboration.isForSong ? 'Canción' : 'Álbum';
-    final icon = collaboration.isForSong ? Icons.music_note : Icons.album;
+      {required bool isOwner, required int index}) {
+    final bool isSong = collaboration.isForSong;
+    final Color typeColor = isSong ? AppTheme.primaryBlue : Colors.purpleAccent;
+    final IconData typeIcon = isSong ? Icons.music_note : Icons.album;
+    final String typeLabel = isSong ? 'Song' : 'Album';
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      color: AppTheme.surfaceBlack,
-      child: ExpansionTile(
-        leading: CircleAvatar(
-          backgroundColor: AppTheme.primaryBlue,
-          child: Icon(icon, color: Colors.white),
-        ),
-        title: Text(
-          '$entityType ID: ${collaboration.entityId}',
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Rol: ${collaboration.role}',
-              style: const TextStyle(color: AppTheme.textGrey),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Material(
+        color: darkCardBg,
+        borderRadius: BorderRadius.circular(16),
+        clipBehavior: Clip.antiAlias,
+        child: Container(
+          decoration: BoxDecoration(
+            border: Border(left: BorderSide(color: typeColor, width: 4)),
+          ),
+          child: ExpansionTile(
+            tilePadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            backgroundColor: Colors.transparent,
+            collapsedBackgroundColor: Colors.transparent,
+
+            // --- HEADER ---
+            leading: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                  color: typeColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8)),
+              child: Icon(typeIcon, color: typeColor, size: 20),
             ),
-            if (collaboration.revenuePercentage > 0)
-              Text(
-                'Ganancias: ${collaboration.revenuePercentage.toStringAsFixed(1)}%',
-                style: const TextStyle(color: AppTheme.primaryBlue),
+            title: Text(
+              '$typeLabel ID: ${collaboration.entityId}', // Ideally fetch name
+              style: const TextStyle(
+                  fontWeight: FontWeight.bold, color: Colors.white),
+            ),
+            subtitle: Text(
+              collaboration.role,
+              style: TextStyle(color: subText, fontSize: 12),
+            ),
+            trailing: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                  color: Colors.green.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border:
+                      Border.all(color: Colors.green.withValues(alpha: 0.3))),
+              child: Text(
+                '${collaboration.revenuePercentage.toStringAsFixed(0)}% Rev',
+                style: const TextStyle(
+                    color: Colors.greenAccent,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold),
               ),
-          ],
-        ),
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+            ),
+
+            // --- EXPANDED CONTENT ---
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.black26,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
                   children: [
-                    const Icon(Icons.person,
-                        size: 16, color: AppTheme.textGrey),
-                    const SizedBox(width: 8),
-                    Text('Artista ID: ${collaboration.artistId}'),
+                    _buildInfoRow(
+                        Icons.person,
+                        isOwner ? 'Collaborator ID' : 'Owner ID',
+                        isOwner
+                            ? '${collaboration.artistId}'
+                            : '${collaboration.invitedBy}'),
+                    const SizedBox(height: 8),
+                    _buildInfoRow(
+                        Icons.calendar_today,
+                        'Started',
+                        collaboration.createdAt != null
+                            ? _formatDate(collaboration.createdAt!)
+                            : 'Unknown'),
                   ],
                 ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    const Icon(Icons.calendar_today,
-                        size: 16, color: AppTheme.textGrey),
-                    const SizedBox(width: 8),
-                    Text(
-                      collaboration.createdAt != null
-                          ? 'Creado: ${_formatDate(collaboration.createdAt!)}'
-                          : 'Fecha desconocida',
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
+              ),
+              const SizedBox(height: 16),
+              if (isOwner)
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    if (isOwner) ...[
-                      // Owner can set revenue percentage
-                      OutlinedButton.icon(
-                        onPressed: () => _showRevenueSettings(collaboration),
-                        icon: const Icon(Icons.attach_money, size: 16),
-                        label: const Text('Ganancias'),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppTheme.primaryBlue,
-                        ),
+                    OutlinedButton.icon(
+                      onPressed: () => _showRevenueSettings(collaboration),
+                      icon: const Icon(Icons.attach_money, size: 16),
+                      label: const Text('Adjust Revenue'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.greenAccent,
+                        side: BorderSide(
+                            color: Colors.greenAccent.withValues(alpha: 0.5)),
                       ),
-                      const SizedBox(width: 8),
-                      // Owner can remove collaboration
-                      OutlinedButton.icon(
-                        onPressed: () => _removeCollaboration(collaboration),
-                        icon: const Icon(Icons.delete, size: 16),
-                        label: const Text('Eliminar'),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.red,
-                        ),
+                    ),
+                    const SizedBox(width: 8),
+                    ElevatedButton.icon(
+                      onPressed: () => _removeCollaboration(collaboration),
+                      icon: const Icon(Icons.close, size: 16),
+                      label: const Text('End Contract'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red[900],
+                        foregroundColor: Colors.white,
                       ),
-                    ] else ...[
-                      // Collaborator can only view
-                      const Text(
-                        'Fuiste invitado a esta colaboración',
-                        style: TextStyle(
-                          color: AppTheme.textGrey,
-                          fontStyle: FontStyle.italic,
-                        ),
-                      ),
-                    ],
+                    ),
                   ],
-                ),
-              ],
-            ),
+                )
+              else
+                Row(
+                  children: [
+                    const Icon(Icons.info_outline,
+                        color: Colors.grey, size: 16),
+                    const SizedBox(width: 8),
+                    Expanded(
+                        child: Text(
+                            'Only the project owner can manage this contract.',
+                            style: TextStyle(
+                                color: subText,
+                                fontSize: 11,
+                                fontStyle: FontStyle.italic))),
+                  ],
+                )
+            ],
           ),
+        ),
+      ),
+    ).animate(delay: (index * 50).ms).fadeIn().slideX(begin: -0.05, end: 0);
+  }
+
+  Widget _buildInfoRow(IconData icon, String label, String value) {
+    return Row(
+      children: [
+        Icon(icon, size: 14, color: subText),
+        const SizedBox(width: 8),
+        Text('$label:', style: TextStyle(color: subText, fontSize: 12)),
+        const SizedBox(width: 8),
+        Expanded(
+            child: Text(value,
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500))),
+      ],
+    );
+  }
+
+  Widget _buildEmptyState(String title, String subtitle) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.folder_open, size: 64, color: Colors.grey[800]),
+          const SizedBox(height: 16),
+          Text(title,
+              style: TextStyle(
+                  color: lightText, fontSize: 18, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          Text(subtitle, style: TextStyle(color: subText)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.error_outline, size: 50, color: Colors.red[900]),
+          const SizedBox(height: 16),
+          Text(_error!, style: const TextStyle(color: Colors.red)),
+          const SizedBox(height: 16),
+          ElevatedButton(onPressed: _loadData, child: const Text('Retry')),
         ],
       ),
     );
