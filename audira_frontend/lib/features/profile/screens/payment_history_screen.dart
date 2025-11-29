@@ -156,10 +156,11 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
                             color: AppTheme.textGrey,
                           ),
                           const SizedBox(height: 16),
-                          Text(
+                          const Text(
                             'No tienes pagos registrados',
-                            style: Theme.of(context).textTheme.bodyLarge,
+                            style: TextStyle(color: Colors.white),
                           ),
+                          const SizedBox(height: 16),
                         ],
                       ),
                     )
@@ -338,11 +339,9 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
                 ),
               ),
               const SizedBox(height: 24),
-              Text(
+              const Text(
                 'Detalles del Pago',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24),
               ),
               const SizedBox(height: 24),
               Expanded(
@@ -469,9 +468,9 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
+        color: AppTheme.cardBlack,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: AppTheme.surfaceBlack),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -484,7 +483,7 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
               children: [
                 Text(
                   label,
-                  style: TextStyle(
+                  style: const TextStyle(
                     color: AppTheme.textGrey,
                     fontSize: 12,
                     fontWeight: FontWeight.w500,

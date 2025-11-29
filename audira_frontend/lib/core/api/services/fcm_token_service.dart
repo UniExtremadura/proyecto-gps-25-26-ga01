@@ -12,19 +12,20 @@ class FcmTokenService {
   /// Register FCM token for a user
   Future<ApiResponse<void>> registerToken(int userId, String fcmToken) async {
     try {
-      debugPrint('Registering FCM token for user $userId');
+      debugPrint('Registrando token FCM para ek usuario $userId');
 
       final response = await _apiClient.post(
         '/api/notifications/fcm/register',
         body: {
           'userId': userId,
           'token': fcmToken,
-          'platform': defaultTargetPlatform == TargetPlatform.iOS ? 'IOS' : 'ANDROID',
+          'platform':
+              defaultTargetPlatform == TargetPlatform.iOS ? 'IOS' : 'ANDROID',
         },
       );
 
       if (response.success) {
-        debugPrint('FCM token registered successfully');
+        debugPrint('El token FCM se ha registrado correctamente');
         return ApiResponse(
           success: true,
           data: null,
@@ -34,11 +35,11 @@ class FcmTokenService {
 
       return ApiResponse(
         success: false,
-        error: response.error ?? 'Failed to register FCM token',
+        error: response.error ?? 'Fallo al registrar el token FCM',
         statusCode: response.statusCode,
       );
     } catch (e) {
-      debugPrint('Error registering FCM token: $e');
+      debugPrint('Error al registrar el token FCM: $e');
       return ApiResponse(success: false, error: e.toString());
     }
   }
@@ -46,7 +47,7 @@ class FcmTokenService {
   /// Delete FCM token for a user (when logging out)
   Future<ApiResponse<void>> deleteToken(int userId, String fcmToken) async {
     try {
-      debugPrint('Deleting FCM token for user $userId');
+      debugPrint('Borrando el token FCM del usuario $userId');
 
       final response = await _apiClient.delete(
         '/api/notifications/fcm/unregister',
@@ -57,7 +58,7 @@ class FcmTokenService {
       );
 
       if (response.success) {
-        debugPrint('FCM token deleted successfully');
+        debugPrint('El token FCM se ha borrado correctamente');
         return ApiResponse(
           success: true,
           data: null,
@@ -67,19 +68,20 @@ class FcmTokenService {
 
       return ApiResponse(
         success: false,
-        error: response.error ?? 'Failed to delete FCM token',
+        error: response.error ?? 'Fallo al borrar el token FCM',
         statusCode: response.statusCode,
       );
     } catch (e) {
-      debugPrint('Error deleting FCM token: $e');
+      debugPrint('Error al borrar el token FCM: $e');
       return ApiResponse(success: false, error: e.toString());
     }
   }
 
   /// Update FCM token when it refreshes
-  Future<ApiResponse<void>> updateToken(int userId, String oldToken, String newToken) async {
+  Future<ApiResponse<void>> updateToken(
+      int userId, String oldToken, String newToken) async {
     try {
-      debugPrint('Updating FCM token for user $userId');
+      debugPrint('Actualizando el tocken FCM para el usuario $userId');
 
       // Delete old token
       await deleteToken(userId, oldToken);
@@ -87,7 +89,7 @@ class FcmTokenService {
       // Register new token
       return await registerToken(userId, newToken);
     } catch (e) {
-      debugPrint('Error updating FCM token: $e');
+      debugPrint('Error actualizando el token FCM: $e');
       return ApiResponse(success: false, error: e.toString());
     }
   }

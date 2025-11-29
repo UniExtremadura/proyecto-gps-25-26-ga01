@@ -35,7 +35,7 @@ class _AdminFaqsScreenState extends State<AdminFaqsScreen> {
       if (response.success && response.data != null) {
         setState(() => _faqs = response.data!);
       } else {
-        setState(() => _error = response.error ?? 'Failed to load FAQs');
+        setState(() => _error = response.error ?? 'Fallo al cargar las FAQs');
       }
     } catch (e) {
       setState(() => _error = e.toString());
@@ -48,17 +48,17 @@ class _AdminFaqsScreenState extends State<AdminFaqsScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete FAQ'),
-        content: const Text('Are you sure you want to delete this FAQ?'),
+        title: const Text('Borrar FAQs'),
+        content: const Text('¿Estás seguro de que quieres eliminar esta FAQ?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: const Text('Cancelar'),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Delete'),
+            child: const Text('Borrar'),
           ),
         ],
       ),
@@ -68,21 +68,21 @@ class _AdminFaqsScreenState extends State<AdminFaqsScreen> {
       final currentContext = context;
       try {
         final response = await _faqService.deleteFaq(id);
-        if(!currentContext.mounted) return;
+        if (!currentContext.mounted) return;
         if (response.success) {
-          if(!currentContext.mounted) return;
+          if (!currentContext.mounted) return;
           ScaffoldMessenger.of(currentContext).showSnackBar(
-            const SnackBar(content: Text('FAQ deleted successfully')),
+            const SnackBar(content: Text('FAQ borrada correctamente')),
           );
           _loadFaqs();
         } else {
-          if(!currentContext.mounted) return;
+          if (!currentContext.mounted) return;
           ScaffoldMessenger.of(currentContext).showSnackBar(
-            SnackBar(content: Text(response.error ?? 'Failed to delete FAQ')),
+            SnackBar(content: Text(response.error ?? 'Fallo al borrar la FAQ')),
           );
         }
       } catch (e) {
-        if(!currentContext.mounted) return;
+        if (!currentContext.mounted) return;
         ScaffoldMessenger.of(currentContext).showSnackBar(
           SnackBar(content: Text('Error: $e')),
         );
@@ -94,7 +94,7 @@ class _AdminFaqsScreenState extends State<AdminFaqsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Manage FAQs'),
+        title: const Text('Gestionar FAQs'),
         actions: [
           IconButton(
             icon: const Icon(Icons.add),
@@ -115,13 +115,13 @@ class _AdminFaqsScreenState extends State<AdminFaqsScreen> {
                       Text(_error!),
                       ElevatedButton(
                         onPressed: _loadFaqs,
-                        child: const Text('Retry'),
+                        child: const Text('Volver a intentar'),
                       ),
                     ],
                   ),
                 )
               : _faqs.isEmpty
-                  ? const Center(child: Text('No FAQs found'))
+                  ? const Center(child: Text('No se encontraron FAQs'))
                   : ListView.builder(
                       padding: const EdgeInsets.all(16),
                       itemCount: _faqs.length,
@@ -139,12 +139,12 @@ class _AdminFaqsScreenState extends State<AdminFaqsScreen> {
                               style:
                                   const TextStyle(fontWeight: FontWeight.bold),
                             ),
-                            subtitle: Text('Category: ${faq.category}'),
+                            subtitle: Text('Categoría: ${faq.category}'),
                             trailing: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Text(
-                                  'Views: ${faq.viewCount}',
+                                  'Vistas: ${faq.viewCount}',
                                   style: const TextStyle(fontSize: 12),
                                 ),
                                 const SizedBox(width: 8),
@@ -156,7 +156,7 @@ class _AdminFaqsScreenState extends State<AdminFaqsScreen> {
                                         children: [
                                           Icon(Icons.edit),
                                           SizedBox(width: 8),
-                                          Text('Edit'),
+                                          Text('Editar'),
                                         ],
                                       ),
                                     ),
@@ -166,7 +166,7 @@ class _AdminFaqsScreenState extends State<AdminFaqsScreen> {
                                         children: [
                                           Icon(Icons.delete, color: Colors.red),
                                           SizedBox(width: 8),
-                                          Text('Delete'),
+                                          Text('Borrar'),
                                         ],
                                       ),
                                     ),
@@ -188,7 +188,7 @@ class _AdminFaqsScreenState extends State<AdminFaqsScreen> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     const Text(
-                                      'Answer:',
+                                      'Respuesta:',
                                       style: TextStyle(
                                         fontWeight: FontWeight.bold,
                                         color: AppTheme.primaryBlue,
@@ -217,7 +217,7 @@ class _AdminFaqsScreenState extends State<AdminFaqsScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(isEditing ? 'Edit FAQ' : 'Add New FAQ'),
+        title: Text(isEditing ? 'Editar FAQ' : 'Añadir nueva FAQ'),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -225,7 +225,7 @@ class _AdminFaqsScreenState extends State<AdminFaqsScreen> {
               TextField(
                 controller: questionController,
                 decoration: const InputDecoration(
-                  labelText: 'Question',
+                  labelText: 'Pregunta',
                   border: OutlineInputBorder(),
                 ),
                 maxLines: 2,
@@ -234,7 +234,7 @@ class _AdminFaqsScreenState extends State<AdminFaqsScreen> {
               TextField(
                 controller: answerController,
                 decoration: const InputDecoration(
-                  labelText: 'Answer',
+                  labelText: 'Respuesta',
                   border: OutlineInputBorder(),
                 ),
                 maxLines: 4,
@@ -243,7 +243,7 @@ class _AdminFaqsScreenState extends State<AdminFaqsScreen> {
               TextField(
                 controller: categoryController,
                 decoration: const InputDecoration(
-                  labelText: 'Category',
+                  labelText: 'Categoría',
                   border: OutlineInputBorder(),
                 ),
               ),
@@ -253,7 +253,7 @@ class _AdminFaqsScreenState extends State<AdminFaqsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: const Text('Cancelar'),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -264,7 +264,7 @@ class _AdminFaqsScreenState extends State<AdminFaqsScreen> {
               if (question.isEmpty || answer.isEmpty) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                      content: Text('Question and answer are required')),
+                      content: Text('Pregunta y respuesta necesarias')),
                 );
                 return;
               }
@@ -286,25 +286,25 @@ class _AdminFaqsScreenState extends State<AdminFaqsScreen> {
                     category: category,
                   );
                 }
-                if(!currentContext.mounted) return;
+                if (!currentContext.mounted) return;
                 ScaffoldMessenger.of(currentContext).showSnackBar(
                   SnackBar(
                     content: Text(
                       isEditing
-                          ? 'FAQ updated successfully'
-                          : 'FAQ created successfully',
+                          ? 'FAQ actualizada correctamente'
+                          : 'FAQ creada correctamente',
                     ),
                   ),
                 );
                 _loadFaqs();
               } catch (e) {
-                if(!currentContext.mounted) return;
+                if (!currentContext.mounted) return;
                 ScaffoldMessenger.of(currentContext).showSnackBar(
                   SnackBar(content: Text('Error: $e')),
                 );
               }
             },
-            child: Text(isEditing ? 'Update' : 'Create'),
+            child: Text(isEditing ? 'Actualizar' : 'Crear'),
           ),
         ],
       ),

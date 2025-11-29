@@ -48,7 +48,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
           _applyFilters();
         });
       } else {
-        setState(() => _error = response.error ?? 'Failed to load users');
+        setState(() => _error = response.error ?? 'Error al cargar usuarios');
       }
     } catch (e) {
       setState(() => _error = e.toString());
@@ -84,7 +84,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     final selectedRole = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Change User Role'),
+        title: const Text('Cambiar Rol de Usuario'),
         content: RadioGroup<String>(
           groupValue: user.role,
           onChanged: (value) => Navigator.pop(context, value),
@@ -125,7 +125,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
         if (response.success) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('User role changed to $selectedRole'),
+              content: Text('Rol de usuario cambiado a $selectedRole'),
               backgroundColor: Colors.green,
             ),
           );
@@ -152,20 +152,20 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
   }
 
   Future<void> _toggleUserStatus(User user) async {
-    final action = user.isActive ? 'suspend' : 'activate';
+    final action = user.isActive ? 'suspender' : 'activar';
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('${action.toUpperCase()} User'),
+        title: Text('${action.toUpperCase()} Usuario'),
         content: Text(
           user.isActive
-              ? 'Are you sure you want to suspend this user? They will not be able to access the platform.'
-              : 'Are you sure you want to activate this user? They will regain access to the platform.',
+              ? '¿Estás seguro de que quieres suspender a este usuario? No podrá acceder a la plataforma.'
+              : '¿Estás seguro de que quieres activar a este usuario? Recuperará el acceso a la plataforma.',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: const Text('Cancelar'),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
@@ -201,7 +201,8 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
         if (response.success) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('User ${action}d successfully'),
+              content: Text(
+                  'Usuario ${user.isActive ? 'suspendido' : 'activado'} correctamente'),
               backgroundColor: Colors.green,
             ),
           );
@@ -243,7 +244,8 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
               const PopupMenuItem(value: 'ALL', child: Text('Todos los Roles')),
               const PopupMenuItem(value: 'USER', child: Text('Usuarios')),
               const PopupMenuItem(value: 'ARTIST', child: Text('Artistas')),
-              const PopupMenuItem(value: 'ADMIN', child: Text('Administradores')),
+              const PopupMenuItem(
+                  value: 'ADMIN', child: Text('Administradores')),
             ],
           ),
         ],
@@ -280,13 +282,14 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                             Text(_error!),
                             ElevatedButton(
                               onPressed: _loadUsers,
-                              child: const Text('Retry'),
+                              child: const Text('Reintentar'),
                             ),
                           ],
                         ),
                       )
                     : _filteredUsers.isEmpty
-                        ? const Center(child: Text('No users found'))
+                        ? const Center(
+                            child: Text('No se encontraron usuarios'))
                         : ListView.builder(
                             padding: const EdgeInsets.symmetric(horizontal: 16),
                             itemCount: _filteredUsers.length,
@@ -328,7 +331,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                                                 Icon(
                                                     Icons.admin_panel_settings),
                                                 SizedBox(width: 8),
-                                                Text('Change Role'),
+                                                Text('Cambiar Rol'),
                                               ],
                                             ),
                                           ),
@@ -341,8 +344,8 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                                                     : Icons.check_circle),
                                                 const SizedBox(width: 8),
                                                 Text(user.isActive
-                                                    ? 'Deactivate'
-                                                    : 'Activate'),
+                                                    ? 'Desactivar'
+                                                    : 'Activar'),
                                               ],
                                             ),
                                           ),

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:flutter_animate/flutter_animate.dart'; // Importante para las animaciones
+import 'package:flutter_animate/flutter_animate.dart';
 import '../../../config/theme.dart';
 import '../../../core/providers/cart_provider.dart';
 import '../../../core/providers/auth_provider.dart';
@@ -55,13 +55,11 @@ class _CartScreenState extends State<CartScreen> {
       backgroundColor: AppTheme.backgroundBlack,
       body: Column(
         children: [
-          // Área principal con Scroll (Header + Lista)
           Expanded(
             child: CustomScrollView(
               controller: _scrollController,
               physics: const BouncingScrollPhysics(),
               slivers: [
-                // 1. Header estilo StoreScreen
                 SliverAppBar(
                   backgroundColor: AppTheme.backgroundBlack,
                   surfaceTintColor: Colors.transparent,
@@ -94,8 +92,6 @@ class _CartScreenState extends State<CartScreen> {
                   ),
                   centerTitle: true,
                 ),
-
-                // 2. Contenido (Empty State o Lista)
                 if (isEmpty)
                   SliverFillRemaining(
                     hasScrollBody: false,
@@ -154,8 +150,6 @@ class _CartScreenState extends State<CartScreen> {
               ],
             ),
           ),
-
-          // 3. Footer de Totales (Fijo abajo si hay items)
           if (!isEmpty)
             _buildCheckoutFooter(context, cartProvider, authProvider),
         ],
@@ -165,7 +159,7 @@ class _CartScreenState extends State<CartScreen> {
 
   Widget _buildCartItemTile(
     BuildContext context,
-    dynamic itemDetail, // Usar el tipo correcto si está disponible
+    dynamic itemDetail,
     CartProvider cartProvider,
     AuthProvider authProvider,
   ) {
@@ -183,7 +177,6 @@ class _CartScreenState extends State<CartScreen> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // Imagen del producto
             Container(
               width: 60,
               height: 60,
@@ -215,8 +208,6 @@ class _CartScreenState extends State<CartScreen> {
               ),
             ),
             const SizedBox(width: 16),
-
-            // Información del producto
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -242,7 +233,6 @@ class _CartScreenState extends State<CartScreen> {
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 4),
-                  // Tipo de ítem (badge pequeña)
                   Container(
                     padding:
                         const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -262,8 +252,6 @@ class _CartScreenState extends State<CartScreen> {
                 ],
               ),
             ),
-
-            // Precio y Botón Eliminar
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
@@ -322,7 +310,6 @@ class _CartScreenState extends State<CartScreen> {
         top: false,
         child: Column(
           children: [
-            // Resumen de costos
             _buildSummaryRow('Subtotal', cartProvider.subtotal),
             const SizedBox(height: 8),
             _buildSummaryRow('IVA (21%)', cartProvider.taxAmount,
@@ -354,8 +341,6 @@ class _CartScreenState extends State<CartScreen> {
               ],
             ),
             const SizedBox(height: 20),
-
-            // Botón de Pago
             Padding(
               padding: const EdgeInsets.only(bottom: 80.0),
               child: SizedBox(
@@ -433,7 +418,6 @@ class _CartScreenState extends State<CartScreen> {
     );
   }
 
-  // Lógica de eliminación (Sin cambios funcionales, solo UI del dialogo actualizada)
   void _confirmDelete(
     BuildContext context,
     dynamic itemDetail,

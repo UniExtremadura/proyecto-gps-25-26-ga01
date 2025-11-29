@@ -97,7 +97,8 @@ class _SongDetailScreenState extends State<SongDetailScreen>
           _collaborators = collabResponse.data!;
         }
       } else {
-        _error = songResponse.error ?? 'Failed to load song';
+        // TRADUCCIÓN: 'Failed to load song'
+        _error = songResponse.error ?? 'Error al cargar la canción';
       }
     } catch (e) {
       _error = e.toString();
@@ -159,11 +160,10 @@ class _SongDetailScreenState extends State<SongDetailScreen>
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(success
-              ? '${_song!.name} añadido al carrito'
-              : 'Ya está en el carrito'),
-          backgroundColor: success ? AppTheme.successGreen : Colors.orange,
-        ));
+            content: Text(success
+                ? '${_song!.name} añadido al carrito'
+                : 'Ya está en el carrito'),
+            backgroundColor: success ? AppTheme.successGreen : Colors.orange));
       }
     } catch (e) {
       if (mounted) {
@@ -191,7 +191,7 @@ class _SongDetailScreenState extends State<SongDetailScreen>
               Navigator.pop(ctx);
               Navigator.pushNamed(context, '/login');
             },
-            child: const Text('Login'),
+            child: const Text('Iniciar Sesión'),
           ),
         ],
       ),
@@ -249,7 +249,7 @@ class _SongDetailScreenState extends State<SongDetailScreen>
         backgroundColor: AppTheme.backgroundBlack,
         appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0),
         body: Center(
-            child: Text(_error ?? 'Song not found',
+            child: Text(_error ?? 'Canción no encontrada',
                 style: const TextStyle(color: Colors.white))),
       );
     }
@@ -349,7 +349,8 @@ class _SongDetailScreenState extends State<SongDetailScreen>
                 icon: const Icon(Icons.share_outlined),
                 onPressed: () {
                   Clipboard.setData(ClipboardData(
-                      text: 'Check out "${_song!.name}" on Audira!'));
+                      // TRADUCCIÓN: 'Check out "${_song!.name}" on Audira!'
+                      text: 'Escucha "${_song!.name}" en Audira!'));
                   ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text('Link copiado')));
                 },
@@ -406,17 +407,21 @@ class _SongDetailScreenState extends State<SongDetailScreen>
                             size: 16, color: AppTheme.textGrey),
                         const SizedBox(width: 4),
 
-                        // 🚨 CAMBIO CLAVE: Envolver el Text en Expanded para limitar su espacio
+                        // Envolver el Text en Expanded para limitar su espacio
                         Expanded(
-                          child: Text(
-                            // ASUMIENDO que 'ext' era un error tipográfico y debería ser 'Text'
-                            _album!.name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: AppTheme.textGrey,
-                              fontSize:
-                                  13, // Corregido: 'TfontSize' a 'fontSize'
+                          child: GestureDetector(
+                            onTap: () => Navigator.pushNamed(context, '/album',
+                                arguments: _album!.id),
+                            child: Text(
+                              _album!.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: AppTheme.textGrey,
+                                fontSize: 13,
+                                decoration: TextDecoration.underline,
+                                decorationColor: AppTheme.textGrey,
+                              ),
                             ),
                           ),
                         ),
@@ -519,7 +524,7 @@ class _SongDetailScreenState extends State<SongDetailScreen>
                   borderRadius: BorderRadius.circular(12)),
             ),
             icon: const Icon(Icons.play_arrow_rounded, size: 22),
-            label: const Text("PLAY",
+            label: const Text("REPRODUCIR",
                 style: TextStyle(
                     fontWeight: FontWeight.bold,
                     letterSpacing: 1,
@@ -657,8 +662,7 @@ class _SongDetailScreenState extends State<SongDetailScreen>
                             backgroundColor: Colors.white24,
                             child: Icon(Icons.person,
                                 size: 14, color: Colors.white)),
-                        label: Text(
-                            '${c.role}: Artist #${c.artistId}'), // Idealmente buscar nombre
+                        label: Text('${c.role}: Artista #${c.artistId}'),
                         backgroundColor: AppTheme.cardBlack,
                         labelStyle:
                             const TextStyle(color: Colors.white, fontSize: 12),
@@ -747,8 +751,8 @@ class _SongDetailScreenState extends State<SongDetailScreen>
                                       color: Colors.amber,
                                       size: 20))),
                           const SizedBox(height: 4),
-                          Text('${_ratingStats!.totalRatings} opiniones',
-                              style: const TextStyle(color: AppTheme.textGrey)),
+                          const Text('opiniones',
+                              style: TextStyle(color: AppTheme.textGrey)),
                         ],
                       )
                     ],
@@ -764,7 +768,8 @@ class _SongDetailScreenState extends State<SongDetailScreen>
                 style: OutlinedButton.styleFrom(
                   foregroundColor: Colors.white,
                   side: const BorderSide(color: Colors.white24),
-                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12)),
                 ),

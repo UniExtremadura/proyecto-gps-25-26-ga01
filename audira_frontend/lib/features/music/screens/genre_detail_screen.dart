@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'dart:ui'; // Para ImageFilter
 
 // Imports de tu proyecto
 import 'package:audira_frontend/config/theme.dart';
@@ -71,7 +72,7 @@ class _GenreDetailScreenState extends State<GenreDetailScreen>
           _albums = albumsResponse.data!;
         }
       } else {
-        _error = genreResponse.error ?? 'Failed to load genre';
+        _error = genreResponse.error ?? 'Error al cargar el género';
       }
     } catch (e) {
       _error = e.toString();

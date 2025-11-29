@@ -53,7 +53,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Manage Orders'),
+        title: const Text('Gestionar pedidos'),
         actions: [
           PopupMenuButton<String>(
             icon: const Icon(Icons.filter_list),
@@ -77,7 +77,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
               children: [
                 Expanded(
                   child: _buildStatCard(
-                    'Total Orders',
+                    'Pedidos totales',
                     _orders.length.toString(),
                     Icons.shopping_cart,
                     AppTheme.primaryBlue,
@@ -86,7 +86,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: _buildStatCard(
-                    'Revenue',
+                    'Beneficio',
                     '\$${_orders.fold<double>(0, (sum, order) => sum + order['total']).toStringAsFixed(2)}',
                     Icons.attach_money,
                     Colors.green,
@@ -97,7 +97,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
           ),
           Expanded(
             child: _filteredOrders.isEmpty
-                ? const Center(child: Text('No orders found'))
+                ? const Center(child: Text('Sin pedidos'))
                 : ListView.builder(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     itemCount: _filteredOrders.length,
@@ -126,7 +126,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   const Text(
-                                    'Items:',
+                                    'Ítems:',
                                     style: TextStyle(
                                       fontWeight: FontWeight.bold,
                                       color: AppTheme.primaryBlue,
@@ -169,12 +169,12 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
                                                 .showSnackBar(
                                               const SnackBar(
                                                 content: Text(
-                                                    'Order marked as completed'),
+                                                    'Pedido marcado como completado'),
                                               ),
                                             );
                                           },
                                           icon: const Icon(Icons.check),
-                                          label: const Text('Complete'),
+                                          label: const Text('Completar'),
                                           style: ElevatedButton.styleFrom(
                                             backgroundColor: Colors.green,
                                           ),
@@ -241,9 +241,9 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
     final difference = now.difference(date);
 
     if (difference.inHours < 24) {
-      return '${difference.inHours}h ago';
+      return 'Hace ${difference.inHours}h';
     } else if (difference.inDays < 7) {
-      return '${difference.inDays}d ago';
+      return 'Hace ${difference.inDays}d';
     } else {
       return '${date.day}/${date.month}/${date.year}';
     }

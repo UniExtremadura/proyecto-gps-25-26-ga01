@@ -46,7 +46,8 @@ class _AdminGenresScreenState extends State<AdminGenresScreen> {
           _filteredGenres = _genres;
         });
       } else {
-        setState(() => _error = response.error ?? 'Failed to load genres');
+        setState(
+            () => _error = response.error ?? 'Fallo al cargar los géneros');
       }
     } catch (e) {
       setState(() => _error = e.toString());
@@ -72,17 +73,18 @@ class _AdminGenresScreenState extends State<AdminGenresScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete Genre'),
-        content: const Text('Are you sure you want to delete this genre?'),
+        title: const Text('Borrar género'),
+        content:
+            const Text('¿Estás seguro de que quieres eliminar este género?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: const Text('Cancelar'),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Delete'),
+            child: const Text('Borrar'),
           ),
         ],
       ),
@@ -92,23 +94,23 @@ class _AdminGenresScreenState extends State<AdminGenresScreen> {
       final currentContext = context;
       try {
         final response = await _musicService.deleteGenre(genreId);
-        if(!currentContext.mounted) return;
+        if (!currentContext.mounted) return;
         if (response.success) {
-          if(!currentContext.mounted) return;
+          if (!currentContext.mounted) return;
           ScaffoldMessenger.of(currentContext).showSnackBar(
-            const SnackBar(content: Text('Genre deleted successfully')),
+            const SnackBar(content: Text('Género eliminado correctamente')),
           );
           _loadGenres();
         } else {
-          if(!currentContext.mounted) return;
+          if (!currentContext.mounted) return;
           ScaffoldMessenger.of(currentContext).showSnackBar(
             SnackBar(
-              content: Text(response.error ?? 'Failed to delete genre'),
+              content: Text(response.error ?? 'fallo al eliminar el género'),
             ),
           );
         }
       } catch (e) {
-        if(!currentContext.mounted) return;
+        if (!currentContext.mounted) return;
         ScaffoldMessenger.of(currentContext).showSnackBar(
           SnackBar(content: Text('Error: $e')),
         );
@@ -120,7 +122,7 @@ class _AdminGenresScreenState extends State<AdminGenresScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Manage Genres'),
+        title: const Text('Gestioanr géneros'),
         actions: [
           IconButton(
             icon: const Icon(Icons.add),
@@ -135,7 +137,7 @@ class _AdminGenresScreenState extends State<AdminGenresScreen> {
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
-                hintText: 'Search genres...',
+                hintText: 'Buscar géneros...',
                 prefixIcon: const Icon(Icons.search),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -158,13 +160,13 @@ class _AdminGenresScreenState extends State<AdminGenresScreen> {
                             Text(_error!),
                             ElevatedButton(
                               onPressed: _loadGenres,
-                              child: const Text('Retry'),
+                              child: const Text('Volver a intentar'),
                             ),
                           ],
                         ),
                       )
                     : _filteredGenres.isEmpty
-                        ? const Center(child: Text('No genres found'))
+                        ? const Center(child: Text('No se encontraron géneros'))
                         : GridView.builder(
                             padding: const EdgeInsets.all(16),
                             gridDelegate:
@@ -233,14 +235,14 @@ class _AdminGenresScreenState extends State<AdminGenresScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(isEditing ? 'Edit Genre' : 'Add New Genre'),
+        title: Text(isEditing ? 'Editar género' : 'Añadir nuevo género'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: nameController,
               decoration: const InputDecoration(
-                labelText: 'Genre Name',
+                labelText: 'Nombre',
                 border: OutlineInputBorder(),
               ),
             ),
@@ -248,7 +250,7 @@ class _AdminGenresScreenState extends State<AdminGenresScreen> {
             TextField(
               controller: descriptionController,
               decoration: const InputDecoration(
-                labelText: 'Description',
+                labelText: 'Descripción',
                 border: OutlineInputBorder(),
               ),
               maxLines: 3,
@@ -258,14 +260,14 @@ class _AdminGenresScreenState extends State<AdminGenresScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: const Text('Cancelar'),
           ),
           ElevatedButton(
             onPressed: () {
               final name = nameController.text.trim();
               if (name.isEmpty) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Genre name is required')),
+                  const SnackBar(content: Text('El nombre es obligatorio')),
                 );
                 return;
               }
@@ -273,13 +275,13 @@ class _AdminGenresScreenState extends State<AdminGenresScreen> {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text(isEditing
-                      ? 'Genre updated successfully'
-                      : 'Genre created successfully'),
+                      ? 'Género actualizado correctamente'
+                      : 'Género creado correctamente'),
                 ),
               );
               _loadGenres();
             },
-            child: Text(isEditing ? 'Update' : 'Create'),
+            child: Text(isEditing ? 'Actualizar' : 'Crear'),
           ),
         ],
       ),

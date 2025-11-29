@@ -39,7 +39,7 @@ class CommentService {
 
       return ApiResponse(
         success: false,
-        error: response.error ?? 'Failed to create comment',
+        error: response.error ?? 'Fallo al crear el comentario',
         statusCode: response.statusCode,
       );
     } catch (e) {
@@ -69,7 +69,7 @@ class CommentService {
 
       return ApiResponse(
         success: false,
-        error: response.error ?? 'Failed to fetch comments',
+        error: response.error ?? 'Fallo al obtener los comentarios',
         statusCode: response.statusCode,
       );
     } catch (e) {
@@ -94,7 +94,7 @@ class CommentService {
 
       return ApiResponse(
         success: false,
-        error: response.error ?? 'Failed to fetch user comments',
+        error: response.error ?? 'Fallo al obtener tus comentarios',
         statusCode: response.statusCode,
       );
     } catch (e) {
@@ -124,7 +124,7 @@ class CommentService {
 
       return ApiResponse(
         success: false,
-        error: response.error ?? 'Failed to update comment',
+        error: response.error ?? 'Fallo al actualizar el comentario',
         statusCode: response.statusCode,
       );
     } catch (e) {
@@ -147,7 +147,7 @@ class CommentService {
 
       return ApiResponse(
         success: false,
-        error: response.error ?? 'Failed to delete comment',
+        error: response.error ?? 'Fallo al eliminar el comentario',
         statusCode: response.statusCode,
       );
     } catch (e) {
@@ -170,7 +170,7 @@ class CommentService {
 
       return ApiResponse(
         success: false,
-        error: response.error ?? 'Failed to like comment',
+        error: response.error ?? 'Fallo al dar me gusta al comentario',
         statusCode: response.statusCode,
       );
     } catch (e) {
@@ -193,7 +193,7 @@ class CommentService {
 
       return ApiResponse(
         success: false,
-        error: response.error ?? 'Failed to unlike comment',
+        error: response.error ?? 'Fallo al quitar me gusta al comentario',
         statusCode: response.statusCode,
       );
     } catch (e) {

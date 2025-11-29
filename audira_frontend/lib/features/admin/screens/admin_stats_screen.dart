@@ -9,13 +9,13 @@ class AdminStatsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Global Statistics'),
+        title: const Text('Estadísticas Globales'),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Statistics refreshed')),
+                const SnackBar(content: Text('Estadísticas actualizadas')),
               );
             },
           ),
@@ -28,7 +28,7 @@ class AdminStatsScreen extends StatelessWidget {
           children: [
             // Overview Stats
             const Text(
-              'Overview',
+              'Resumen',
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
@@ -40,21 +40,21 @@ class AdminStatsScreen extends StatelessWidget {
               mainAxisSpacing: 12,
               childAspectRatio: 1.5,
               children: [
+                _buildStatCard('Total de Usuarios', '1,234', Icons.people,
+                    AppTheme.primaryBlue),
+                _buildStatCard('Total de Canciones', '5,678', Icons.music_note,
+                    Colors.purple),
                 _buildStatCard(
-                    'Total Users', '1,234', Icons.people, AppTheme.primaryBlue),
-                _buildStatCard(
-                    'Total Songs', '5,678', Icons.music_note, Colors.purple),
-                _buildStatCard(
-                    'Total Albums', '432', Icons.album, Colors.orange),
-                _buildStatCard('Total Revenue', '\$12,345', Icons.attach_money,
-                    Colors.green),
+                    'Total de Álbumes', '432', Icons.album, Colors.orange),
+                _buildStatCard('Ingresos Totales', '\$12,345',
+                    Icons.attach_money, Colors.green),
               ],
             ).animate().fadeIn(),
             const SizedBox(height: 24),
 
             // User Statistics
             const Text(
-              'User Statistics',
+              'Estadísticas de Usuario',
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
@@ -63,14 +63,14 @@ class AdminStatsScreen extends StatelessWidget {
                 padding: const EdgeInsets.all(16),
                 child: Column(
                   children: [
-                    _buildStatRow('Active Users', '987', Colors.green),
+                    _buildStatRow('Usuarios Activos', '987', Colors.green),
                     const Divider(),
-                    _buildStatRow(
-                        'New Users (This Month)', '123', AppTheme.primaryBlue),
+                    _buildStatRow('Nuevos Usuarios (Este Mes)', '123',
+                        AppTheme.primaryBlue),
                     const Divider(),
-                    _buildStatRow('Artists', '45', Colors.purple),
+                    _buildStatRow('Artistas', '45', Colors.purple),
                     const Divider(),
-                    _buildStatRow('Admins', '5', Colors.red),
+                    _buildStatRow('Administradores', '5', Colors.red),
                   ],
                 ),
               ),
@@ -79,7 +79,7 @@ class AdminStatsScreen extends StatelessWidget {
 
             // Content Statistics
             const Text(
-              'Content Statistics',
+              'Estadísticas de Contenido',
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
@@ -88,16 +88,17 @@ class AdminStatsScreen extends StatelessWidget {
                 padding: const EdgeInsets.all(16),
                 child: Column(
                   children: [
+                    _buildStatRow('Total de Reproducciones', '45,678',
+                        AppTheme.primaryBlue),
+                    const Divider(),
+                    _buildStatRow('Total de Descargas', '12,345', Colors.green),
+                    const Divider(),
                     _buildStatRow(
-                        'Total Plays', '45,678', AppTheme.primaryBlue),
+                        'Listas de Reproducción Creadas', '890', Colors.orange),
                     const Divider(),
-                    _buildStatRow('Total Downloads', '12,345', Colors.green),
+                    _buildStatRow('Comentarios', '3,456', Colors.purple),
                     const Divider(),
-                    _buildStatRow('Playlists Created', '890', Colors.orange),
-                    const Divider(),
-                    _buildStatRow('Comments', '3,456', Colors.purple),
-                    const Divider(),
-                    _buildStatRow('Ratings', '5,678', Colors.amber),
+                    _buildStatRow('Calificaciones', '5,678', Colors.amber),
                   ],
                 ),
               ),
@@ -106,7 +107,7 @@ class AdminStatsScreen extends StatelessWidget {
 
             // Revenue Statistics
             const Text(
-              'Revenue Statistics',
+              'Estadísticas de Ingresos',
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
@@ -115,14 +116,13 @@ class AdminStatsScreen extends StatelessWidget {
                 padding: const EdgeInsets.all(16),
                 child: Column(
                   children: [
-                    _buildStatRow('Total Sales', '\$12,345', Colors.green),
+                    _buildStatRow('Ventas Totales', '\$12,345', Colors.green),
                     const Divider(),
-                    _buildStatRow(
-                        'This Month', '\$2,345', AppTheme.primaryBlue),
+                    _buildStatRow('Este Mes', '\$2,345', AppTheme.primaryBlue),
                     const Divider(),
-                    _buildStatRow('Last Month', '\$2,100', AppTheme.textGrey),
+                    _buildStatRow('Mes Pasado', '\$2,100', AppTheme.textGrey),
                     const Divider(),
-                    _buildStatRow('Average Order', '\$15.67', Colors.orange),
+                    _buildStatRow('Pedido Promedio', '\$15.67', Colors.orange),
                   ],
                 ),
               ),
@@ -131,26 +131,27 @@ class AdminStatsScreen extends StatelessWidget {
 
             // Top Content
             const Text(
-              'Top Performing Content',
+              'Contenido Destacado',
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
             Card(
               child: Column(
                 children: [
-                  _buildTopItem(
-                      '1', 'Midnight Dreams', '1,234 plays', Icons.music_note),
+                  _buildTopItem('1', 'Midnight Dreams', '1.234 reproducciones',
+                      Icons.music_note),
+                  const Divider(height: 1),
+                  _buildTopItem('2', 'Electric Love', '1.123 reproducciones',
+                      Icons.music_note),
                   const Divider(height: 1),
                   _buildTopItem(
-                      '2', 'Electric Love', '1,123 plays', Icons.music_note),
+                      '3', 'Summer Vibes', '987 reproducciones', Icons.album),
                   const Divider(height: 1),
-                  _buildTopItem('3', 'Summer Vibes', '987 plays', Icons.album),
+                  _buildTopItem('4', 'Jazz Collection', '876 reproducciones',
+                      Icons.album),
                   const Divider(height: 1),
-                  _buildTopItem(
-                      '4', 'Jazz Collection', '876 plays', Icons.album),
-                  const Divider(height: 1),
-                  _buildTopItem(
-                      '5', 'Blue Notes', '765 plays', Icons.music_note),
+                  _buildTopItem('5', 'Blue Notes', '765 reproducciones',
+                      Icons.music_note),
                 ],
               ),
             ).animate().fadeIn(delay: 400.ms),

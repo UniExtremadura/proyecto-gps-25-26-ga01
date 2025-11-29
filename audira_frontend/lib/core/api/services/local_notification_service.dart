@@ -5,7 +5,8 @@ import 'dart:convert';
 
 /// Service to handle local push notifications
 class LocalNotificationService {
-  static final LocalNotificationService _instance = LocalNotificationService._internal();
+  static final LocalNotificationService _instance =
+      LocalNotificationService._internal();
   factory LocalNotificationService() => _instance;
   LocalNotificationService._internal();
 
@@ -15,7 +16,8 @@ class LocalNotificationService {
   bool _initialized = false;
 
   // Global navigation key to allow navigation from anywhere
-  static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+  static final GlobalKey<NavigatorState> navigatorKey =
+      GlobalKey<NavigatorState>();
 
   /// Initialize the notification service
   Future<void> initialize() async {
@@ -42,7 +44,7 @@ class LocalNotificationService {
     );
 
     _initialized = true;
-    debugPrint('LocalNotificationService initialized');
+    debugPrint('LocalNotificationService se ha inicializado correctamente');
   }
 
   /// Request notification permissions (iOS)
@@ -62,7 +64,8 @@ class LocalNotificationService {
           _notificationsPlugin.resolvePlatformSpecificImplementation<
               AndroidFlutterLocalNotificationsPlugin>();
 
-      final bool? granted = await androidImplementation?.requestNotificationsPermission();
+      final bool? granted =
+          await androidImplementation?.requestNotificationsPermission();
       return granted ?? false;
     }
     return true;
@@ -80,7 +83,8 @@ class LocalNotificationService {
       await initialize();
     }
 
-    const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+    const AndroidNotificationDetails androidDetails =
+        AndroidNotificationDetails(
       'audira_channel', // channel ID
       'Audira Notifications', // channel name
       channelDescription: 'Notificaciones de la aplicación Audira',
@@ -108,7 +112,7 @@ class LocalNotificationService {
       payload: payload,
     );
 
-    debugPrint('Notification shown: $title');
+    debugPrint('Notification: $title');
   }
 
   /// Show notification for purchase success
@@ -122,7 +126,8 @@ class LocalNotificationService {
   }
 
   /// Show notification for new product from followed artist
-  Future<void> showNewProductNotification(String artistName, String productName) async {
+  Future<void> showNewProductNotification(
+      String artistName, String productName) async {
     await showNotification(
       id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
       title: 'Nuevo contenido disponible',
@@ -142,7 +147,8 @@ class LocalNotificationService {
   }
 
   /// Show notification for product review (artist)
-  Future<void> showProductReviewNotification(String title, String message) async {
+  Future<void> showProductReviewNotification(
+      String title, String message) async {
     await showNotification(
       id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
       title: title,
@@ -153,7 +159,7 @@ class LocalNotificationService {
 
   /// Handle notification tap
   void _onNotificationTapped(NotificationResponse response) {
-    debugPrint('Notification tapped: ${response.payload}');
+    debugPrint('Notification presionada: ${response.payload}');
 
     if (response.payload == null || response.payload!.isEmpty) {
       return;
@@ -165,19 +171,21 @@ class LocalNotificationService {
       final referenceId = payload['referenceId'] as int?;
       final referenceType = payload['referenceType'] as String?;
 
-      debugPrint('Navigating based on type: $type, referenceId: $referenceId, referenceType: $referenceType');
+      debugPrint(
+          'Navigating based on type: $type, referenceId: $referenceId, referenceType: $referenceType');
 
       navigateBasedOnPayload(type, referenceId, referenceType);
     } catch (e) {
-      debugPrint('Error parsing notification payload: $e');
+      debugPrint('Error procesando la notificación: $e');
     }
   }
 
   /// Navigate based on notification payload
-  void navigateBasedOnPayload(String? type, int? referenceId, String? referenceType) {
+  void navigateBasedOnPayload(
+      String? type, int? referenceId, String? referenceType) {
     final context = navigatorKey.currentContext;
     if (context == null) {
-      debugPrint('Navigation context is null');
+      debugPrint('Contexto de navegación no disponible');
       return;
     }
 
@@ -265,7 +273,8 @@ class LocalNotificationService {
       // System notifications - No specific navigation
       case 'SYSTEM_NOTIFICATION':
       default:
-        debugPrint('No specific navigation for notification type: $type');
+        debugPrint(
+            'Sin navegación específica para la notificación de tipo: $type');
         break;
     }
   }

@@ -663,7 +663,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Edit Profile'),
+        title: const Text('Editar perfil'),
         actions: [
           if (_hasChanges)
             TextButton(
@@ -674,7 +674,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       height: 20,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Text('Save'),
+                  : const Text('Guardar'),
             ),
         ],
       ),
@@ -749,7 +749,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   child: ElevatedButton.icon(
                     onPressed: _isUploadingBanner ? null : _pickBanner,
                     icon: const Icon(Icons.photo_camera, size: 18),
-                    label: const Text('Change Banner'),
+                    label: const Text('Cambiar banner'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.primaryBlue,
                       foregroundColor: Colors.white,
@@ -823,14 +823,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    user?.displayName ?? 'User',
+                    user?.displayName ?? 'Nombre',
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                           fontWeight: FontWeight.bold,
                         ),
                   ).animate().fadeIn(delay: 300.ms),
                   const SizedBox(height: 4),
                   Text(
-                    '@${user?.username ?? 'username'}',
+                    '@${user?.username ?? 'Usuario'}',
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                           color: AppTheme.textGrey,
                         ),
@@ -840,7 +840,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   ElevatedButton.icon(
                     onPressed: _isUploadingImage ? null : _pickImage,
                     icon: const Icon(Icons.photo_camera, size: 18),
-                    label: const Text('Change Image'),
+                    label: const Text('Cambiar imagen de perfil'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.primaryBlue,
                       foregroundColor: Colors.white,
@@ -860,7 +860,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   TextFormField(
                     controller: _firstNameController,
                     decoration: const InputDecoration(
-                      labelText: 'First Name',
+                      labelText: 'Nombre',
                       border: OutlineInputBorder(),
                       prefixIcon: Icon(Icons.person),
                     ),
@@ -872,7 +872,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   TextFormField(
                     controller: _lastNameController,
                     decoration: const InputDecoration(
-                      labelText: 'Last Name',
+                      labelText: 'Apellidos',
                       border: OutlineInputBorder(),
                       prefixIcon: Icon(Icons.person_outline),
                     ),
@@ -881,7 +881,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   TextFormField(
                     controller: _bioController,
                     decoration: const InputDecoration(
-                      labelText: 'Bio',
+                      labelText: 'Biografía',
                       border: OutlineInputBorder(),
                       prefixIcon: Icon(Icons.description),
                       alignLabelWithHint: true,
@@ -892,7 +892,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   TextFormField(
                     controller: _locationController,
                     decoration: const InputDecoration(
-                      labelText: 'Location',
+                      labelText: 'Ubicación',
                       border: OutlineInputBorder(),
                       prefixIcon: Icon(Icons.location_on),
                     ),
@@ -901,7 +901,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   TextFormField(
                     controller: _websiteController,
                     decoration: const InputDecoration(
-                      labelText: 'Website',
+                      labelText: 'Página web',
                       border: OutlineInputBorder(),
                       prefixIcon: Icon(Icons.link),
                     ),
@@ -914,7 +914,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       true) ...[
                     const Divider(height: 32),
                     Text(
-                      'Artist Information',
+                      'Información del artista',
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
                             color: AppTheme.primaryBlue,
                             fontWeight: FontWeight.bold,
@@ -924,21 +924,21 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     TextFormField(
                       controller: _artistNameController,
                       decoration: const InputDecoration(
-                        labelText: 'Artist Name / Stage Name',
+                        labelText: 'Nombre de artista / Nombre artístico',
                         border: OutlineInputBorder(),
                         prefixIcon: Icon(Icons.stars),
-                        hintText: 'Your professional artist name',
+                        hintText: 'Tu nombre de artista profesional',
                       ),
                     ).animate(delay: 700.ms).fadeIn().slideX(begin: -0.2),
                     const SizedBox(height: 16),
                     TextFormField(
                       controller: _artistBioController,
                       decoration: const InputDecoration(
-                        labelText: 'Artist Bio',
+                        labelText: 'Biografía',
                         border: OutlineInputBorder(),
                         prefixIcon: Icon(Icons.music_note),
                         alignLabelWithHint: true,
-                        hintText: 'Tell your fans about your music',
+                        hintText: 'Muéstrale a los fans cómo eres',
                       ),
                       maxLines: 4,
                     ).animate(delay: 800.ms).fadeIn().slideX(begin: -0.2),
@@ -946,10 +946,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     TextFormField(
                       controller: _recordLabelController,
                       decoration: const InputDecoration(
-                        labelText: 'Record Label',
+                        labelText: 'Discográfica',
                         border: OutlineInputBorder(),
                         prefixIcon: Icon(Icons.album),
-                        hintText: 'Independent or label name',
+                        hintText: 'Nombre de tu discográfica',
                       ),
                     ).animate(delay: 900.ms).fadeIn().slideX(begin: -0.2),
                     const SizedBox(height: 16),
@@ -957,7 +957,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
                   const Divider(height: 32),
                   Text(
-                    'Social Media Links',
+                    'Redes sociales',
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
                           color: AppTheme.primaryBlue,
                           fontWeight: FontWeight.bold,
@@ -1094,7 +1094,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                               color: Colors.white,
                             ),
                           )
-                        : const Text('Save Changes',
+                        : const Text('Guardar cambios',
                             style: TextStyle(fontSize: 16)),
                   )
                       .animate(delay: 600.ms)

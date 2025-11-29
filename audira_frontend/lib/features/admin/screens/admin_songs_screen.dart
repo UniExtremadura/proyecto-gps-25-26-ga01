@@ -58,7 +58,8 @@ class _AdminSongsScreenState extends State<AdminSongsScreen> {
           _filteredSongs = _songs;
         });
       } else {
-        setState(() => _error = response.error ?? 'Failed to load songs');
+        setState(
+            () => _error = response.error ?? 'Fallo al cargar las canciones');
       }
     } catch (e) {
       setState(() => _error = e.toString());
@@ -217,17 +218,18 @@ class _AdminSongsScreenState extends State<AdminSongsScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete Song'),
-        content: const Text('Are you sure you want to delete this song?'),
+        title: const Text('Borrar canción'),
+        content: const Text(
+            '¿Estás seguro de que quieres borrar esta canción? Esta acción es irreversible.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: const Text('Cancelar'),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Delete'),
+            child: const Text('Borrar'),
           ),
         ],
       ),
@@ -238,13 +240,13 @@ class _AdminSongsScreenState extends State<AdminSongsScreen> {
         final response = await _musicService.deleteSong(songId);
         if (response.success) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Song deleted successfully')),
+            const SnackBar(content: Text('Canción borrada exitosamente')),
           );
           _loadSongs();
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(response.error ?? 'Failed to delete song'),
+              content: Text(response.error ?? 'Fallo al borrar la canción'),
             ),
           );
         }
@@ -380,14 +382,14 @@ class _AdminSongsScreenState extends State<AdminSongsScreen> {
                             const SizedBox(height: 16),
                             ElevatedButton(
                               onPressed: _loadSongs,
-                              child: const Text('Retry'),
+                              child: const Text('Volver a intentar'),
                             ),
                           ],
                         ),
                       )
                     : _filteredSongs.isEmpty
                         ? const Center(
-                            child: Text('No songs found'),
+                            child: Text('Sin canciones'),
                           )
                         : ListView.builder(
                             padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -425,7 +427,7 @@ class _AdminSongsScreenState extends State<AdminSongsScreen> {
                                                   ),
                                                 ),
                                                 Text(
-                                                  'Artist ID: ${song.artistId} • \$${song.price.toStringAsFixed(2)}',
+                                                  'ID del artista: ${song.artistId} • \$${song.price.toStringAsFixed(2)}',
                                                   style: TextStyle(
                                                     color: Colors.grey[600],
                                                     fontSize: 13,
@@ -550,7 +552,7 @@ class _AdminSongsScreenState extends State<AdminSongsScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(isEditing ? 'Edit Song' : 'Add New Song'),
+        title: Text(isEditing ? 'Editar canción' : 'Añadir una canción'),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -558,7 +560,7 @@ class _AdminSongsScreenState extends State<AdminSongsScreen> {
               TextField(
                 controller: nameController,
                 decoration: const InputDecoration(
-                  labelText: 'Song Name',
+                  labelText: 'Nombre',
                   border: OutlineInputBorder(),
                 ),
               ),
@@ -566,7 +568,7 @@ class _AdminSongsScreenState extends State<AdminSongsScreen> {
               TextField(
                 controller: descriptionController,
                 decoration: const InputDecoration(
-                  labelText: 'Description',
+                  labelText: 'Descripción',
                   border: OutlineInputBorder(),
                 ),
                 maxLines: 3,
@@ -575,7 +577,7 @@ class _AdminSongsScreenState extends State<AdminSongsScreen> {
               TextField(
                 controller: priceController,
                 decoration: const InputDecoration(
-                  labelText: 'Price',
+                  labelText: 'Precio',
                   border: OutlineInputBorder(),
                   prefixText: '\$',
                 ),
@@ -585,7 +587,7 @@ class _AdminSongsScreenState extends State<AdminSongsScreen> {
               TextField(
                 controller: durationController,
                 decoration: const InputDecoration(
-                  labelText: 'Duration (seconds)',
+                  labelText: 'Duración (segundos)',
                   border: OutlineInputBorder(),
                 ),
                 keyboardType: TextInputType.number,
@@ -596,7 +598,7 @@ class _AdminSongsScreenState extends State<AdminSongsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: const Text('Cancelar'),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -605,7 +607,7 @@ class _AdminSongsScreenState extends State<AdminSongsScreen> {
 
               if (name.isEmpty) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Song name is required')),
+                  const SnackBar(content: Text('Nombre necesario')),
                 );
                 return;
               }
@@ -615,14 +617,14 @@ class _AdminSongsScreenState extends State<AdminSongsScreen> {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text(isEditing
-                      ? 'Song updated successfully'
-                      : 'Song created successfully'),
+                      ? 'Canción actualizada exitosamente'
+                      : 'Canción creada exitosamente'),
                 ),
               );
 
               _loadSongs();
             },
-            child: Text(isEditing ? 'Update' : 'Create'),
+            child: Text(isEditing ? 'Actualizar' : 'Crear'),
           ),
         ],
       ),

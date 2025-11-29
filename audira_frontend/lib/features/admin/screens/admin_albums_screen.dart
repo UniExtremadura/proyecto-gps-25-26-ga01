@@ -57,7 +57,7 @@ class _AdminAlbumsScreenState extends State<AdminAlbumsScreen> {
           _filteredAlbums = _albums;
         });
       } else {
-        setState(() => _error = response.error ?? 'Failed to load albums');
+        setState(() => _error = response.error ?? 'Fallo al cargar álbumes');
       }
     } catch (e) {
       setState(() => _error = e.toString());
@@ -380,8 +380,9 @@ class _AdminAlbumsScreenState extends State<AdminAlbumsScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete Album'),
-        content: const Text('Are you sure you want to delete this album?'),
+        title: const Text('Borrar el álbum'),
+        content: const Text(
+            '¿Estás seguro de que deseas borrar el álbum? Esta acción es irreversible.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -402,14 +403,14 @@ class _AdminAlbumsScreenState extends State<AdminAlbumsScreen> {
         if (response.success) {
           if (!currentContext.mounted) return;
           ScaffoldMessenger.of(currentContext).showSnackBar(
-            const SnackBar(content: Text('Album deleted successfully')),
+            const SnackBar(content: Text('Se ha borrado el álbum')),
           );
           _loadAlbums();
         } else {
           if (!currentContext.mounted) return;
           ScaffoldMessenger.of(currentContext).showSnackBar(
             SnackBar(
-              content: Text(response.error ?? 'Failed to delete album'),
+              content: Text(response.error ?? 'Fallo al borrar el álbum'),
             ),
           );
         }
@@ -426,7 +427,7 @@ class _AdminAlbumsScreenState extends State<AdminAlbumsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Manage Albums'),
+        title: const Text('Gestionar Álbumes'),
         actions: [
           // GA01-162: Filtro de moderación
           PopupMenuButton<String>(
@@ -518,7 +519,7 @@ class _AdminAlbumsScreenState extends State<AdminAlbumsScreen> {
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
-                hintText: 'Search albums...',
+                hintText: 'Buscar álbumes',
                 prefixIcon: const Icon(Icons.search),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -541,13 +542,13 @@ class _AdminAlbumsScreenState extends State<AdminAlbumsScreen> {
                             Text(_error!),
                             ElevatedButton(
                               onPressed: _loadAlbums,
-                              child: const Text('Retry'),
+                              child: const Text('Volver a intentar'),
                             ),
                           ],
                         ),
                       )
                     : _filteredAlbums.isEmpty
-                        ? const Center(child: Text('No albums found'))
+                        ? const Center(child: Text('No se encontraron álbumes'))
                         : ListView.builder(
                             padding: const EdgeInsets.symmetric(horizontal: 16),
                             itemCount: _filteredAlbums.length,
@@ -679,14 +680,14 @@ class _AdminAlbumsScreenState extends State<AdminAlbumsScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(isEditing ? 'Edit Album' : 'Añadir New Album'),
+        title: Text(isEditing ? 'Editar álbum' : 'Añadir nueovo álbum'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: titleController,
               decoration: const InputDecoration(
-                labelText: 'Album Title',
+                labelText: 'Título',
                 border: OutlineInputBorder(),
               ),
             ),
@@ -694,7 +695,7 @@ class _AdminAlbumsScreenState extends State<AdminAlbumsScreen> {
             TextField(
               controller: priceController,
               decoration: const InputDecoration(
-                labelText: 'Price',
+                labelText: 'Precio',
                 border: OutlineInputBorder(),
                 prefixText: '\$',
               ),
@@ -712,7 +713,7 @@ class _AdminAlbumsScreenState extends State<AdminAlbumsScreen> {
               final title = titleController.text.trim();
               if (title.isEmpty) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Album title is required')),
+                  const SnackBar(content: Text('Título necesario')),
                 );
                 return;
               }
@@ -720,8 +721,8 @@ class _AdminAlbumsScreenState extends State<AdminAlbumsScreen> {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text(isEditing
-                      ? 'Album updated successfully'
-                      : 'Album created successfully'),
+                      ? 'Álbum actualizado exitosamente'
+                      : 'Álbum creado exitosamente'),
                 ),
               );
               _loadAlbums();
