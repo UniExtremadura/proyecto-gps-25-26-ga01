@@ -250,4 +250,24 @@ public class SongController {
     public ResponseEntity<List<SongDTO>> getPublishedSongsByGenre(@PathVariable Long genreId) {
         return ResponseEntity.ok(songService.getPublishedSongsByGenreWithArtistName(genreId));
     }
+
+    /**
+     * Endpoint transaccional para el microservicio de Comercio.
+     * <p>
+     * Recupera el ID del artista y el precio de una canción.
+     * </p>
+     *
+     * @param id ID de la canción.
+     * @return Map con artistId y price o 404 si no existe.
+     */
+    @GetMapping("/{id}/details/commerce") // Endpoint claro para uso interno
+    public ResponseEntity<?> getSongDetailsForCommerce(@PathVariable Long id) {
+        try {
+            Map<String, Object> details = songService.getArtistAndPriceBySongId(id);
+            return ResponseEntity.ok(details);
+        } catch (IllegalArgumentException e) {
+            log.warn("❌ Failed to fetch commerce details for song ID {}: {}", id, e.getMessage());
+            return ResponseEntity.notFound().build();
+        }
+    }
 }

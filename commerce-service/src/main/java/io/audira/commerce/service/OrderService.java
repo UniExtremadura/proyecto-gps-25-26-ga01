@@ -1,19 +1,23 @@
 package io.audira.commerce.service;
 
+import io.audira.commerce.client.MusicCatalogClient;
 import io.audira.commerce.dto.CreateOrderRequest;
 import io.audira.commerce.dto.OrderDTO;
 import io.audira.commerce.dto.OrderItemDTO;
 import io.audira.commerce.model.Order;
 import io.audira.commerce.model.OrderItem;
 import io.audira.commerce.model.OrderStatus;
+import io.audira.commerce.model.ItemType;
 import io.audira.commerce.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -26,24 +30,20 @@ import java.util.stream.Collectors;
  *
  * @author Grupo GA01
  * @see OrderRepository
- * 
- */
+ * */
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class OrderService {
 
     private final OrderRepository orderRepository;
+    // Cliente inyectado para la comunicación con el microservicio de Catálogo
+    private final MusicCatalogClient musicCatalogClient; 
 
     /**
      * Crea una nueva orden de compra a partir de una solicitud {@link CreateOrderRequest}.
      * <p>
-     * Pasos clave:
-     * <ul>
-     * <li>Genera un número de orden único.</li>
-     * <li>Calcula el monto total.</li>
-     * <li>Persiste la cabecera de la orden y luego asocia y persiste los artículos ({@link OrderItem}).</li>
-     * <li>Establece el estado inicial como {@link OrderStatus#PENDING}.</li>
-     * </ul>
+     * PASO CLAVE: Consulta el catálogo para obtener el artistId de cada item y lo persiste en OrderItem.
      * </p>
      *
      * @param request La solicitud {@link CreateOrderRequest} validada.
@@ -72,16 +72,24 @@ public class OrderService {
         // Save to get the order ID
         order = orderRepository.save(order);
 
-        // Now create order items with the order ID
+        // Ahora creamos los order items con el order ID y obtenemos el artistId del catálogo
         final Long orderId = order.getId();
+        
         List<OrderItem> orderItems = request.getItems().stream()
-                .map(itemDTO -> OrderItem.builder()
-                        .orderId(orderId)
-                        .itemType(itemDTO.getItemType())
-                        .itemId(itemDTO.getItemId())
-                        .quantity(itemDTO.getQuantity())
-                        .price(itemDTO.getPrice())
-                        .build())
+                .map(itemDTO -> {
+                    // OBTENER EL ID DEL ARTISTA DEL CATÁLOGO (CORRECCIÓN)
+                    Long artistId = getArtistIdFromCatalog(itemDTO); 
+                    
+                    // CONSTRUIR EL ORDERITEM con el artistId
+                    return OrderItem.builder()
+                            .orderId(orderId)
+                            .itemType(itemDTO.getItemType())
+                            .itemId(itemDTO.getItemId())
+                            .quantity(itemDTO.getQuantity())
+                            .price(itemDTO.getPrice())
+                            .artistId(artistId) // <--- ASIGNACIÓN CRÍTICA
+                            .build();
+                })
                 .collect(Collectors.toList());
 
         // Add items to order and save again
@@ -90,7 +98,49 @@ public class OrderService {
 
         return mapToDTO(savedOrder);
     }
+    
+    // -----------------------------------------------------
+    // MÉTODO AUXILIAR PARA OBTENER EL ID DEL ARTISTA
+    // -----------------------------------------------------
+    
+    /**
+     * Consulta el MusicCatalogClient (microservicio) para obtener el ID del artista asociado al ítem.
+     * Utiliza la nueva ruta transaccional en el servicio de Catálogo.
+     */
+    private Long getArtistIdFromCatalog(OrderItemDTO itemDTO) {
+        try {
+            ItemType type = itemDTO.getItemType();
+            Long itemId = itemDTO.getItemId();
+            
+            Map<String, Object> productDetails;
+            
+            if (type == ItemType.SONG) {
+                // Llama al método del cliente HTTP que apunta a /api/songs/{id}/details/commerce
+                productDetails = musicCatalogClient.getSongDetailsForCommerce(itemId);
+            } else if (type == ItemType.ALBUM) {
+                // Lógica de álbum pendiente: si existe un endpoint para álbumes, se usaría aquí.
+                // Por ahora, usamos getAlbumById como fallback, si sabemos que devuelve artistId.
+                productDetails = musicCatalogClient.getAlbumById(itemId); 
+            } else {
+                log.warn("ItemType {} no soportado para búsqueda de artista.", type);
+                return null;
+            }
 
+            if (productDetails != null && productDetails.get("artistId") instanceof Number) {
+                // Retorna el ID del artista
+                return ((Number) productDetails.get("artistId")).longValue(); 
+            }
+            
+        } catch (Exception e) {
+            log.error("Failed to fetch artistId for item {} (Type: {}). Error: {}", itemDTO.getItemId(), itemDTO.getItemType(), e.getMessage());
+        }
+        return null;
+    }
+
+    // -----------------------------------------------------
+    // MÉTODOS DE BÚSQUEDA Y AUXILIARES (Sin Cambios Lógicos)
+    // -----------------------------------------------------
+    
     /**
      * Genera un número de orden único utilizando el formato "ORD-" seguido de un segmento aleatorio de UUID.
      * <p>
@@ -201,6 +251,7 @@ public class OrderService {
                         .itemId(item.getItemId())
                         .quantity(item.getQuantity())
                         .price(item.getPrice())
+                        .artistId(item.getArtistId()) // Incluir el artistId en el DTO
                         .build())
                 .collect(Collectors.toList());
 
