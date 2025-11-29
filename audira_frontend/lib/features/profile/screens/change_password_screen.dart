@@ -18,6 +18,12 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   final _newPasswordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
 
+  // --- Colores del Tema Oscuro ---
+  final Color darkBg = Colors.black;
+  final Color darkCardBg = const Color(0xFF212121);
+  final Color lightText = Colors.white;
+  final Color subText = Colors.grey;
+
   bool _isLoading = false;
   bool _obscureCurrentPassword = true;
   bool _obscureNewPassword = true;
@@ -43,7 +49,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       final userId = authProvider.currentUser?.id;
 
       if (userId == null) {
-        throw Exception('Usuario no identificado');
+        throw Exception('User not identified');
       }
 
       final authService = AuthService();
@@ -58,21 +64,21 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Contraseña actualizada exitosamente'),
+              content: Text('Password updated successfully'),
               backgroundColor: Colors.green,
             ),
           );
           Navigator.pop(context);
         }
       } else {
-        throw Exception(response.error ?? 'Error al cambiar contraseña');
+        throw Exception(response.error ?? 'Failed to update password');
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error: $e'),
-            backgroundColor: AppTheme.errorRed,
+            backgroundColor: Colors.red[900],
           ),
         );
       }
@@ -83,180 +89,172 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     }
   }
 
+  // --- UI BUILD ---
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: darkBg,
       appBar: AppBar(
-        title: const Text('Cambiar Contraseña'),
+        title: const Text(
+          'Security Settings',
+          style: TextStyle(
+              color: AppTheme.primaryBlue, fontWeight: FontWeight.w800),
+        ),
+        backgroundColor: darkBg,
+        elevation: 0,
+        iconTheme: IconThemeData(color: subText),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(24),
         child: Form(
           key: _formKey,
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(
-                Icons.lock_outline,
-                size: 80,
-                color: AppTheme.primaryBlue,
-              )
-                  .animate()
-                  .fadeIn(duration: 400.ms)
-                  .scale(begin: const Offset(0.8, 0.8)),
+              // Header Section
+              Center(
+                child: Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryBlue.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                        color: AppTheme.primaryBlue.withValues(alpha: 0.3),
+                        width: 2),
+                  ),
+                  child: const Icon(
+                    Icons.lock_reset,
+                    size: 48,
+                    color: AppTheme.primaryBlue,
+                  ),
+                ),
+              ).animate().scale(duration: 400.ms, curve: Curves.easeOutBack),
+
+              const SizedBox(height: 24),
+
+              Center(
+                child: Text(
+                  'Change Password',
+                  style: TextStyle(
+                      color: lightText,
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold),
+                ),
+              ).animate().fadeIn(delay: 100.ms),
+
+              const SizedBox(height: 8),
+
+              Center(
+                child: Text(
+                  'Your new password must be different from\npreviously used passwords.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: subText, fontSize: 14),
+                ),
+              ).animate().fadeIn(delay: 200.ms),
+
               const SizedBox(height: 32),
-              Text(
-                'Ingresa tu contraseña actual y elige una nueva contraseña segura',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: AppTheme.textGrey,
-                    ),
-              ).animate(delay: 100.ms).fadeIn(),
-              const SizedBox(height: 32),
-              TextFormField(
+
+              // Inputs Section
+              _buildPasswordField(
                 controller: _currentPasswordController,
-                obscureText: _obscureCurrentPassword,
-                decoration: InputDecoration(
-                  labelText: 'Contraseña Actual',
-                  border: const OutlineInputBorder(),
-                  prefixIcon: const Icon(Icons.lock_outline),
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      _obscureCurrentPassword
-                          ? Icons.visibility_off
-                          : Icons.visibility,
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        _obscureCurrentPassword = !_obscureCurrentPassword;
-                      });
-                    },
-                  ),
-                ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'La contraseña actual es requerida';
-                  }
-                  return null;
-                },
-              ).animate(delay: 200.ms).fadeIn().slideX(begin: -0.2),
-              const SizedBox(height: 16),
-              TextFormField(
+                label: 'Current Password',
+                isObscured: _obscureCurrentPassword,
+                onToggle: () => setState(
+                    () => _obscureCurrentPassword = !_obscureCurrentPassword),
+                validator: (val) => val!.isEmpty ? 'Required' : null,
+              ).animate().slideX(begin: -0.1, delay: 300.ms).fadeIn(),
+
+              const SizedBox(height: 20),
+
+              _buildPasswordField(
                 controller: _newPasswordController,
-                obscureText: _obscureNewPassword,
-                decoration: InputDecoration(
-                  labelText: 'Nueva Contraseña',
-                  border: const OutlineInputBorder(),
-                  prefixIcon: const Icon(Icons.lock),
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      _obscureNewPassword
-                          ? Icons.visibility_off
-                          : Icons.visibility,
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        _obscureNewPassword = !_obscureNewPassword;
-                      });
-                    },
-                  ),
-                ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'La nueva contraseña es requerida';
-                  }
-                  if (value.length < 8) {
-                    return 'La contraseña debe tener al menos 8 caracteres';
-                  }
-                  if (value == _currentPasswordController.text) {
-                    return 'La nueva contraseña debe ser diferente de la actual';
+                label: 'New Password',
+                isObscured: _obscureNewPassword,
+                onToggle: () =>
+                    setState(() => _obscureNewPassword = !_obscureNewPassword),
+                validator: (val) {
+                  if (val == null || val.isEmpty) return 'Required';
+                  if (val.length < 8) return 'Min 8 characters';
+                  if (val == _currentPasswordController.text) {
+                    return 'Must be different from current';
                   }
                   return null;
                 },
-              ).animate(delay: 300.ms).fadeIn().slideX(begin: -0.2),
-              const SizedBox(height: 16),
-              TextFormField(
+              ).animate().slideX(begin: -0.1, delay: 400.ms).fadeIn(),
+
+              const SizedBox(height: 20),
+
+              _buildPasswordField(
                 controller: _confirmPasswordController,
-                obscureText: _obscureConfirmPassword,
-                decoration: InputDecoration(
-                  labelText: 'Confirmar Nueva Contraseña',
-                  border: const OutlineInputBorder(),
-                  prefixIcon: const Icon(Icons.lock),
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      _obscureConfirmPassword
-                          ? Icons.visibility_off
-                          : Icons.visibility,
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        _obscureConfirmPassword = !_obscureConfirmPassword;
-                      });
-                    },
-                  ),
-                ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'La confirmación de contraseña es requerida';
-                  }
-                  if (value != _newPasswordController.text) {
-                    return 'Las contraseñas no coinciden';
+                label: 'Confirm New Password',
+                isObscured: _obscureConfirmPassword,
+                onToggle: () => setState(
+                    () => _obscureConfirmPassword = !_obscureConfirmPassword),
+                validator: (val) {
+                  if (val == null || val.isEmpty) return 'Required';
+                  if (val != _newPasswordController.text) {
+                    return 'Passwords do not match';
                   }
                   return null;
                 },
-              ).animate(delay: 400.ms).fadeIn().slideX(begin: -0.2),
+              ).animate().slideX(begin: -0.1, delay: 500.ms).fadeIn(),
+
               const SizedBox(height: 32),
+
+              // Requirements Box
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryBlue.withValues(alpha:0.1),
+                  color: darkCardBg,
                   borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey[850]!),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.info_outline,
-                          color: AppTheme.primaryBlue,
-                          size: 20,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Requisitos de la contraseña:',
-                          style: TextStyle(
-                            color: AppTheme.primaryBlue,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
+                    Text(
+                      'PASSWORD REQUIREMENTS',
+                      style: TextStyle(
+                          color: subText,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1),
                     ),
+                    const SizedBox(height: 12),
+                    _buildRequirementRow('Minimum 8 characters long'),
                     const SizedBox(height: 8),
-                    _buildRequirement('Mínimo 8 caracteres'),
-                    _buildRequirement('Debe ser diferente de la actual'),
+                    _buildRequirementRow('Different from current password'),
                   ],
                 ),
-              ).animate(delay: 500.ms).fadeIn(),
+              ).animate().fadeIn(delay: 600.ms),
+
               const SizedBox(height: 32),
-              ElevatedButton(
-                onPressed: _isLoading ? null : _changePassword,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.primaryBlue,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
+
+              // Action Button
+              SizedBox(
+                width: double.infinity,
+                height: 56,
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : _changePassword,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primaryBlue,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16)),
+                    elevation: 0,
+                  ),
+                  child: _isLoading
+                      ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                              color: Colors.white, strokeWidth: 2))
+                      : const Text('Update Password',
+                          style: TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.bold)),
                 ),
-                child: _isLoading
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : const Text('Cambiar Contraseña',
-                        style: TextStyle(fontSize: 16)),
-              ).animate(delay: 600.ms).fadeIn().scale(begin: const Offset(0.9, 0.9)),
+              ).animate().slideY(begin: 0.2, delay: 700.ms).fadeIn(),
             ],
           ),
         ),
@@ -264,26 +262,69 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     );
   }
 
-  Widget _buildRequirement(String text) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 8, top: 4),
-      child: Row(
-        children: [
-          Icon(
-            Icons.check_circle_outline,
-            size: 16,
-            color: AppTheme.textGrey,
-          ),
-          const SizedBox(width: 8),
-          Text(
-            text,
+  // --- WIDGETS AUXILIARES ---
+
+  Widget _buildPasswordField({
+    required TextEditingController controller,
+    required String label,
+    required bool isObscured,
+    required VoidCallback onToggle,
+    String? Function(String?)? validator,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label,
             style: TextStyle(
-              color: AppTheme.textGrey,
-              fontSize: 14,
+                color: subText, fontSize: 13, fontWeight: FontWeight.w500)),
+        const SizedBox(height: 8),
+        TextFormField(
+          controller: controller,
+          obscureText: isObscured,
+          style: TextStyle(color: lightText),
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: darkCardBg,
+            hintText: '••••••••',
+            hintStyle: TextStyle(color: Colors.grey[700]),
+            prefixIcon: const Icon(Icons.lock_outline, color: Colors.grey),
+            suffixIcon: IconButton(
+              icon: Icon(
+                isObscured
+                    ? Icons.visibility_off_outlined
+                    : Icons.visibility_outlined,
+                color: Colors.grey,
+              ),
+              onPressed: onToggle,
             ),
+            border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none),
+            enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Colors.grey[850]!)),
+            focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: AppTheme.primaryBlue)),
+            errorBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Colors.red[900]!)),
+            errorStyle: const TextStyle(color: Colors.redAccent),
           ),
-        ],
-      ),
+          validator: validator,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRequirementRow(String text) {
+    return Row(
+      children: [
+        const Icon(Icons.check_circle_outline,
+            size: 16, color: Colors.greenAccent),
+        const SizedBox(width: 8),
+        Text(text, style: TextStyle(color: Colors.grey[400], fontSize: 13)),
+      ],
     );
   }
 }
