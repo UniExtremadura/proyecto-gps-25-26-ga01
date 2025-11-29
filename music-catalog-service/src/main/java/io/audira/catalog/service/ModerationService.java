@@ -65,7 +65,6 @@ public class ModerationService {
         song.setModeratedBy(adminId);
         song.setModeratedAt(LocalDateTime.now());
         song.setRejectionReason(null); // Limpiar razón de rechazo si existía
-        song.setPublished(true); // Publicar automáticamente al aprobar
 
         Song savedSong = songRepository.save(song);
 
@@ -78,13 +77,6 @@ public class ModerationService {
             notificationClient.notifyArtistApproved(savedSong.getArtistId(), "SONG", savedSong.getTitle());
         } catch (Exception e) {
             log.error("Failed to send approval notification to artist {}", savedSong.getArtistId(), e);
-        }
-
-        // Notificar a los seguidores sobre el nuevo contenido publicado
-        try {
-            notifyFollowersNewProduct(savedSong);
-        } catch (Exception e) {
-            log.error("Failed to notify followers about new song {}", songId, e);
         }
 
         log.info("Canción aprobada y publicada: {} por admin: {}", songId, adminId);
@@ -170,7 +162,6 @@ public class ModerationService {
         album.setModeratedBy(adminId);
         album.setModeratedAt(LocalDateTime.now());
         album.setRejectionReason(null);
-        album.setPublished(true); // Publicar automáticamente al aprobar
 
         Album savedAlbum = albumRepository.save(album);
 
@@ -183,13 +174,6 @@ public class ModerationService {
             notificationClient.notifyArtistApproved(savedAlbum.getArtistId(), "ALBUM", savedAlbum.getTitle());
         } catch (Exception e) {
             log.error("Failed to send approval notification to artist {}", savedAlbum.getArtistId(), e);
-        }
-
-        // Notificar a los seguidores sobre el nuevo contenido publicado
-        try {
-            notifyFollowersNewProduct(savedAlbum);
-        } catch (Exception e) {
-            log.error("Failed to notify followers about new album {}", albumId, e);
         }
 
         log.info("Álbum aprobado y publicado: {} por admin: {}", albumId, adminId);
@@ -447,50 +431,5 @@ public class ModerationService {
         }
     }
 
-    /**
-     * Método auxiliar privado para notificar a los seguidores sobre un nuevo lanzamiento.
-     * <p>
-     * Se ejecuta tras la aprobación exitosa de un contenido. Obtiene la lista de seguidores
-     * del artista y envía una notificación individual a cada uno.
-     * </p>
-     *
-     * @param product El producto (Canción o Álbum) que acaba de ser publicado.
-     */
-    private void notifyFollowersNewProduct(Product product) {
-        try {
-            // Obtener seguidores del artista
-            List<Long> followerIds = userServiceClient.getFollowerIds(product.getArtistId());
 
-            if (followerIds.isEmpty()) {
-                log.debug("Artista {} no tiene seguidores para notificar", product.getArtistId());
-                return;
-            }
-
-            // Obtener información del artista
-            UserDTO artist = userServiceClient.getUserById(product.getArtistId());
-            String artistName = artist != null && artist.getArtistName() != null
-                ? artist.getArtistName()
-                : (artist != null ? artist.getUsername() : "Artista");
-
-            // Enviar notificación a cada seguidor
-            for (Long followerId : followerIds) {
-                try {
-                    notificationClient.notifyNewProduct(
-                        followerId,
-                        product.getProductType(),
-                        product.getTitle(),
-                        artistName
-                    );
-                } catch (Exception e) {
-                    log.warn("Failed to notify follower {} about new product {}", followerId, product.getId(), e);
-                }
-            }
-
-            log.info("Notificados {} seguidores sobre nuevo producto: {} ({})",
-                followerIds.size(), product.getTitle(), product.getProductType());
-
-        } catch (Exception e) {
-            log.error("Error notifying followers about new product {}", product.getId(), e);
-        }
-    }
 }
