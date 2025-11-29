@@ -16,6 +16,13 @@ class FollowedArtistsScreen extends StatefulWidget {
 
 class _FollowedArtistsScreenState extends State<FollowedArtistsScreen> {
   final UserService _userService = UserService();
+
+  // --- Colores del Tema Oscuro ---
+  final Color darkBg = Colors.black;
+  final Color darkCardBg = const Color(0xFF212121);
+  final Color lightText = Colors.white;
+  final Color subText = Colors.grey;
+
   List<User> _artists = [];
   bool _isLoading = true;
   String? _error;
@@ -23,46 +30,39 @@ class _FollowedArtistsScreenState extends State<FollowedArtistsScreen> {
   @override
   void initState() {
     super.initState();
-    // Uso de addPostFrameCallback para asegurar que el contexto (Provider) sea accesible.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadFollowedArtists();
     });
   }
 
   Future<void> _loadFollowedArtists() async {
-    // 1. Establecer estado de carga
     setState(() {
       _isLoading = true;
       _error = null;
     });
 
-    // 2. Obtener el ID del usuario actual de manera segura
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final userId = authProvider.currentUser?.id;
 
     if (userId == null) {
       setState(() {
-        _error = 'Usuario no identificado. Por favor, inicia sesión.';
+        _error = 'User not identified. Please login.';
         _isLoading = false;
       });
       return;
     }
 
-    // 3. Llamar a la API
     final response = await _userService.getFollowedArtists(userId);
 
-    // 4. Procesar la respuesta
     if (response.success && response.data != null) {
       setState(() {
-        // Mapeamos y casteamos explícitamente a List<User>
         _artists =
             (response.data as List<dynamic>).map((e) => e as User).toList();
         _isLoading = false;
       });
     } else {
       setState(() {
-        _error =
-            response.error ?? 'Error al cargar artistas. Vuelve a intentarlo.';
+        _error = response.error ?? 'Failed to load artists.';
         _isLoading = false;
       });
     }
@@ -74,20 +74,26 @@ class _FollowedArtistsScreenState extends State<FollowedArtistsScreen> {
 
     if (userId == null) return;
 
-    // 1. Mostrar confirmación
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Dejar de seguir'),
-        content: Text('¿Dejar de seguir a ${artist.fullName}?'),
+        backgroundColor: darkCardBg,
+        title: const Text('Unfollow Artist',
+            style: TextStyle(color: Colors.white)),
+        content: Text('Stop following ${artist.fullName}?',
+            style: TextStyle(color: subText)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
+            child: const Text('Cancel'),
           ),
-          TextButton(
+          ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Confirmar'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red[900],
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Unfollow'),
           ),
         ],
       ),
@@ -95,23 +101,19 @@ class _FollowedArtistsScreenState extends State<FollowedArtistsScreen> {
 
     if (confirm != true) return;
 
-    // 2. Llamada a la API de unfollow
     final response = await _userService.unfollowUser(userId, artist.id);
 
     if (response.success) {
-      // 3. Actualizar la lista VISUAL local (optimista)
       setState(() {
         _artists.removeWhere((a) => a.id == artist.id);
       });
-
-      // 4. Actualizar el ESTADO GLOBAL
       await authProvider.refreshProfile();
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Has dejado de seguir a ${artist.fullName}'),
-            backgroundColor: Colors.green,
+            content: Text('Unfollowed ${artist.fullName}'),
+            backgroundColor: Colors.orange,
           ),
         );
       }
@@ -119,19 +121,26 @@ class _FollowedArtistsScreenState extends State<FollowedArtistsScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(response.error ?? 'Error al dejar de seguir'),
-            backgroundColor: AppTheme.errorRed,
+            content: Text(response.error ?? 'Failed to unfollow'),
+            backgroundColor: Colors.red[900],
           ),
         );
       }
     }
   }
 
+  // --- UI BUILD ---
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: darkBg,
       appBar: AppBar(
-        title: const Text('Artistas Seguidos'),
+        title: const Text('Following',
+            style: TextStyle(
+                color: AppTheme.primaryBlue, fontWeight: FontWeight.w800)),
+        backgroundColor: darkBg,
+        elevation: 0,
       ),
       body: _buildBody(),
     );
@@ -139,7 +148,8 @@ class _FollowedArtistsScreenState extends State<FollowedArtistsScreen> {
 
   Widget _buildBody() {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(
+          child: CircularProgressIndicator(color: AppTheme.primaryBlue));
     }
 
     if (_error != null) {
@@ -147,22 +157,15 @@ class _FollowedArtistsScreenState extends State<FollowedArtistsScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.error_outline,
-              size: 64,
-              color: AppTheme.errorRed,
-            ),
+            Icon(Icons.wifi_off, size: 64, color: Colors.red[900]),
             const SizedBox(height: 16),
-            Text(
-              _error!,
-              style: Theme.of(context).textTheme.bodyLarge,
-              textAlign: TextAlign.center,
-            ),
+            Text(_error!, style: const TextStyle(color: Colors.red)),
             const SizedBox(height: 16),
-            ElevatedButton.icon(
+            ElevatedButton(
               onPressed: _loadFollowedArtists,
-              icon: const Icon(Icons.refresh),
-              label: const Text('Reintentar'),
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryBlue),
+              child: const Text('Retry'),
             ),
           ],
         ),
@@ -174,146 +177,152 @@ class _FollowedArtistsScreenState extends State<FollowedArtistsScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.people_outline,
-              size: 64,
-              color: AppTheme.textGrey,
+            Container(
+              padding: const EdgeInsets.all(30),
+              decoration: BoxDecoration(
+                color: darkCardBg,
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.grey[850]!),
+              ),
+              child: Icon(Icons.person_add_disabled,
+                  size: 60, color: Colors.grey[700]),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 24),
             Text(
-              'No sigues a ningún artista',
-              style: Theme.of(context).textTheme.bodyLarge,
+              'No artists followed yet',
+              style: TextStyle(
+                  fontSize: 20, fontWeight: FontWeight.bold, color: lightText),
             ),
             const SizedBox(height: 8),
             Text(
-              'Explora y sigue a tus artistas favoritos',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppTheme.textGrey,
-                  ),
+              'Explore and follow your favorite artists',
+              style: TextStyle(color: subText),
             ),
           ],
         ),
-      );
+      ).animate().fadeIn(duration: 400.ms);
     }
 
-    // Lista de artistas
     return RefreshIndicator(
       onRefresh: _loadFollowedArtists,
-      child: ListView.builder(
-        padding: const EdgeInsets.all(16),
+      child: ListView.separated(
+        padding: const EdgeInsets.all(20),
         itemCount: _artists.length,
+        separatorBuilder: (c, i) => const SizedBox(height: 16),
         itemBuilder: (context, index) {
-          final artist = _artists[index];
-          return _buildArtistCard(artist, index);
+          return _buildArtistCard(_artists[index], index);
         },
       ),
     );
   }
 
   Widget _buildArtistCard(User artist, int index) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      child: InkWell(
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => ArtistDetailScreen(artistId: artist.id),
-            ),
-          );
-        },
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              // Artist Avatar
-              CircleAvatar(
-                radius: 30,
-                backgroundColor: AppTheme.primaryBlue.withValues(alpha: 0.2),
-                backgroundImage: artist.profileImageUrl != null
-                    ? NetworkImage(artist.profileImageUrl!)
-                    : null,
-                child: artist.profileImageUrl == null
-                    ? Icon(
-                        Icons.person,
-                        size: 30,
-                        color: AppTheme.primaryBlue,
-                      )
-                    : null,
-              ),
-              const SizedBox(width: 16),
-              // Artist Info
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+    return Container(
+      decoration: BoxDecoration(
+        color: darkCardBg,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey[850]!),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (_) => ArtistDetailScreen(artistId: artist.id)),
+            );
+          },
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                // Avatar
+                Stack(
                   children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            artist.fullName,
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleMedium
-                                ?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        if (artist.isVerified)
-                          Padding(
-                            padding: const EdgeInsets.only(left: 4),
-                            child: Icon(
-                              Icons.verified,
-                              size: 20,
-                              color: AppTheme.primaryBlue,
-                            ),
-                          ),
-                      ],
+                    CircleAvatar(
+                      radius: 28,
+                      backgroundColor:
+                          AppTheme.primaryBlue.withValues(alpha: 0.2),
+                      backgroundImage: artist.profileImageUrl != null
+                          ? NetworkImage(artist.profileImageUrl!)
+                          : null,
+                      child: artist.profileImageUrl == null
+                          ? const Icon(Icons.person,
+                              size: 28, color: AppTheme.primaryBlue)
+                          : null,
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '@${artist.username}',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: AppTheme.textGrey,
-                          ),
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.people_outline,
-                          size: 16,
-                          color: AppTheme.textGrey,
+                    if (artist.isVerified)
+                      Positioned(
+                        bottom: 0,
+                        right: 0,
+                        child: Container(
+                          padding: const EdgeInsets.all(2),
+                          decoration: const BoxDecoration(
+                              color: Colors.black, shape: BoxShape.circle),
+                          child: const Icon(Icons.verified,
+                              size: 14, color: AppTheme.primaryBlue),
                         ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${artist.followerIds.length} seguidores',
-                          style:
-                              Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: AppTheme.textGrey,
-                                  ),
-                        ),
-                      ],
-                    ),
+                      )
                   ],
                 ),
-              ),
-              // Unfollow Button
-              IconButton(
-                onPressed: () => _unfollowArtist(artist),
-                icon: Icon(
-                  Icons.person_remove_outlined,
-                  color: AppTheme.errorRed,
+                const SizedBox(width: 16),
+
+                // Info
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        artist.fullName,
+                        style: TextStyle(
+                            color: lightText,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '@${artist.username}',
+                        style: TextStyle(color: subText, fontSize: 13),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Icon(Icons.people, size: 12, color: subText),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${artist.followerIds.length} followers',
+                            style: TextStyle(color: subText, fontSize: 11),
+                          ),
+                        ],
+                      )
+                    ],
+                  ),
                 ),
-                tooltip: 'Dejar de seguir',
-              ),
-            ],
+
+                // Action
+                OutlinedButton(
+                  onPressed: () => _unfollowArtist(artist),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.redAccent,
+                    side: BorderSide(
+                        color: Colors.redAccent.withValues(alpha: 0.5)),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20)),
+                    minimumSize: const Size(0, 32),
+                  ),
+                  child: const Text('Unfollow', style: TextStyle(fontSize: 12)),
+                )
+              ],
+            ),
           ),
         ),
       ),
-    ).animate(delay: (index * 50).ms).fadeIn().slideX();
+    ).animate(delay: (index * 50).ms).fadeIn().slideY(begin: 0.1, end: 0);
   }
 }

@@ -7,7 +7,6 @@ import '../../../core/api/services/collaboration_service.dart';
 import '../../../core/providers/auth_provider.dart';
 
 /// Screen for viewing and responding to collaboration invitations
-/// GA01-154: Aceptar/rechazar colaboradores
 class CollaborationInvitationsScreen extends StatefulWidget {
   const CollaborationInvitationsScreen({super.key});
 
@@ -19,6 +18,12 @@ class CollaborationInvitationsScreen extends StatefulWidget {
 class _CollaborationInvitationsScreenState
     extends State<CollaborationInvitationsScreen> {
   final CollaborationService _collaborationService = CollaborationService();
+
+  // --- Colores del Tema Oscuro ---
+  final Color darkBg = Colors.black;
+  final Color darkCardBg = const Color(0xFF212121);
+  final Color lightText = Colors.white;
+  final Color subText = Colors.grey;
 
   List<Collaborator> _invitations = [];
   bool _isLoading = false;
@@ -58,6 +63,8 @@ class _CollaborationInvitationsScreenState
     }
   }
 
+  // --- LOGIC ---
+
   Future<void> _acceptInvitation(Collaborator invitation) async {
     final currentContext = context;
     try {
@@ -65,25 +72,16 @@ class _CollaborationInvitationsScreenState
           await _collaborationService.acceptInvitation(invitation.id);
 
       if (response.success) {
-        if(!currentContext.mounted) return;
-        ScaffoldMessenger.of(currentContext).showSnackBar(
-          const SnackBar(
-            content: Text('Invitación aceptada exitosamente'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        _loadInvitations(); // Reload invitations
+        if (!currentContext.mounted) return;
+        _showSnack('Invitación aceptada. ¡Ahora eres colaborador!',
+            isSuccess: true);
+        _loadInvitations();
       } else {
         throw Exception(response.error ?? 'Error desconocido');
       }
     } catch (e) {
-      if(!currentContext.mounted) return;
-      ScaffoldMessenger.of(currentContext).showSnackBar(
-        SnackBar(
-          content: Text('Error: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (!currentContext.mounted) return;
+      _showSnack('Error: $e', isError: true);
     }
   }
 
@@ -92,17 +90,17 @@ class _CollaborationInvitationsScreenState
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: AppTheme.surfaceBlack,
+        backgroundColor: darkCardBg,
         title: const Row(
           children: [
-            Icon(Icons.warning, color: Colors.orange),
+            Icon(Icons.warning_amber_rounded, color: Colors.orangeAccent),
             SizedBox(width: 12),
-            Text('Rechazar Invitación'),
+            Text('Rechazar Oferta', style: TextStyle(color: Colors.white)),
           ],
         ),
         content: const Text(
-          '¿Estás seguro de rechazar esta invitación?\n\nNo podrás revertir esta acción.',
-          style: TextStyle(fontSize: 16),
+          '¿Estás seguro de que quieres rechazar esta colaboración?\nEsta acción no se puede deshacer.',
+          style: TextStyle(color: Colors.grey),
         ),
         actions: [
           TextButton(
@@ -111,7 +109,10 @@ class _CollaborationInvitationsScreenState
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red[900],
+              foregroundColor: Colors.white,
+            ),
             child: const Text('Rechazar'),
           ),
         ],
@@ -124,53 +125,67 @@ class _CollaborationInvitationsScreenState
             await _collaborationService.rejectInvitation(invitation.id);
 
         if (response.success) {
-          if(!currentContext.mounted) return;
-          ScaffoldMessenger.of(currentContext).showSnackBar(
-            const SnackBar(
-              content: Text('Invitación rechazada'),
-              backgroundColor: Colors.orange,
-            ),
-          );
-          _loadInvitations(); // Reload invitations
+          if (!currentContext.mounted) return;
+          _showSnack('Invitación rechazada', color: Colors.orange);
+          _loadInvitations();
         } else {
           throw Exception(response.error ?? 'Error desconocido');
         }
       } catch (e) {
-        if(!currentContext.mounted) return;
-        ScaffoldMessenger.of(currentContext).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        if (!currentContext.mounted) return;
+        _showSnack('Error: $e', isError: true);
       }
     }
   }
 
+  void _showSnack(String msg,
+      {bool isError = false, bool isSuccess = false, Color? color}) {
+    Color finalColor = color ?? Colors.grey;
+    if (isError) finalColor = Colors.red[900]!;
+    if (isSuccess) finalColor = Colors.green[800]!;
+
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(msg, style: const TextStyle(color: Colors.white)),
+      backgroundColor: finalColor,
+      behavior: SnackBarBehavior.floating,
+    ));
+  }
+
+  // --- UI BUILD ---
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: darkBg,
       appBar: AppBar(
-        title: const Text('Invitaciones Pendientes'),
+        backgroundColor: darkBg,
+        elevation: 0,
+        centerTitle: false,
+        title: const Text(
+          'Collaboration Requests',
+          style: TextStyle(
+              color: AppTheme.primaryBlue, fontWeight: FontWeight.w800),
+        ),
+        actions: [
+          Container(
+            margin: const EdgeInsets.only(right: 16),
+            decoration: BoxDecoration(
+              color: AppTheme.primaryBlue.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: IconButton(
+              icon: Icon(Icons.refresh, color: AppTheme.primaryBlue),
+              onPressed: _loadInvitations,
+              tooltip: 'Refresh',
+            ),
+          ),
+        ],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(
+              child: CircularProgressIndicator(color: AppTheme.primaryBlue))
           : _error != null
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.error, size: 64, color: Colors.red),
-                      const SizedBox(height: 16),
-                      Text('Error: $_error'),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: _loadInvitations,
-                        child: const Text('Reintentar'),
-                      ),
-                    ],
-                  ),
-                )
+              ? _buildErrorState()
               : _invitations.isEmpty
                   ? _buildEmptyState()
                   : _buildInvitationsList(),
@@ -183,230 +198,262 @@ class _CollaborationInvitationsScreenState
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(30),
             decoration: BoxDecoration(
-              color: AppTheme.primaryBlue.withValues(alpha: 0.1),
+              color: darkCardBg,
               shape: BoxShape.circle,
+              border: Border.all(color: Colors.grey[850]!),
             ),
-            child: const Icon(
-              Icons.inbox,
-              size: 64,
-              color: AppTheme.primaryBlue,
-            ),
+            child:
+                Icon(Icons.mark_email_read, size: 60, color: Colors.grey[800]),
           ),
           const SizedBox(height: 24),
-          const Text(
-            'No tienes invitaciones pendientes',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          Text(
+            'All caught up!',
+            style: TextStyle(
+                fontSize: 20, fontWeight: FontWeight.bold, color: lightText),
           ),
           const SizedBox(height: 8),
-          const Text(
-            'Cuando te inviten a colaborar, aparecerá aquí',
-            style: TextStyle(color: AppTheme.textGrey),
+          Text(
+            'No pending collaboration requests.',
+            style: TextStyle(color: subText),
           ),
         ],
       ),
-    ).animate().fadeIn(duration: 300.ms);
+    ).animate().fadeIn(duration: 400.ms);
+  }
+
+  Widget _buildErrorState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.error_outline, size: 50, color: Colors.redAccent),
+          const SizedBox(height: 16),
+          Text(_error!, style: const TextStyle(color: Colors.redAccent)),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: _loadInvitations,
+            style:
+                ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryBlue),
+            child: const Text('Try Again'),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildInvitationsList() {
-    return RefreshIndicator(
-      onRefresh: _loadInvitations,
-      child: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: _invitations.length,
-        itemBuilder: (context, index) {
-          final invitation = _invitations[index];
-          return _buildInvitationCard(invitation)
-              .animate(delay: (index * 50).ms)
-              .fadeIn()
-              .slideX(begin: -0.1);
-        },
-      ),
+    return ListView.builder(
+      padding: const EdgeInsets.all(20),
+      itemCount: _invitations.length,
+      itemBuilder: (context, index) {
+        return _buildInvitationCard(_invitations[index], index);
+      },
     );
   }
 
-  Widget _buildInvitationCard(Collaborator invitation) {
-    final entityType = invitation.isForSong ? 'Canción' : 'Álbum';
-    final icon = invitation.isForSong ? Icons.music_note : Icons.album;
-    final color = invitation.isForSong ? AppTheme.primaryBlue : Colors.purple;
+  Widget _buildInvitationCard(Collaborator invitation, int index) {
+    // Determinar estilo basado en tipo
+    final bool isSong = invitation.isForSong;
+    final Color typeColor = isSong ? AppTheme.primaryBlue : Colors.purpleAccent;
+    final IconData typeIcon = isSong ? Icons.music_note : Icons.album;
+    final String typeLabel = isSong ? 'Song Collab' : 'Album Collab';
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      color: AppTheme.surfaceBlack,
-      elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: color.withValues(alpha: 0.3), width: 1),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(icon, color: color, size: 24),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Colaboración en $entityType',
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Text(
-                        '$entityType ID: ${invitation.entityId}',
-                        style: const TextStyle(
-                          color: AppTheme.textGrey,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Colors.orange.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.access_time, size: 14, color: Colors.orange),
-                      SizedBox(width: 4),
-                      Text(
-                        'Pendiente',
-                        style: TextStyle(
-                          color: Colors.orange,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 20),
+      child: Material(
+        color: darkCardBg,
+        elevation: 4,
+        shadowColor: Colors.black54,
+        borderRadius: BorderRadius.circular(20),
+        clipBehavior: Clip.antiAlias,
+        child: Container(
+          decoration: BoxDecoration(
+            border: Border(
+              left: BorderSide(color: typeColor, width: 4),
             ),
-            const SizedBox(height: 16),
-            const Divider(height: 1),
-            const SizedBox(height: 16),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // --- HEADER ---
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.2),
+                  border: Border(bottom: BorderSide(color: Colors.grey[850]!)),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: typeColor.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(typeIcon, color: typeColor, size: 20),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            typeLabel.toUpperCase(),
+                            style: TextStyle(
+                              color: typeColor,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 1,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'ID: ${invitation.entityId}',
+                            style: TextStyle(
+                              color: lightText,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                            color: Colors.orange.withValues(alpha: 0.3)),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(Icons.access_time_filled,
+                              size: 12, color: Colors.orangeAccent),
+                          SizedBox(width: 4),
+                          Text('PENDING',
+                              style: TextStyle(
+                                  color: Colors.orangeAccent,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
 
-            // Details
-            _buildDetailRow(
-              Icons.work,
-              'Rol',
-              invitation.role,
-              color: AppTheme.primaryBlue,
-            ),
-            const SizedBox(height: 8),
-            _buildDetailRow(
-              Icons.person,
-              'Invitado por',
-              'Usuario ID: ${invitation.invitedBy}',
-              color: AppTheme.textGrey,
-            ),
-            if (invitation.revenuePercentage > 0) ...[
-              const SizedBox(height: 8),
-              _buildDetailRow(
-                Icons.attach_money,
-                'Porcentaje de ganancias',
-                '${invitation.revenuePercentage.toStringAsFixed(1)}%',
-                color: Colors.green,
+              // --- BODY CONTENT ---
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    _buildInfoRow(Icons.person, 'Invited By',
+                        'User ID: ${invitation.invitedBy}'),
+                    const SizedBox(height: 12),
+                    _buildInfoRow(Icons.work, 'Role', invitation.role),
+                    const SizedBox(height: 12),
+                    _buildRevenueRow(invitation.revenuePercentage),
+                  ],
+                ),
+              ),
+
+              // --- ACTIONS ---
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => _rejectInvitation(invitation),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.redAccent,
+                          side: BorderSide(
+                              color: Colors.redAccent.withValues(alpha: 0.5)),
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                        ),
+                        child: const Text('Decline'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () => _acceptInvitation(invitation),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green[700],
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                          elevation: 0,
+                        ),
+                        child: const Text('Accept & Join'),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
-            if (invitation.createdAt != null) ...[
-              const SizedBox(height: 8),
-              _buildDetailRow(
-                Icons.calendar_today,
-                'Fecha de invitación',
-                _formatDate(invitation.createdAt!),
-                color: AppTheme.textGrey,
-              ),
-            ],
-
-            const SizedBox(height: 16),
-            const Divider(height: 1),
-            const SizedBox(height: 16),
-
-            // Actions
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () => _rejectInvitation(invitation),
-                    icon: const Icon(Icons.close, size: 18),
-                    label: const Text('Rechazar'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.red,
-                      side: const BorderSide(color: Colors.red),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  flex: 2,
-                  child: ElevatedButton.icon(
-                    onPressed: () => _acceptInvitation(invitation),
-                    icon: const Icon(Icons.check, size: 18),
-                    label: const Text('Aceptar'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDetailRow(IconData icon, String label, String value,
-      {required Color color}) {
-    return Row(
-      children: [
-        Icon(icon, size: 16, color: color),
-        const SizedBox(width: 8),
-        Text(
-          '$label: ',
-          style: const TextStyle(
-            color: AppTheme.textGrey,
-            fontSize: 14,
           ),
         ),
+      ),
+    ).animate(delay: (index * 100).ms).fadeIn().slideY(begin: 0.1, end: 0);
+  }
+
+  Widget _buildInfoRow(IconData icon, String label, String value) {
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: subText),
+        const SizedBox(width: 12),
+        Text('$label:', style: TextStyle(color: subText, fontSize: 13)),
+        const SizedBox(width: 8),
         Expanded(
           child: Text(
             value,
             style: TextStyle(
-              color: color,
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-            ),
+                color: lightText, fontWeight: FontWeight.w500, fontSize: 14),
+            overflow: TextOverflow.ellipsis,
           ),
         ),
       ],
     );
   }
 
-  String _formatDate(DateTime date) {
-    return '${date.day}/${date.month}/${date.year}';
+  Widget _buildRevenueRow(double percentage) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.greenAccent.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.greenAccent.withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.monetization_on,
+                  size: 18, color: Colors.greenAccent),
+              const SizedBox(width: 8),
+              Text('Revenue Share Offer',
+                  style:
+                      TextStyle(color: Colors.greenAccent[100], fontSize: 13)),
+            ],
+          ),
+          Text(
+            '${percentage.toStringAsFixed(1)}%',
+            style: const TextStyle(
+                color: Colors.greenAccent,
+                fontSize: 18,
+                fontWeight: FontWeight.bold),
+          ),
+        ],
+      ),
+    );
   }
 }

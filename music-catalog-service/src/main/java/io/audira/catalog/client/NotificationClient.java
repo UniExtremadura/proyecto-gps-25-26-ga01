@@ -25,7 +25,7 @@ public class NotificationClient {
 
     private final RestTemplate restTemplate;
 
-    @Value("${services.commerce.url:http://172.16.0.4:9003/api/notifications}")
+    @Value("${services.commerce.url:http://172.16.0.4:8080/api/notifications}")
     private String notificationServiceUrl;
 
     /**
@@ -135,7 +135,7 @@ public class NotificationClient {
     public boolean notifyArtistApproved(Long artistId, String productType, String productTitle) {
         String title = "Contenido aprobado";
         String message = String.format(
-            "Tu %s \"%s\" ha sido aprobado y publicado",
+            "Tu %s \"%s\" ha sido aprobado",
             productType.equalsIgnoreCase("SONG") ? "canción" : "álbum",
             productTitle
         );

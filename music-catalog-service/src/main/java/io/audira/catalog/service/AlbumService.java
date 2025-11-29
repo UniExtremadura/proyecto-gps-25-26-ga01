@@ -1,12 +1,15 @@
 package io.audira.catalog.service;
 
+import io.audira.catalog.client.NotificationClient;
 import io.audira.catalog.client.UserServiceClient;
 import io.audira.catalog.dto.AlbumCreateRequest;
 import io.audira.catalog.dto.AlbumDTO;
 import io.audira.catalog.dto.AlbumResponse;
 import io.audira.catalog.dto.AlbumUpdateRequest;
+import io.audira.catalog.dto.UserDTO;
 import io.audira.catalog.model.Album;
 import io.audira.catalog.model.ModerationStatus;
+import io.audira.catalog.model.Product;
 import io.audira.catalog.model.Song;
 import io.audira.catalog.repository.AlbumRepository;
 import io.audira.catalog.repository.SongRepository;
@@ -35,6 +38,7 @@ public class AlbumService {
     private final AlbumRepository albumRepository;
     private final SongRepository songRepository;
     private final UserServiceClient userServiceClient;
+    private final NotificationClient notificationClient;
 
     /**
      * Recupera los álbumes más recientes (sin filtrar por estado).
@@ -217,6 +221,53 @@ public class AlbumService {
     }
 
     /**
+     * Método auxiliar privado para notificar a los seguidores sobre un nuevo lanzamiento.
+     * <p>
+     * Se ejecuta tras la aprobación exitosa de un contenido. Obtiene la lista de seguidores
+     * del artista y envía una notificación individual a cada uno.
+     * </p>
+     *
+     * @param product El producto (Canción o Álbum) que acaba de ser publicado.
+     */
+    private void notifyFollowersNewProduct(Product product) {
+        try {
+            // Obtener seguidores del artista
+            List<Long> followerIds = userServiceClient.getFollowerIds(product.getArtistId());
+
+            if (followerIds.isEmpty()) {
+                log.debug("Artista {} no tiene seguidores para notificar", product.getArtistId());
+                return;
+            }
+
+            // Obtener información del artista
+            UserDTO artist = userServiceClient.getUserById(product.getArtistId());
+            String artistName = artist != null && artist.getArtistName() != null
+                ? artist.getArtistName()
+                : (artist != null ? artist.getUsername() : "Artista");
+
+            // Enviar notificación a cada seguidor
+            for (Long followerId : followerIds) {
+                try {
+                    notificationClient.notifyNewProduct(
+                        followerId,
+                        product.getProductType(),
+                        product.getTitle(),
+                        artistName
+                    );
+                } catch (Exception e) {
+                    log.warn("Failed to notify follower {} about new product {}", followerId, product.getId(), e);
+                }
+            }
+
+            log.info("Notificados {} seguidores sobre nuevo producto: {} ({})",
+                followerIds.size(), product.getTitle(), product.getProductType());
+
+        } catch (Exception e) {
+            log.error("Error notifying followers about new product {}", product.getId(), e);
+        }
+    }
+
+    /**
      * Publica o despublica un álbum.
      * <p>
      * GA01-162: Solo se puede publicar si el álbum está aprobado.
@@ -244,6 +295,13 @@ public class AlbumService {
 
         album.setPublished(published);
         album = albumRepository.save(album);
+
+        // Notificar a los seguidores sobre el nuevo contenido publicado
+        try {
+            notifyFollowersNewProduct(album);
+        } catch (Exception e) {
+            log.error("Failed to notify followers about new album {}", album.getId(), e);
+        }
 
         int songCount = songRepository.findByAlbumId(album.getId()).size();
         return Optional.of(AlbumResponse.fromAlbum(album, songCount));

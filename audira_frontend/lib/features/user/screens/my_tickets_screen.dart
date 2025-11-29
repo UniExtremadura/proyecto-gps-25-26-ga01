@@ -17,6 +17,13 @@ class MyTicketsScreen extends StatefulWidget {
 
 class _MyTicketsScreenState extends State<MyTicketsScreen> {
   final ContactService _contactService = ContactService();
+
+  // --- Colores del Tema Oscuro ---
+  final Color darkBg = Colors.black;
+  final Color darkCardBg = const Color(0xFF212121);
+  final Color lightText = Colors.white;
+  final Color subText = Colors.grey;
+
   List<ContactMessage> _tickets = [];
   bool _isLoading = false;
   String? _error;
@@ -49,7 +56,7 @@ class _MyTicketsScreenState extends State<MyTicketsScreen> {
         });
       } else {
         setState(() {
-          _error = response.error ?? 'Error al cargar tickets';
+          _error = response.error ?? 'Error loading tickets';
           _isLoading = false;
         });
       }
@@ -63,18 +70,25 @@ class _MyTicketsScreenState extends State<MyTicketsScreen> {
 
   List<ContactMessage> get _filteredTickets {
     if (_selectedFilter == 'ALL') return _tickets;
-    final status = ContactStatus.fromString(_selectedFilter);
-    return _tickets.where((t) => t.status == status).toList();
+    // Simple filter matching enum name
+    try {
+      final status = ContactStatus.values.firstWhere((e) =>
+          e.toString().split('.').last.toUpperCase() == _selectedFilter ||
+          e.value == _selectedFilter);
+      return _tickets.where((t) => t.status == status).toList();
+    } catch (e) {
+      return _tickets;
+    }
   }
 
   Color _getStatusColor(ContactStatus status) {
     switch (status) {
       case ContactStatus.pending:
-        return Colors.orange;
+        return Colors.orangeAccent;
       case ContactStatus.inProgress:
-        return Colors.blue;
+        return Colors.blueAccent;
       case ContactStatus.resolved:
-        return Colors.green;
+        return Colors.greenAccent;
       case ContactStatus.closed:
         return Colors.grey;
     }
@@ -83,202 +97,257 @@ class _MyTicketsScreenState extends State<MyTicketsScreen> {
   IconData _getStatusIcon(ContactStatus status) {
     switch (status) {
       case ContactStatus.pending:
-        return Icons.pending;
+        return Icons.hourglass_empty;
       case ContactStatus.inProgress:
         return Icons.sync;
       case ContactStatus.resolved:
-        return Icons.check_circle;
+        return Icons.check_circle_outline;
       case ContactStatus.closed:
-        return Icons.close;
+        return Icons.lock_outline;
     }
   }
+
+  // --- UI BUILD ---
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: darkBg,
       appBar: AppBar(
-        title: const Text('Mis Tickets'),
+        title: const Text('My Support Tickets',
+            style: TextStyle(
+                color: AppTheme.primaryBlue, fontWeight: FontWeight.w800)),
+        backgroundColor: darkBg,
+        elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh, color: AppTheme.primaryBlue),
             onPressed: _loadTickets,
-            tooltip: 'Recargar',
+            tooltip: 'Reload',
           ),
+          // Filter Popup
           PopupMenuButton<String>(
-            icon: const Icon(Icons.filter_list),
-            onSelected: (value) {
-              setState(() => _selectedFilter = value);
-            },
+            icon: const Icon(Icons.filter_list, color: AppTheme.primaryBlue),
+            color: darkCardBg,
+            onSelected: (value) => setState(() => _selectedFilter = value),
             itemBuilder: (context) => [
-              const PopupMenuItem(value: 'ALL', child: Text('Todos')),
-              const PopupMenuItem(value: 'PENDING', child: Text('Pendientes')),
               const PopupMenuItem(
-                  value: 'IN_PROGRESS', child: Text('En proceso')),
-              const PopupMenuItem(value: 'RESOLVED', child: Text('Resueltos')),
-              const PopupMenuItem(value: 'CLOSED', child: Text('Cerrados')),
+                  value: 'ALL',
+                  child: Text('All Tickets',
+                      style: TextStyle(color: Colors.white))),
+              const PopupMenuItem(
+                  value: 'PENDING',
+                  child:
+                      Text('Pending', style: TextStyle(color: Colors.white))),
+              const PopupMenuItem(
+                  value: 'IN_PROGRESS',
+                  child: Text('In Progress',
+                      style: TextStyle(color: Colors.white))),
+              const PopupMenuItem(
+                  value: 'RESOLVED',
+                  child:
+                      Text('Resolved', style: TextStyle(color: Colors.white))),
+              const PopupMenuItem(
+                  value: 'CLOSED',
+                  child: Text('Closed', style: TextStyle(color: Colors.white))),
             ],
           ),
         ],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(
+              child: CircularProgressIndicator(color: AppTheme.primaryBlue))
           : _error != null
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.error, size: 64, color: Colors.red),
-                      const SizedBox(height: 16),
-                      Text(_error!),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: _loadTickets,
-                        child: const Text('Reintentar'),
-                      ),
-                    ],
-                  ),
-                )
+              ? _buildErrorView()
               : _filteredTickets.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(24),
-                            decoration: BoxDecoration(
-                              color: AppTheme.primaryBlue.withValues(alpha: 0.1),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.inbox,
-                              size: 64,
-                              color: AppTheme.primaryBlue,
-                            ),
-                          ),
-                          const SizedBox(height: 24),
-                          const Text(
-                            'No tienes tickets',
-                            style: TextStyle(
-                                fontSize: 20, fontWeight: FontWeight.bold),
-                          ),
-                          const SizedBox(height: 8),
-                          const Text(
-                            'Tus consultas aparecerán aquí',
-                            style: TextStyle(color: AppTheme.textGrey),
-                          ),
-                        ],
-                      ).animate().fadeIn(),
-                    )
+                  ? _buildEmptyState()
                   : RefreshIndicator(
                       onRefresh: _loadTickets,
-                      child: ListView.builder(
-                        padding: const EdgeInsets.all(16),
+                      child: ListView.separated(
+                        padding: const EdgeInsets.all(20),
                         itemCount: _filteredTickets.length,
+                        separatorBuilder: (c, i) => const SizedBox(height: 16),
                         itemBuilder: (context, index) {
-                          final ticket = _filteredTickets[index];
-                          return _buildTicketCard(ticket)
-                              .animate(delay: (index * 50).ms)
-                              .fadeIn()
-                              .slideY(begin: 0.1);
+                          return _buildTicketCard(
+                              _filteredTickets[index], index);
                         },
                       ),
                     ),
     );
   }
 
-  Widget _buildTicketCard(ContactMessage ticket) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: ExpansionTile(
-        leading: CircleAvatar(
-          backgroundColor: _getStatusColor(ticket.status),
-          child: Icon(
-            _getStatusIcon(ticket.status),
-            color: Colors.white,
-            size: 20,
-          ),
-        ),
-        title: Text(
-          ticket.subject,
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 4),
-            Text(
-              'Estado: ${ticket.status.label}',
-              style: TextStyle(
-                color: _getStatusColor(ticket.status),
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            Text(
-              _formatDate(ticket.createdAt),
-              style: const TextStyle(color: AppTheme.textGrey, fontSize: 12),
-            ),
-          ],
-        ),
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Tu consulta:',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.primaryBlue,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(ticket.message),
-                const SizedBox(height: 16),
-                // Mostrar contenido relacionado si existe
-                if (ticket.songId != null || ticket.albumId != null) ...[
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.purple.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: Colors.purple.withValues(alpha: 0.3),
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          ticket.songId != null ? Icons.music_note : Icons.album,
-                          color: Colors.purple,
-                          size: 20,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            ticket.songId != null
-                                ? 'Relacionado con canción ID: ${ticket.songId}'
-                                : 'Relacionado con álbum ID: ${ticket.albumId}',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                ],
-                const Divider(),
-                const SizedBox(height: 8),
-                _buildResponsesSection(ticket),
-              ],
-            ),
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+                color: darkCardBg,
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.grey[850]!)),
+            child: Icon(Icons.confirmation_number_outlined,
+                size: 64, color: Colors.grey[700]),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            'No tickets found',
+            style: TextStyle(
+                fontSize: 20, fontWeight: FontWeight.bold, color: lightText),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Your support requests will appear here.',
+            style: TextStyle(color: subText),
           ),
         ],
       ),
+    ).animate().fadeIn();
+  }
+
+  Widget _buildErrorView() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.error_outline, size: 50, color: Colors.redAccent),
+          const SizedBox(height: 16),
+          Text(_error!, style: const TextStyle(color: Colors.redAccent)),
+          const SizedBox(height: 16),
+          ElevatedButton(
+              onPressed: _loadTickets, child: const Text('Try Again')),
+        ],
+      ),
     );
+  }
+
+  Widget _buildTicketCard(ContactMessage ticket, int index) {
+    final statusColor = _getStatusColor(ticket.status);
+    final icon = _getStatusIcon(ticket.status);
+
+    return Material(
+      color: darkCardBg,
+      borderRadius: BorderRadius.circular(16),
+      clipBehavior: Clip.antiAlias,
+      child: Container(
+        decoration: BoxDecoration(
+          border: Border(left: BorderSide(color: statusColor, width: 4)),
+        ),
+        child: Theme(
+          data: Theme.of(context).copyWith(
+            dividerColor: Colors.transparent,
+            iconTheme: const IconThemeData(color: Colors.grey), // Arrow color
+          ),
+          child: ExpansionTile(
+            tilePadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+
+            // HEADER
+            leading: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: statusColor.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(icon, color: statusColor, size: 20),
+            ),
+            title: Text(
+              ticket.subject,
+              style: TextStyle(fontWeight: FontWeight.bold, color: lightText),
+            ),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 4),
+                Text(
+                  'Status: ${ticket.status.label}',
+                  style: TextStyle(
+                      color: statusColor,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500),
+                ),
+                Text(
+                  _formatDate(ticket.createdAt),
+                  style: TextStyle(color: subText, fontSize: 11),
+                ),
+              ],
+            ),
+
+            // BODY
+            children: [
+              // User Message Bubble
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                      color: Colors.black26,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.grey[850]!)),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('YOUR REQUEST',
+                          style: TextStyle(
+                              color: subText,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 4),
+                      Text(ticket.message,
+                          style: TextStyle(color: Colors.grey[300])),
+                    ],
+                  ),
+                ),
+              ),
+
+              // Context info if any
+              if (ticket.songId != null || ticket.albumId != null) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.purple.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border:
+                        Border.all(color: Colors.purple.withValues(alpha: 0.3)),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                          ticket.songId != null
+                              ? Icons.music_note
+                              : Icons.album,
+                          size: 16,
+                          color: Colors.purpleAccent),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          ticket.songId != null
+                              ? 'Ref: Song #${ticket.songId}'
+                              : 'Ref: Album #${ticket.albumId}',
+                          style: TextStyle(
+                              color: Colors.purple[100], fontSize: 12),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+
+              const SizedBox(height: 16),
+              const Divider(color: Colors.grey),
+              const SizedBox(height: 8),
+
+              // Responses Section
+              _buildResponsesSection(ticket),
+            ],
+          ),
+        ),
+      ),
+    ).animate(delay: (index * 50).ms).fadeIn().slideY(begin: 0.1, end: 0);
   }
 
   Widget _buildResponsesSection(ContactMessage ticket) {
@@ -287,39 +356,32 @@ class _MyTicketsScreenState extends State<MyTicketsScreen> {
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(
-            child: Padding(
-              padding: EdgeInsets.all(16),
-              child: CircularProgressIndicator(),
-            ),
-          );
+              child: Padding(
+                  padding: EdgeInsets.all(8),
+                  child: SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2))));
         }
-
         if (snapshot.hasError) {
-          return Text('Error al cargar respuestas: ${snapshot.error}');
+          return Text('Error loading replies',
+              style: TextStyle(color: Colors.red[300], fontSize: 12));
         }
 
         final responses = snapshot.data ?? [];
 
         if (responses.isEmpty) {
-          return Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.orange.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: Colors.orange.withValues(alpha: 0.3),
-              ),
-            ),
-            child: const Row(
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Row(
               children: [
-                Icon(Icons.pending_actions, color: Colors.orange),
-                SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'Aún no hay respuestas. El equipo de soporte revisará tu consulta pronto.',
-                    style: TextStyle(fontSize: 14),
-                  ),
-                ),
+                Icon(Icons.info_outline, size: 16, color: subText),
+                const SizedBox(width: 8),
+                Text('No replies from support team yet.',
+                    style: TextStyle(
+                        color: subText,
+                        fontSize: 12,
+                        fontStyle: FontStyle.italic)),
               ],
             ),
           );
@@ -328,71 +390,53 @@ class _MyTicketsScreenState extends State<MyTicketsScreen> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Respuestas del equipo de soporte:',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-              ),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text('SUPPORT TEAM REPLIES',
+                  style: TextStyle(
+                      color: AppTheme.primaryBlue,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold)),
             ),
-            const SizedBox(height: 12),
-            ...responses.map((response) => _buildResponseItem(response)),
+            ...responses.map((response) => Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryBlue.withValues(alpha: 0.1),
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(12),
+                      topRight: Radius.circular(12),
+                      bottomRight: Radius.circular(12),
+                      bottomLeft: Radius.zero,
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.support_agent,
+                              size: 14, color: AppTheme.primaryBlue),
+                          const SizedBox(width: 6),
+                          Text('Support Agent',
+                              style: TextStyle(
+                                  color: AppTheme.primaryBlue,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12)),
+                          const Spacer(),
+                          Text(_formatDate(response.createdAt),
+                              style: TextStyle(color: subText, fontSize: 10)),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Text(response.response,
+                          style: const TextStyle(color: Colors.white)),
+                    ],
+                  ),
+                )),
           ],
         );
       },
-    );
-  }
-
-  Widget _buildResponseItem(ContactResponse response) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppTheme.primaryBlue.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: AppTheme.primaryBlue.withValues(alpha: 0.3),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              CircleAvatar(
-                radius: 16,
-                backgroundColor: AppTheme.primaryBlue,
-                child: const Icon(Icons.support_agent,
-                    size: 16, color: Colors.white),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      response.adminName,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
-                    ),
-                    Text(
-                      _formatDate(response.createdAt),
-                      style: const TextStyle(
-                        color: AppTheme.textGrey,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(response.response),
-        ],
-      ),
     );
   }
 
@@ -413,16 +457,10 @@ class _MyTicketsScreenState extends State<MyTicketsScreen> {
 
   String _formatDate(DateTime date) {
     final now = DateTime.now();
-    final difference = now.difference(date);
-
-    if (difference.inDays == 0) {
-      return 'Hoy a las ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
-    } else if (difference.inDays == 1) {
-      return 'Ayer a las ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
-    } else if (difference.inDays < 7) {
-      return 'Hace ${difference.inDays} días';
-    } else {
-      return '${date.day}/${date.month}/${date.year}';
+    final diff = now.difference(date);
+    if (diff.inDays == 0) {
+      return 'Today, ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
     }
+    return '${date.day}/${date.month}/${date.year}';
   }
 }

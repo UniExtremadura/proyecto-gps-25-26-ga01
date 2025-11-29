@@ -2,7 +2,9 @@ package io.audira.catalog.service;
 
 import io.audira.catalog.client.UserServiceClient;
 import io.audira.catalog.dto.SongDTO;
+import io.audira.catalog.dto.UserDTO;
 import io.audira.catalog.model.ModerationStatus;
+import io.audira.catalog.model.Product;
 import io.audira.catalog.model.Song;
 import io.audira.catalog.repository.SongRepository;
 import lombok.RequiredArgsConstructor;
@@ -12,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import io.audira.catalog.client.NotificationClient;
 
 /**
  * Servicio central para la gestión del inventario de canciones (Tracks).
@@ -32,6 +35,7 @@ public class SongService {
 
     private final SongRepository songRepository;
     private final UserServiceClient userServiceClient;
+    private final NotificationClient notificationClient;
 
     /**
      * Registra una nueva canción en el sistema.
@@ -66,6 +70,25 @@ public class SongService {
         song.setModeratedBy(null);
         song.setModeratedAt(null);
         song.setRejectionReason(null);
+
+        Song savedSong = songRepository.save(song);
+
+        try {
+            // Se asume un ID de administrador para notificación (ej: 70L, debe ser configurable)
+            Long adminId = 70L; 
+
+            // Se busca el nombre del artista para el mensaje de notificación
+            String artistName = userServiceClient.getUserById(savedSong.getArtistId()).getArtistName();
+
+            notificationClient.notifyAdminPendingReview(
+                adminId, // ID del administrador (debe ser configurado)
+                "SONG",
+                savedSong.getTitle(),
+                artistName
+            );
+        } catch (Exception e) {
+            log.error("Failed to send pending review notification for song {}", savedSong.getId(), e);
+        }
 
         return songRepository.save(song);
     }
@@ -283,6 +306,53 @@ public class SongService {
     }
 
     /**
+     * Método auxiliar privado para notificar a los seguidores sobre un nuevo lanzamiento.
+     * <p>
+     * Se ejecuta tras la aprobación exitosa de un contenido. Obtiene la lista de seguidores
+     * del artista y envía una notificación individual a cada uno.
+     * </p>
+     *
+     * @param product El producto (Canción o Álbum) que acaba de ser publicado.
+     */
+    private void notifyFollowersNewProduct(Product product) {
+        try {
+            // Obtener seguidores del artista
+            List<Long> followerIds = userServiceClient.getFollowerIds(product.getArtistId());
+
+            if (followerIds.isEmpty()) {
+                log.debug("Artista {} no tiene seguidores para notificar", product.getArtistId());
+                return;
+            }
+
+            // Obtener información del artista
+            UserDTO artist = userServiceClient.getUserById(product.getArtistId());
+            String artistName = artist != null && artist.getArtistName() != null
+                ? artist.getArtistName()
+                : (artist != null ? artist.getUsername() : "Artista");
+
+            // Enviar notificación a cada seguidor
+            for (Long followerId : followerIds) {
+                try {
+                    notificationClient.notifyNewProduct(
+                        followerId,
+                        product.getProductType(),
+                        product.getTitle(),
+                        artistName
+                    );
+                } catch (Exception e) {
+                    log.warn("Failed to notify follower {} about new product {}", followerId, product.getId(), e);
+                }
+            }
+
+            log.info("Notificados {} seguidores sobre nuevo producto: {} ({})",
+                followerIds.size(), product.getTitle(), product.getProductType());
+
+        } catch (Exception e) {
+            log.error("Error notifying followers about new product {}", product.getId(), e);
+        }
+    }
+
+    /**
      * Modifica el estado de publicación de una canción.
      * <p>
      * <b>Regla de Negocio:</b> Solo se puede publicar ({@code published = true}) una canción
@@ -307,6 +377,13 @@ public class SongService {
         }
 
         song.setPublished(published);
+
+        // Notificar a los seguidores sobre el nuevo contenido publicado
+        try {
+            notifyFollowersNewProduct(song);
+        } catch (Exception e) {
+            log.error("Failed to notify followers about new song {}", song.getId(), e);
+        }
         return songRepository.save(song);
     }
 

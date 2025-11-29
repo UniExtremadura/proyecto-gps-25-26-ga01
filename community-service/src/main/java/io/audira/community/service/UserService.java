@@ -89,6 +89,8 @@ public class UserService {
                     .uid(uid)
                     .isActive(true)
                     .isVerified(false)
+                    .artistName(request.getUsername()) // Default artistName to username
+                    .verifiedArtist(false)
                     .build();
         } else {
             user = RegularUser.builder()
@@ -792,10 +794,20 @@ public class UserService {
         // Add artist-specific fields if user is an artist
         if (user instanceof Artist) {
             Artist artist = (Artist) user;
-            builder.artistName(artist.getArtistName())
+            // Ensure artistName is never null - fallback to username
+            String artistName = artist.getArtistName();
+            if (artistName == null || artistName.trim().isEmpty()) {
+                artistName = user.getUsername();
+            }
+            builder.artistName(artistName)
                     .artistBio(artist.getArtistBio())
                     .recordLabel(artist.getRecordLabel())
                     .verifiedArtist(artist.getVerifiedArtist());
+        } else if (user.getRole() == UserRole.ARTIST) {
+            // Fallback: If role is ARTIST but not instanceof Artist (shouldn't happen but just in case)
+            logger.warn("User {} has role ARTIST but is not instanceof Artist class", user.getId());
+            builder.artistName(user.getUsername())
+                    .verifiedArtist(false);
         }
 
         // Add social media links
