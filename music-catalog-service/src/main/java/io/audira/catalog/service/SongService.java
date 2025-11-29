@@ -10,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -526,5 +527,26 @@ public class SongService {
      */
     public List<SongDTO> getPublishedSongsByGenreWithArtistName(Long genreId) {
         return convertToDTOs(songRepository.findPublishedByGenreId(genreId));
+    }
+
+    /**
+     * Obtiene el ID del artista y el precio de una canción específica.
+     * <p>
+     * Este método está diseñado para ser consumido por el microservicio de Comercio.
+     * Solo recupera la información mínima necesaria para las transacciones (artistId, price).
+     * </p>
+     *
+     * @param id ID de la canción.
+     * @return Un Map con "artistId" y "price".
+     * @throws IllegalArgumentException Si la canción no existe.
+     */
+    public Map<String, Object> getArtistAndPriceBySongId(Long id) {
+        Song song = songRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Song not found with id: " + id));
+
+        return Map.of(
+                "artistId", song.getArtistId(),
+                "price", song.getPrice()
+        );
     }
 }

@@ -157,4 +157,37 @@ public class MusicCatalogClient {
             return null;
         }
     }
+
+    /**
+     * Obtiene la información transaccional mínima de una canción (ID del artista y precio).
+     * <p>
+     * Llama al endpoint de uso interno del catálogo: {@code /songs/{id}/details/commerce}.
+     * </p>
+     *
+     * @param songId ID de la canción (tipo {@link Long}) a buscar.
+     * @return Un {@link Map} con "artistId" y "price" o {@code null} si hay un error.
+     */
+    public Map<String, Object> getSongDetailsForCommerce(Long songId) {
+        String url = catalogServiceUrl + "/songs/" + songId + "/details/commerce";
+
+        try {
+            log.debug("Fetching commerce details for song {} from URL: {}", songId, url);
+            
+            // Usamos exchange para asegurarnos de que el tipo de retorno sea Map<String, Object>
+            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
+                    url,
+                    HttpMethod.GET,
+                    null,
+                    new ParameterizedTypeReference<Map<String, Object>>() {}
+            );
+            return response.getBody();
+            
+        } catch (HttpClientErrorException.NotFound e) {
+            log.warn("Song not found for commerce details: {}", songId);
+            return null;
+        } catch (Exception e) {
+            log.error("Error fetching commerce details for song {}: {}", songId, e.getMessage());
+            return null;
+        }
+    }
 }
