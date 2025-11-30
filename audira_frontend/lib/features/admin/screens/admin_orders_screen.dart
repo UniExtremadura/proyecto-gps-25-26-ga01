@@ -1,3 +1,5 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../../config/theme.dart';
@@ -23,7 +25,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
       'userId': 123,
       'userName': 'John Doe',
       'userAvatar': 'J',
-      'items': ['Song: Midnight Dreams', 'Album: Summer Vibes'],
+      'items': ['Canción: Midnight Dreams', 'Álbum: Summer Vibes'],
       'total': 25.98,
       'date': DateTime.now().subtract(const Duration(hours: 2)),
       'status': 'completed',
@@ -33,7 +35,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
       'userId': 456,
       'userName': 'Jane Smith',
       'userAvatar': 'J',
-      'items': ['Song: Electric Love'],
+      'items': ['Canción: Electric Love'],
       'total': 9.99,
       'date': DateTime.now().subtract(const Duration(days: 1)),
       'status': 'pending',
@@ -43,7 +45,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
       'userId': 789,
       'userName': 'Bob Johnson',
       'userAvatar': 'B',
-      'items': ['Album: Jazz Collection', 'Song: Blue Notes'],
+      'items': ['Álbum: Jazz Collection', 'Canción: Blue Notes'],
       'total': 34.97,
       'date': DateTime.now().subtract(const Duration(days: 2)),
       'status': 'completed',
@@ -53,7 +55,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
       'userId': 999,
       'userName': 'Alice Cooper',
       'userAvatar': 'A',
-      'items': ['Album: Heavy Metal'],
+      'items': ['Álbum: Heavy Metal'],
       'total': 15.00,
       'date': DateTime.now().subtract(const Duration(days: 3)),
       'status': 'cancelled',
@@ -86,7 +88,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
         elevation: 0,
         centerTitle: false,
         title: Text(
-          'Manage Orders',
+          'Administrar Pedidos',
           style: TextStyle(
               color: AppTheme.primaryBlue, fontWeight: FontWeight.w800),
         ),
@@ -100,7 +102,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
               children: [
                 Expanded(
                   child: _buildDashboardStat(
-                    'Total Orders',
+                    'Pedidos Totales',
                     _orders.length.toString(),
                     Icons.shopping_bag_outlined,
                     AppTheme.primaryBlue,
@@ -109,7 +111,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
                 const SizedBox(width: 16),
                 Expanded(
                   child: _buildDashboardStat(
-                    'Revenue',
+                    'Ingresos',
                     '\$${totalRevenue.toStringAsFixed(2)}',
                     Icons.attach_money,
                     Colors.greenAccent[400]!,
@@ -125,13 +127,13 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Row(
               children: [
-                _buildFilterChip('ALL', 'All Orders'),
+                _buildFilterChip('ALL', 'Todos los Pedidos'),
                 const SizedBox(width: 10),
-                _buildFilterChip('PENDING', 'Pending'),
+                _buildFilterChip('PENDING', 'Pendientes'),
                 const SizedBox(width: 10),
-                _buildFilterChip('COMPLETED', 'Completed'),
+                _buildFilterChip('COMPLETED', 'Completados'),
                 const SizedBox(width: 10),
-                _buildFilterChip('CANCELLED', 'Cancelled'),
+                _buildFilterChip('CANCELLED', 'Cancelados'),
               ],
             ),
           ),
@@ -177,23 +179,32 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
             child: Icon(icon, color: color, size: 24),
           ),
           const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                value,
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: lightText,
+          // 1. Envolvemos la columna en Expanded
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  value,
+                  // 2. Propiedades para cortar el texto con ...
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: lightText,
+                  ),
                 ),
-              ),
-              Text(
-                title,
-                style: TextStyle(fontSize: 12, color: subText),
-              ),
-            ],
+                Text(
+                  title,
+                  // 3. Propiedades para el subtítulo también
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                  style: TextStyle(fontSize: 12, color: subText),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -318,7 +329,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'ORDER ITEMS',
+                    'ARTÍCULOS DEL PEDIDO',
                     style: TextStyle(
                         color: subText,
                         fontSize: 10,
@@ -354,7 +365,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
                     });
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                          content: Text('Order marked as completed'),
+                          content: Text('Pedido marcado como completado'),
                           backgroundColor: Colors.green),
                     );
                   },
@@ -366,7 +377,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
                         borderRadius: BorderRadius.circular(12)),
                   ),
                   icon: const Icon(Icons.check_circle_outline, size: 20),
-                  label: const Text('Mark as Completed'),
+                  label: const Text('Marcar como Completado'),
                 ),
               ),
           ],
@@ -376,6 +387,21 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
   }
 
   Widget _buildStatusBadge(String status, Color color) {
+    String translatedStatus;
+    switch (status) {
+      case 'pending':
+        translatedStatus = 'PENDIENTE';
+        break;
+      case 'completed':
+        translatedStatus = 'COMPLETADO';
+        break;
+      case 'cancelled':
+        translatedStatus = 'CANCELADO';
+        break;
+      default:
+        translatedStatus = status.toUpperCase();
+    }
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
@@ -384,7 +410,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
         borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
-        status.toUpperCase(),
+        translatedStatus,
         style: TextStyle(
           color: color,
           fontSize: 10,
@@ -402,7 +428,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
           Icon(Icons.receipt_long, size: 64, color: Colors.grey[800]),
           const SizedBox(height: 16),
           Text(
-            'No orders found',
+            'No se encontraron pedidos',
             style: TextStyle(color: subText, fontSize: 16),
           ),
         ],
@@ -430,9 +456,9 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
     final difference = now.difference(date);
 
     if (difference.inHours < 24) {
-      return '${difference.inHours}h ago';
+      return 'hace ${difference.inHours}h';
     } else if (difference.inDays < 7) {
-      return '${difference.inDays}d ago';
+      return 'hace ${difference.inDays}d';
     } else {
       return '${date.day}/${date.month}/${date.year}';
     }

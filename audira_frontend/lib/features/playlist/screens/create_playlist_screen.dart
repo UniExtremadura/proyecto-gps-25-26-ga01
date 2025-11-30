@@ -473,7 +473,7 @@ class _CreatePlaylistScreenState extends State<CreatePlaylistScreen> {
                       onPressed: () => _removeSong(song),
                     ),
                   ),
-                ).animate(delay: (50 * index).ms).fadeIn().slideX();
+                ).animate().fadeIn(delay: (50 * index).ms).slideX();
               }),
 
             const SizedBox(height: 100), // Espacio para el bottom bar
@@ -535,7 +535,7 @@ class _CreatePlaylistScreenState extends State<CreatePlaylistScreen> {
                   children: [
                     _Badge(
                         icon: Icons.music_note,
-                        text: '${_selectedSongs.length} Tracks'),
+                        text: '${_selectedSongs.length} Canciones'),
                     const SizedBox(width: 12),
                     const _Badge(icon: Icons.lock_outline, text: 'Privada'),
                   ],

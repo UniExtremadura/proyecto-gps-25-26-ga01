@@ -43,7 +43,7 @@ class ContactService {
 
       return ApiResponse(
         success: false,
-        error: response.error ?? 'Failed to send contact message',
+        error: response.error ?? 'Fallo al enviar el mensaje de contacto',
         statusCode: response.statusCode,
       );
     } catch (e) {
@@ -59,7 +59,8 @@ class ContactService {
       if (response.success && response.data != null) {
         final List<dynamic> messagesJson = response.data as List<dynamic>;
         final messages = messagesJson
-            .map((json) => ContactMessage.fromJson(json as Map<String, dynamic>))
+            .map(
+                (json) => ContactMessage.fromJson(json as Map<String, dynamic>))
             .toList();
 
         return ApiResponse(
@@ -71,7 +72,7 @@ class ContactService {
 
       return ApiResponse(
         success: false,
-        error: response.error ?? 'Failed to fetch contact messages',
+        error: response.error ?? 'Fallo al obtener los mensajes de contacto',
         statusCode: response.statusCode,
       );
     } catch (e) {
@@ -82,12 +83,14 @@ class ContactService {
   /// Get unread contact messages (admin only)
   Future<ApiResponse<List<ContactMessage>>> getUnreadContactMessages() async {
     try {
-      final response = await _apiClient.get('/api/contact/unread', requiresAuth: true);
+      final response =
+          await _apiClient.get('/api/contact/unread', requiresAuth: true);
 
       if (response.success && response.data != null) {
         final List<dynamic> messagesJson = response.data as List<dynamic>;
         final messages = messagesJson
-            .map((json) => ContactMessage.fromJson(json as Map<String, dynamic>))
+            .map(
+                (json) => ContactMessage.fromJson(json as Map<String, dynamic>))
             .toList();
 
         return ApiResponse(
@@ -99,7 +102,7 @@ class ContactService {
 
       return ApiResponse(
         success: false,
-        error: response.error ?? 'Failed to fetch unread messages',
+        error: response.error ?? 'Fallo al obtener los mensajes no leídos',
         statusCode: response.statusCode,
       );
     } catch (e) {
@@ -108,14 +111,17 @@ class ContactService {
   }
 
   /// Get contact messages by user ID
-  Future<ApiResponse<List<ContactMessage>>> getMessagesByUserId(int userId) async {
+  Future<ApiResponse<List<ContactMessage>>> getMessagesByUserId(
+      int userId) async {
     try {
-      final response = await _apiClient.get('/api/contact/user/$userId', requiresAuth: true);
+      final response =
+          await _apiClient.get('/api/contact/user/$userId', requiresAuth: true);
 
       if (response.success && response.data != null) {
         final List<dynamic> messagesJson = response.data as List<dynamic>;
         final messages = messagesJson
-            .map((json) => ContactMessage.fromJson(json as Map<String, dynamic>))
+            .map(
+                (json) => ContactMessage.fromJson(json as Map<String, dynamic>))
             .toList();
 
         return ApiResponse(
@@ -127,7 +133,7 @@ class ContactService {
 
       return ApiResponse(
         success: false,
-        error: response.error ?? 'Failed to fetch user messages',
+        error: response.error ?? 'Fallo al obtener los mensajes del usuario',
         statusCode: response.statusCode,
       );
     } catch (e) {
@@ -150,7 +156,7 @@ class ContactService {
 
       return ApiResponse(
         success: false,
-        error: response.error ?? 'Failed to fetch contact message',
+        error: response.error ?? 'Fallo al obtener los contactos',
         statusCode: response.statusCode,
       );
     } catch (e) {
@@ -161,10 +167,8 @@ class ContactService {
   /// Mark contact message as read (admin only)
   Future<ApiResponse<void>> markAsRead(int id) async {
     try {
-      final response = await _apiClient.put(
-        '/api/contact/$id',
-        body: {'isRead': true}
-      );
+      final response =
+          await _apiClient.put('/api/contact/$id', body: {'isRead': true});
 
       if (response.success) {
         return ApiResponse(
@@ -176,7 +180,7 @@ class ContactService {
 
       return ApiResponse(
         success: false,
-        error: response.error ?? 'Failed to mark message as read',
+        error: response.error ?? 'Fallo al marcar el mensaje como leído',
         statusCode: response.statusCode,
       );
     } catch (e) {
@@ -185,7 +189,8 @@ class ContactService {
   }
 
   /// Update contact message status
-  Future<ApiResponse<ContactMessage>> updateMessageStatus(int messageId, String status) async {
+  Future<ApiResponse<ContactMessage>> updateMessageStatus(
+      int messageId, String status) async {
     try {
       final response = await _apiClient.patch(
         '/api/contact/$messageId/status',
@@ -203,7 +208,7 @@ class ContactService {
 
       return ApiResponse(
         success: false,
-        error: response.error ?? 'Failed to update status',
+        error: response.error ?? 'Fallo al actualizar el estado del mensaje',
         statusCode: response.statusCode,
       );
     } catch (e) {
@@ -226,7 +231,7 @@ class ContactService {
 
       return ApiResponse(
         success: false,
-        error: response.error ?? 'Failed to delete contact message',
+        error: response.error ?? 'Fallo al eliminar el mensaje de contacto',
         statusCode: response.statusCode,
       );
     } catch (e) {
@@ -235,7 +240,8 @@ class ContactService {
   }
 
   /// Get responses for a specific contact message
-  Future<ApiResponse<List<dynamic>>> getResponsesByMessageId(int messageId) async {
+  Future<ApiResponse<List<dynamic>>> getResponsesByMessageId(
+      int messageId) async {
     try {
       final response = await _apiClient.get(
         '/api/contact/responses/message/$messageId',
@@ -252,7 +258,7 @@ class ContactService {
 
       return ApiResponse(
         success: false,
-        error: response.error ?? 'Failed to fetch responses',
+        error: response.error ?? 'Fallo al obtener las respuestas del mensaje',
         statusCode: response.statusCode,
       );
     } catch (e) {
@@ -289,7 +295,7 @@ class ContactService {
 
       return ApiResponse(
         success: false,
-        error: apiResponse.error ?? 'Failed to create response',
+        error: apiResponse.error ?? 'Fallo al crear la respuesta',
         statusCode: apiResponse.statusCode,
       );
     } catch (e) {

@@ -55,7 +55,8 @@ class _FAQScreenState extends State<FAQScreen> {
         });
       } else {
         setState(() {
-          _error = response.error ?? 'Failed to load FAQs';
+          // Corregido: 'Failed to load FAQs' a español
+          _error = response.error ?? 'Error al cargar las preguntas frecuentes';
           _isLoading = false;
         });
       }

@@ -21,7 +21,7 @@ class AdminStatsScreen extends StatelessWidget {
         elevation: 0,
         centerTitle: false,
         title: Text(
-          'Global Statistics',
+          'Estadísticas Globales',
           style: TextStyle(
               color: AppTheme.primaryBlue, fontWeight: FontWeight.w800),
         ),
@@ -37,7 +37,7 @@ class AdminStatsScreen extends StatelessWidget {
               icon: Icon(Icons.refresh, color: AppTheme.primaryBlue),
               onPressed: () {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Statistics refreshed')),
+                  const SnackBar(content: Text('Estadísticas actualizadas')),
                 );
               },
             ),
@@ -50,7 +50,7 @@ class AdminStatsScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // 1. GRID DE RESUMEN
-            _buildSectionTitle('Overview'),
+            _buildSectionTitle('Resumen'),
             GridView.count(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
@@ -59,13 +59,13 @@ class AdminStatsScreen extends StatelessWidget {
               mainAxisSpacing: 16,
               childAspectRatio: 1.4,
               children: [
-                _buildModernStatCard('Total Users', '1,234', Icons.people,
+                _buildModernStatCard('Usuarios Totales', '1,234', Icons.people,
                     AppTheme.primaryBlue, '+12%'),
-                _buildModernStatCard('Total Songs', '5,678', Icons.music_note,
-                    Colors.purple, '+5%'),
-                _buildModernStatCard(
-                    'Total Albums', '432', Icons.album, Colors.orange, '+2%'),
-                _buildModernStatCard('Revenue', '\$12k', Icons.attach_money,
+                _buildModernStatCard('Canciones Totales', '5,678',
+                    Icons.music_note, Colors.purple, '+5%'),
+                _buildModernStatCard('Álbumes Totales', '432', Icons.album,
+                    Colors.orange, '+2%'),
+                _buildModernStatCard('Ingresos', '\$12k', Icons.attach_money,
                     Colors.green, '+18%'),
               ],
             ).animate().slideY(begin: 0.1, duration: 400.ms).fadeIn(),
@@ -74,7 +74,7 @@ class AdminStatsScreen extends StatelessWidget {
 
             // 2. SECCIÓN DE REVENUE DESTACADA
             // Esta sección mantiene el azul porque resalta increíblemente bien sobre negro
-            _buildSectionTitle('Revenue Performance'),
+            _buildSectionTitle('Rendimiento de Ingresos'),
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
@@ -94,7 +94,7 @@ class AdminStatsScreen extends StatelessWidget {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Total Sales',
+                          Text('Ventas Totales',
                               style: TextStyle(
                                   color: Colors.white.withValues(alpha: 0.8),
                                   fontSize: 14)),
@@ -120,12 +120,11 @@ class AdminStatsScreen extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      _buildRevenueSubStat(
-                          'This Month', '\$2,345', Colors.white),
-                      _buildRevenueSubStat('Last Month', '\$2,100',
+                      _buildRevenueSubStat('Este Mes', '\$2,345', Colors.white),
+                      _buildRevenueSubStat('Mes Anterior', '\$2,100',
                           Colors.white.withValues(alpha: 0.7)),
                       _buildRevenueSubStat(
-                          'Avg. Order', '\$15.67', Colors.white),
+                          'Prom. Pedido', '\$15.67', Colors.white),
                     ],
                   )
                 ],
@@ -142,16 +141,16 @@ class AdminStatsScreen extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildSectionTitle('User Growth'),
+                      _buildSectionTitle('Usuarios'),
                       _buildGraphCard([
-                        _buildBarStat('Active', 987, 1200, Colors.green,
+                        _buildBarStat('Activos', 987, 1200, Colors.green,
                             Icons.check_circle),
-                        _buildBarStat('New', 123, 200, AppTheme.primaryBlue,
+                        _buildBarStat('Nuevos', 123, 200, AppTheme.primaryBlue,
                             Icons.person_add),
                         _buildBarStat(
-                            'Artists', 45, 100, Colors.purple, Icons.mic),
-                        _buildBarStat(
-                            'Admins', 5, 10, Colors.red, Icons.security),
+                            'Artistas', 45, 100, Colors.purple, Icons.mic),
+                        _buildBarStat('Administradores', 5, 10, Colors.red,
+                            Icons.security),
                       ]),
                     ],
                   ),
@@ -161,16 +160,16 @@ class AdminStatsScreen extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildSectionTitle('Content'),
+                      _buildSectionTitle('Contenido'),
                       _buildGraphCard([
-                        _buildBarStat('Plays', 85, 100, AppTheme.primaryBlue,
-                            Icons.play_arrow),
+                        _buildBarStat('Reproducciones', 85, 100,
+                            AppTheme.primaryBlue, Icons.play_arrow),
                         _buildBarStat(
-                            'Downloads', 40, 100, Colors.green, Icons.download),
-                        _buildBarStat('Playlists', 60, 100, Colors.orange,
+                            'Descargas', 40, 100, Colors.green, Icons.download),
+                        _buildBarStat('Listas', 60, 100, Colors.orange,
                             Icons.queue_music),
                         _buildBarStat(
-                            'Likes', 75, 100, Colors.amber, Icons.thumb_up),
+                            'Me Gusta', 75, 100, Colors.amber, Icons.thumb_up),
                       ]),
                     ],
                   ),
@@ -181,7 +180,7 @@ class AdminStatsScreen extends StatelessWidget {
             const SizedBox(height: 30),
 
             // 4. TOP CONTENT
-            _buildSectionTitle('Top Performing Content'),
+            _buildSectionTitle('Contenido Mejor Calificado'),
             Card(
               elevation: 0,
               color: darkCardBg, // Color de tarjeta oscura
@@ -193,16 +192,28 @@ class AdminStatsScreen extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 child: Column(
                   children: [
-                    _buildMagazineRow('01', 'Midnight Dreams', '1,234 plays',
-                        Icons.music_note, AppTheme.primaryBlue),
-                    _buildMagazineRow('02', 'Electric Love', '1,123 plays',
-                        Icons.music_note, Colors.purple),
-                    _buildMagazineRow('03', 'Summer Vibes', '987 plays',
-                        Icons.album, Colors.orange),
-                    _buildMagazineRow('04', 'Jazz Collection', '876 plays',
-                        Icons.album, Colors.blueGrey),
-                    _buildMagazineRow('05', 'Blue Notes', '765 plays',
-                        Icons.music_note, AppTheme.primaryBlue),
+                    _buildMagazineRow(
+                        '01',
+                        'Sueños de Medianoche',
+                        '1,234 reproducciones',
+                        Icons.music_note,
+                        AppTheme.primaryBlue),
+                    _buildMagazineRow(
+                        '02',
+                        'Amor Eléctrico',
+                        '1,123 reproducciones',
+                        Icons.music_note,
+                        Colors.purple),
+                    _buildMagazineRow('03', 'Vibras de Verano',
+                        '987 reproducciones', Icons.album, Colors.orange),
+                    _buildMagazineRow('04', 'Colección Jazz',
+                        '876 reproducciones', Icons.album, Colors.blueGrey),
+                    _buildMagazineRow(
+                        '05',
+                        'Notas Azules',
+                        '765 reproducciones',
+                        Icons.music_note,
+                        AppTheme.primaryBlue),
                   ],
                 ),
               ),
@@ -325,12 +336,18 @@ class AdminStatsScreen extends StatelessWidget {
             children: [
               Icon(icon, size: 16, color: subText),
               const SizedBox(width: 8),
-              Text(label,
+              Expanded(
+                child: Text(
+                  label,
+                  maxLines: 1, // Aseguramos una sola línea
+                  overflow: TextOverflow.ellipsis, // Pone "..." si no cabe
                   style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
-                      color: lightText.withValues(alpha: 0.9))),
-              const Spacer(),
+                      color: lightText.withValues(alpha: 0.9)),
+                ),
+              ),
+              const SizedBox(width: 8), // Un pequeño espacio antes del valor
               Text(value.toString(),
                   style: TextStyle(
                       fontSize: 12, fontWeight: FontWeight.bold, color: color)),
@@ -341,7 +358,6 @@ class AdminStatsScreen extends StatelessWidget {
             borderRadius: BorderRadius.circular(4),
             child: LinearProgressIndicator(
               value: value / total,
-              // Fondo de la barra más oscuro
               backgroundColor: Colors.grey[800],
               valueColor: AlwaysStoppedAnimation<Color>(color),
               minHeight: 6,

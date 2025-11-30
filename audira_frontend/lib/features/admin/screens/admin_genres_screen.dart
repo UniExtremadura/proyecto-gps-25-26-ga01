@@ -54,7 +54,8 @@ class _AdminGenresScreenState extends State<AdminGenresScreen> {
           _filteredGenres = _genres;
         });
       } else {
-        setState(() => _error = response.error ?? 'Failed to load genres');
+        setState(
+            () => _error = response.error ?? 'Error al cargar los géneros');
       }
     } catch (e) {
       setState(() => _error = e.toString());
@@ -81,18 +82,18 @@ class _AdminGenresScreenState extends State<AdminGenresScreen> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: darkCardBg,
-        title: Text('Delete Genre', style: TextStyle(color: lightText)),
-        content: Text('Are you sure you want to delete this genre?',
+        title: Text('Eliminar Género', style: TextStyle(color: lightText)),
+        content: Text('¿Estás seguro de que quieres eliminar este género?',
             style: TextStyle(color: subText)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: const Text('Cancelar'),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
-            child: const Text('Delete'),
+            child: const Text('Eliminar'),
           ),
         ],
       ),
@@ -105,10 +106,11 @@ class _AdminGenresScreenState extends State<AdminGenresScreen> {
         if (!currentContext.mounted) return;
 
         if (response.success) {
-          _showSnack('Genre deleted successfully');
+          _showSnack('Género eliminado exitosamente');
           _loadGenres();
         } else {
-          _showSnack(response.error ?? 'Failed to delete genre', isError: true);
+          _showSnack(response.error ?? 'Error al eliminar el género',
+              isError: true);
         }
       } catch (e) {
         if (!currentContext.mounted) return;
@@ -133,7 +135,7 @@ class _AdminGenresScreenState extends State<AdminGenresScreen> {
         elevation: 0,
         centerTitle: false,
         title: Text(
-          'Manage Genres',
+          'Administrar Géneros',
           style: TextStyle(
               color: AppTheme.primaryBlue, fontWeight: FontWeight.w800),
         ),
@@ -146,7 +148,7 @@ class _AdminGenresScreenState extends State<AdminGenresScreen> {
             ),
             child: IconButton(
               icon: Icon(Icons.add, color: AppTheme.primaryBlue),
-              tooltip: 'Add Genre',
+              tooltip: 'Añadir Género',
               onPressed: () => _showGenreForm(null),
             ),
           ),
@@ -189,7 +191,7 @@ class _AdminGenresScreenState extends State<AdminGenresScreen> {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Total Genres',
+                          Text('Géneros Totales',
                               style: TextStyle(color: subText, fontSize: 13)),
                           Text(_genres.length.toString(),
                               style: TextStyle(
@@ -215,7 +217,7 @@ class _AdminGenresScreenState extends State<AdminGenresScreen> {
                     controller: _searchController,
                     style: TextStyle(color: lightText),
                     decoration: InputDecoration(
-                      hintText: 'Search genres...',
+                      hintText: 'Buscar géneros...',
                       hintStyle: TextStyle(color: subText),
                       prefixIcon: Icon(Icons.search, color: subText),
                       border: InputBorder.none,
@@ -239,7 +241,7 @@ class _AdminGenresScreenState extends State<AdminGenresScreen> {
                     ? _buildErrorState()
                     : _filteredGenres.isEmpty
                         ? const Center(
-                            child: Text('No genres found',
+                            child: Text('No se encontraron géneros',
                                 style: TextStyle(color: Colors.grey)))
                         : GridView.builder(
                             padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
@@ -354,7 +356,7 @@ class _AdminGenresScreenState extends State<AdminGenresScreen> {
                         genre.description != null &&
                                 genre.description!.isNotEmpty
                             ? genre.description!
-                            : 'No description',
+                            : 'Sin descripción',
                         style: TextStyle(
                           fontSize: 12,
                           color: subText,
@@ -389,7 +391,7 @@ class _AdminGenresScreenState extends State<AdminGenresScreen> {
             onPressed: _loadGenres,
             style:
                 ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryBlue),
-            child: const Text('Retry'),
+            child: const Text('Reintentar'),
           ),
         ],
       ),
@@ -406,7 +408,7 @@ class _AdminGenresScreenState extends State<AdminGenresScreen> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: darkCardBg,
-        title: Text(isEditing ? 'Edit Genre' : 'Add New Genre',
+        title: Text(isEditing ? 'Editar Género' : 'Añadir Nuevo Género',
             style: TextStyle(color: lightText)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -415,7 +417,7 @@ class _AdminGenresScreenState extends State<AdminGenresScreen> {
               controller: nameController,
               style: TextStyle(color: lightText),
               decoration: InputDecoration(
-                labelText: 'Genre Name',
+                labelText: 'Nombre del Género',
                 labelStyle: TextStyle(color: subText),
                 enabledBorder: OutlineInputBorder(
                     borderSide: BorderSide(color: Colors.grey[700]!)),
@@ -429,7 +431,7 @@ class _AdminGenresScreenState extends State<AdminGenresScreen> {
               controller: descriptionController,
               style: TextStyle(color: lightText),
               decoration: InputDecoration(
-                labelText: 'Description',
+                labelText: 'Descripción',
                 labelStyle: TextStyle(color: subText),
                 enabledBorder: OutlineInputBorder(
                     borderSide: BorderSide(color: Colors.grey[700]!)),
@@ -444,7 +446,7 @@ class _AdminGenresScreenState extends State<AdminGenresScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: const Text('Cancelar'),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -453,16 +455,17 @@ class _AdminGenresScreenState extends State<AdminGenresScreen> {
             onPressed: () {
               final name = nameController.text.trim();
               if (name.isEmpty) {
-                _showSnack('Genre name is required', isError: true);
+                _showSnack('El nombre del género es obligatorio',
+                    isError: true);
                 return;
               }
               Navigator.pop(context);
               _showSnack(isEditing
-                  ? 'Genre updated successfully'
-                  : 'Genre created successfully');
+                  ? 'Género actualizado exitosamente'
+                  : 'Género creado exitosamente');
               _loadGenres();
             },
-            child: Text(isEditing ? 'Update' : 'Create'),
+            child: Text(isEditing ? 'Actualizar' : 'Crear'),
           ),
         ],
       ),

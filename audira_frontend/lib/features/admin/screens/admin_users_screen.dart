@@ -53,7 +53,8 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
           _applyFilters();
         });
       } else {
-        setState(() => _error = response.error ?? 'Failed to load users');
+        setState(
+            () => _error = response.error ?? 'Error al cargar los usuarios');
       }
     } catch (e) {
       setState(() => _error = e.toString());
@@ -93,7 +94,8 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: darkCardBg, // Adaptado a oscuro
-        title: Text('Change User Role', style: TextStyle(color: lightText)),
+        title:
+            Text('Cambiar Rol de Usuario', style: TextStyle(color: lightText)),
         content: RadioGroup<String>(
           // Asumiendo que este widget existe o es un placeholder
           groupValue: user.role,
@@ -140,7 +142,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
 
       if (response.success) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('User role changed to $selectedRole'),
+          content: Text('Rol de usuario cambiado a $selectedRole'),
           backgroundColor: Colors.green[800],
         ));
         await _loadUsers();
@@ -155,23 +157,25 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
   }
 
   Future<void> _toggleUserStatus(User user) async {
-    final action = user.isActive ? 'suspend' : 'activate';
+    final action = user.isActive ? 'suspender' : 'activar';
+    final translatedAction = user.isActive ? 'SUSPENDER' : 'ACTIVAR';
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: darkCardBg,
-        title: Text('${action.toUpperCase()} User',
+        title: Text('$translatedAction Usuario',
             style: TextStyle(color: lightText)),
         content: Text(
           user.isActive
-              ? 'Are you sure you want to suspend this user? They will not be able to access the platform.'
-              : 'Are you sure you want to activate this user? They will regain access to the platform.',
+              ? '¿Estás seguro de que deseas suspender a este usuario? No podrá acceder a la plataforma.'
+              : '¿Estás seguro de que deseas activar a este usuario? Recuperará el acceso a la plataforma.',
           style: TextStyle(color: subText),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: const Text('Cancelar'),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
@@ -180,7 +184,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                   user.isActive ? Colors.red[900] : Colors.green[800],
               foregroundColor: Colors.white,
             ),
-            child: Text(action.toUpperCase()),
+            child: Text(translatedAction),
           ),
         ],
       ),
@@ -207,7 +211,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
 
       if (response.success) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('User status updated successfully'),
+          content: Text('Estado de usuario actualizado exitosamente'),
           backgroundColor: Colors.green[800],
         ));
         await _loadUsers();
@@ -239,7 +243,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
         elevation: 0,
         centerTitle: false,
         title: Text(
-          'User Management',
+          'Administración de Usuarios',
           style: TextStyle(
               color: AppTheme.primaryBlue, fontWeight: FontWeight.w800),
         ),
@@ -264,7 +268,8 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                     controller: _searchController,
                     style: TextStyle(color: lightText),
                     decoration: InputDecoration(
-                      hintText: 'Search by name, email or username...',
+                      hintText:
+                          'Buscar por nombre, correo electrónico o nombre de usuario...',
                       hintStyle: TextStyle(color: subText),
                       prefixIcon: Icon(Icons.search, color: subText),
                       border: InputBorder.none,
@@ -281,13 +286,13 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                   scrollDirection: Axis.horizontal,
                   child: Row(
                     children: [
-                      _buildFilterChip('ALL', 'All Users'),
+                      _buildFilterChip('ALL', 'Todos los Usuarios'),
                       const SizedBox(width: 8),
-                      _buildFilterChip('USER', 'Users'),
+                      _buildFilterChip('USER', 'Usuarios'),
                       const SizedBox(width: 8),
-                      _buildFilterChip('ARTIST', 'Artists'),
+                      _buildFilterChip('ARTIST', 'Artistas'),
                       const SizedBox(width: 8),
-                      _buildFilterChip('ADMIN', 'Admins'),
+                      _buildFilterChip('ADMIN', 'Administradores'),
                     ],
                   ),
                 ),
@@ -406,7 +411,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                   color: Colors.red.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(4),
                 ),
-                child: const Text('SUSPENDED',
+                child: const Text('SUSPENDIDO',
                     style: TextStyle(
                         color: Colors.red,
                         fontSize: 10,
@@ -454,7 +459,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                   Icon(Icons.admin_panel_settings,
                       color: AppTheme.primaryBlue, size: 20),
                   const SizedBox(width: 12),
-                  Text('Change Role', style: TextStyle(color: lightText)),
+                  Text('Cambiar Rol', style: TextStyle(color: lightText)),
                 ],
               ),
             ),
@@ -467,7 +472,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                           user.isActive ? Colors.redAccent : Colors.greenAccent,
                       size: 20),
                   const SizedBox(width: 12),
-                  Text(user.isActive ? 'Suspend User' : 'Activate User',
+                  Text(user.isActive ? 'Suspender Usuario' : 'Activar Usuario',
                       style: TextStyle(color: lightText)),
                 ],
               ),
@@ -489,7 +494,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
         children: [
           Icon(Icons.person_search, size: 64, color: Colors.grey[800]),
           const SizedBox(height: 16),
-          Text('No users found',
+          Text('No se encontraron usuarios',
               style: TextStyle(color: subText, fontSize: 16)),
         ],
       ),
@@ -509,7 +514,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
             onPressed: _loadUsers,
             style:
                 ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryBlue),
-            child: const Text('Retry'),
+            child: const Text('Reintentar'),
           ),
         ],
       ),

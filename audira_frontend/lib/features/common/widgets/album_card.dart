@@ -197,7 +197,7 @@ class AlbumCard extends StatelessWidget {
                 Icon(Icons.check, size: 12, color: Colors.white),
                 SizedBox(width: 4),
                 Text(
-                  'Tuy',
+                  'Comprado',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 10,

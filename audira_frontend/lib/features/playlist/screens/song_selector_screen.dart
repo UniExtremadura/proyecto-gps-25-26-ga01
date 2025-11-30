@@ -73,6 +73,7 @@ class _SongSelectorScreenState extends State<SongSelectorScreen> {
         // Enriquecer datos del artista
         await _enrichSongData(tempSongs);
       } else {
+        // CORRECCIÓN: 'Error cargando canciones'
         _error = response.error ?? 'Error cargando canciones';
       }
     } catch (e) {

@@ -10,7 +10,7 @@ import '../../../core/api/services/moderation_service.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../widgets/moderation_widgets.dart';
 
-/// GA01-162: Pantalla de administración de Albumes con moderación
+/// GA01-162: Pantalla de administración de **Álbumes con moderación**
 class AdminAlbumsScreen extends StatefulWidget {
   const AdminAlbumsScreen({super.key});
 
@@ -63,7 +63,8 @@ class _AdminAlbumsScreenState extends State<AdminAlbumsScreen> {
           _filterAlbums(_searchController.text);
         });
       } else {
-        setState(() => _error = response.error ?? 'Failed to load albums');
+        setState(
+            () => _error = response.error ?? 'Error al cargar los álbumes');
       }
     } catch (e) {
       setState(() => _error = e.toString());
@@ -104,7 +105,7 @@ class _AdminAlbumsScreenState extends State<AdminAlbumsScreen> {
     final adminId = authProvider.currentUser?.id;
 
     if (adminId == null) {
-      _showSnack('Error: Admin ID not available', isError: true);
+      _showSnack('Error: ID de administrador no disponible', isError: true);
       return;
     }
 
@@ -118,13 +119,13 @@ class _AdminAlbumsScreenState extends State<AdminAlbumsScreen> {
     final result = await showApproveDialog(
       context: currentContext,
       itemName: album.name,
-      itemType: 'Album',
+      itemType: 'Álbum',
     );
 
     if (result == true) {
       _executeModerationAction(() async {
         return await _moderationService.approveAlbum(album.id, adminId);
-      }, 'Album "${album.name}" approved successfully');
+      }, 'Álbum "${album.name}" aprobado exitosamente');
     }
   }
 
@@ -133,14 +134,14 @@ class _AdminAlbumsScreenState extends State<AdminAlbumsScreen> {
     final adminId = authProvider.currentUser?.id;
 
     if (adminId == null) {
-      _showSnack('Error: Admin ID not available', isError: true);
+      _showSnack('Error: ID de administrador no disponible', isError: true);
       return;
     }
 
     final result = await showRejectDialog(
       context: context,
       itemName: album.name,
-      itemType: 'Album',
+      itemType: 'Álbum',
     );
 
     if (result != null && result['reason'] != null) {
@@ -151,7 +152,7 @@ class _AdminAlbumsScreenState extends State<AdminAlbumsScreen> {
           result['reason']!,
           notes: result['notes'],
         );
-      }, 'Album "${album.name}" rejected');
+      }, 'Álbum "${album.name}" rechazado');
     }
   }
 
@@ -163,7 +164,7 @@ class _AdminAlbumsScreenState extends State<AdminAlbumsScreen> {
         _showSnack(successMessage, color: Colors.green);
         _loadAlbums();
       } else {
-        _showSnack(response.error ?? 'Action failed', isError: true);
+        _showSnack(response.error ?? 'La acción falló', isError: true);
       }
     } catch (e) {
       _showSnack('Error: $e', isError: true);
@@ -175,18 +176,18 @@ class _AdminAlbumsScreenState extends State<AdminAlbumsScreen> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: darkCardBg,
-        title: Text('Delete Album', style: TextStyle(color: lightText)),
-        content: Text('Are you sure you want to delete this album?',
+        title: Text('Eliminar Álbum', style: TextStyle(color: lightText)),
+        content: Text('¿Estás seguro de que quieres eliminar este álbum?',
             style: TextStyle(color: subText)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: const Text('Cancelar'),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Delete'),
+            child: const Text('Eliminar'),
           ),
         ],
       ),
@@ -196,10 +197,11 @@ class _AdminAlbumsScreenState extends State<AdminAlbumsScreen> {
       try {
         final response = await _musicService.deleteAlbum(albumId);
         if (response.success) {
-          _showSnack('Album deleted successfully');
+          _showSnack('Álbum eliminado exitosamente');
           _loadAlbums();
         } else {
-          _showSnack(response.error ?? 'Failed to delete album', isError: true);
+          _showSnack(response.error ?? 'Error al eliminar el álbum',
+              isError: true);
         }
       } catch (e) {
         _showSnack('Error: $e', isError: true);
@@ -230,7 +232,7 @@ class _AdminAlbumsScreenState extends State<AdminAlbumsScreen> {
         elevation: 0,
         centerTitle: false,
         title: Text(
-          'Manage Albums',
+          'Administrar Álbumes',
           style: TextStyle(
               color: AppTheme.primaryBlue, fontWeight: FontWeight.w800),
         ),
@@ -243,7 +245,7 @@ class _AdminAlbumsScreenState extends State<AdminAlbumsScreen> {
             ),
             child: IconButton(
               icon: Icon(Icons.add, color: AppTheme.primaryBlue),
-              tooltip: 'Add new album',
+              tooltip: 'Añadir nuevo álbum',
               onPressed: () {
                 _showAlbumForm(null);
               },
@@ -264,14 +266,14 @@ class _AdminAlbumsScreenState extends State<AdminAlbumsScreen> {
                   children: [
                     Expanded(
                         child: _buildMiniStat(
-                            'Total Albums',
+                            'Total de Álbumes',
                             _albums.length.toString(),
                             Icons.album,
                             Colors.blueGrey)),
                     const SizedBox(width: 12),
                     Expanded(
                         child: _buildMiniStat(
-                            'Pending Review',
+                            'Pendientes de Revisión',
                             pendingCount.toString(),
                             Icons.rate_review,
                             Colors.orange)),
@@ -289,7 +291,7 @@ class _AdminAlbumsScreenState extends State<AdminAlbumsScreen> {
                     controller: _searchController,
                     style: TextStyle(color: lightText),
                     decoration: InputDecoration(
-                      hintText: 'Search albums...',
+                      hintText: 'Buscar álbumes...',
                       hintStyle: TextStyle(color: subText),
                       prefixIcon: Icon(Icons.search, color: subText),
                       border: InputBorder.none,
@@ -309,13 +311,13 @@ class _AdminAlbumsScreenState extends State<AdminAlbumsScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Row(
               children: [
-                _buildFilterChip('all', 'All Albums'),
+                _buildFilterChip('all', 'Todos los Álbumes'),
                 const SizedBox(width: 8),
-                _buildFilterChip('pending', 'Pending'),
+                _buildFilterChip('pending', 'Pendientes'),
                 const SizedBox(width: 8),
-                _buildFilterChip('approved', 'Approved'),
+                _buildFilterChip('approved', 'Aprobados'),
                 const SizedBox(width: 8),
-                _buildFilterChip('rejected', 'Rejected'),
+                _buildFilterChip('rejected', 'Rechazados'),
               ],
             ),
           ),
@@ -363,16 +365,31 @@ class _AdminAlbumsScreenState extends State<AdminAlbumsScreen> {
         children: [
           Icon(icon, color: color, size: 20),
           const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(value,
+          // 1. Usamos Expanded para restringir el ancho de la columna
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  value,
+                  // 2. Agregamos estas dos propiedades
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
                   style: TextStyle(
-                      color: lightText,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16)),
-              Text(label, style: TextStyle(color: subText, fontSize: 11)),
-            ],
+                    color: lightText,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+                Text(
+                  label,
+                  // 2. Lo mismo para el label si quieres que también tenga ...
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                  style: TextStyle(color: subText, fontSize: 11),
+                ),
+              ],
+            ),
           )
         ],
       ),
@@ -492,7 +509,7 @@ class _AdminAlbumsScreenState extends State<AdminAlbumsScreen> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Rejected: ${album.rejectionReason}',
+                      'Rechazo: ${album.rejectionReason}',
                       style: TextStyle(color: Colors.red[200], fontSize: 12),
                     ),
                   ),
@@ -515,14 +532,14 @@ class _AdminAlbumsScreenState extends State<AdminAlbumsScreen> {
                   TextButton.icon(
                     icon:
                         const Icon(Icons.check, size: 16, color: Colors.green),
-                    label: const Text('Approve',
+                    label: const Text('Aprobar',
                         style: TextStyle(color: Colors.green)),
                     onPressed: () => _approveAlbum(album),
                   ),
                   TextButton.icon(
                     icon: const Icon(Icons.close,
                         size: 16, color: Colors.redAccent),
-                    label: const Text('Reject',
+                    label: const Text('Rechazar',
                         style: TextStyle(color: Colors.redAccent)),
                     onPressed: () => _rejectAlbum(album),
                   ),
@@ -532,14 +549,14 @@ class _AdminAlbumsScreenState extends State<AdminAlbumsScreen> {
                 ],
                 IconButton(
                   icon: Icon(Icons.edit, size: 18, color: subText),
-                  tooltip: 'Edit Album',
+                  tooltip: 'Editar Álbum',
                   onPressed: () {
                     _showAlbumForm(album);
                   },
                 ),
                 IconButton(
                   icon: Icon(Icons.delete, size: 18, color: Colors.red[900]),
-                  tooltip: 'Delete',
+                  tooltip: 'Eliminar',
                   onPressed: () => _deleteAlbum(album.id),
                 ),
               ],
@@ -601,7 +618,7 @@ class _AdminAlbumsScreenState extends State<AdminAlbumsScreen> {
         children: [
           Icon(Icons.album_outlined, size: 64, color: Colors.grey[800]),
           const SizedBox(height: 16),
-          Text('No albums found',
+          Text('No se encontraron álbumes',
               style: TextStyle(color: subText, fontSize: 16)),
         ],
       ),
@@ -621,7 +638,7 @@ class _AdminAlbumsScreenState extends State<AdminAlbumsScreen> {
             onPressed: _loadAlbums,
             style:
                 ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryBlue),
-            child: const Text('Retry'),
+            child: const Text('Reintentar'),
           ),
         ],
       ),
@@ -635,13 +652,14 @@ class _AdminAlbumsScreenState extends State<AdminAlbumsScreen> {
     final songsResponse = await _musicService.getSongsByAlbum(album.id);
 
     if (!songsResponse.success || songsResponse.data == null) {
-      _showSnack('Error loading songs: ${songsResponse.error}', isError: true);
+      _showSnack('Error al cargar las canciones: ${songsResponse.error}',
+          isError: true);
       return false;
     }
 
     final songs = songsResponse.data!;
     if (songs.isEmpty) {
-      _showSnack('This album has no songs', color: Colors.orange);
+      _showSnack('Este álbum no tiene canciones', color: Colors.orange);
       return false;
     }
 
@@ -652,7 +670,8 @@ class _AdminAlbumsScreenState extends State<AdminAlbumsScreen> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: darkCardBg,
-        title: Text('Review Album Songs', style: TextStyle(color: lightText)),
+        title: Text('Revisar Canciones del Álbum',
+            style: TextStyle(color: lightText)),
         content: SizedBox(
           width: double.maxFinite,
           child: Column(
@@ -660,7 +679,7 @@ class _AdminAlbumsScreenState extends State<AdminAlbumsScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Total songs: ${songs.length}',
+                'Canciones totales: ${songs.length}',
                 style: TextStyle(fontWeight: FontWeight.bold, color: subText),
               ),
               const SizedBox(height: 12),
@@ -683,14 +702,14 @@ class _AdminAlbumsScreenState extends State<AdminAlbumsScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Unapproved songs: ${unapprovedSongs.length}',
+                              'Canciones no aprobadas: ${unapprovedSongs.length}',
                               style: const TextStyle(
                                   fontWeight: FontWeight.bold,
                                   color: Colors.orange),
                             ),
                             const SizedBox(height: 4),
                             const Text(
-                              'All songs must be approved before the album can be approved.',
+                              'Todas las canciones deben ser aprobadas antes de que el álbum pueda ser aprobado.',
                               style: TextStyle(
                                   fontSize: 12, color: Colors.orangeAccent),
                             ),
@@ -721,7 +740,7 @@ class _AdminAlbumsScreenState extends State<AdminAlbumsScreen> {
                       title:
                           Text(song.name, style: TextStyle(color: lightText)),
                       subtitle: Text(
-                        song.moderationStatus ?? 'PENDING',
+                        song.moderationStatus ?? 'PENDIENTE',
                         style: TextStyle(
                           color: isApproved ? Colors.green : Colors.orange,
                           fontSize: 12,
@@ -738,7 +757,7 @@ class _AdminAlbumsScreenState extends State<AdminAlbumsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: const Text('Cancelar'),
           ),
           if (unapprovedSongs.isEmpty)
             ElevatedButton(
@@ -746,19 +765,20 @@ class _AdminAlbumsScreenState extends State<AdminAlbumsScreen> {
               style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.primaryBlue,
                   foregroundColor: Colors.white),
-              child: const Text('Proceed to Approve'),
+              child: const Text('Continuar a Aprobar'),
             )
           else
             ElevatedButton(
               onPressed: () {
                 Navigator.pop(context, false);
-                _showSnack('Cannot approve until all songs are approved',
+                _showSnack(
+                    'No se puede aprobar hasta que todas las canciones estén aprobadas',
                     color: Colors.orange);
               },
               style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.grey[800],
                   foregroundColor: Colors.white38),
-              child: const Text('Close'),
+              child: const Text('Cerrar'),
             ),
         ],
       ),
@@ -775,7 +795,7 @@ class _AdminAlbumsScreenState extends State<AdminAlbumsScreen> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: darkCardBg,
-        title: Text(isEditing ? 'Edit Album' : 'Add New Album',
+        title: Text(isEditing ? 'Editar Álbum' : 'Añadir Nuevo Álbum',
             style: TextStyle(color: lightText)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -784,7 +804,7 @@ class _AdminAlbumsScreenState extends State<AdminAlbumsScreen> {
               controller: titleController,
               style: TextStyle(color: lightText),
               decoration: InputDecoration(
-                labelText: 'Album Title',
+                labelText: 'Título del Álbum',
                 labelStyle: TextStyle(color: subText),
                 enabledBorder: OutlineInputBorder(
                     borderSide: BorderSide(color: Colors.grey[700]!)),
@@ -797,7 +817,7 @@ class _AdminAlbumsScreenState extends State<AdminAlbumsScreen> {
               controller: priceController,
               style: TextStyle(color: lightText),
               decoration: InputDecoration(
-                labelText: 'Price',
+                labelText: 'Precio',
                 labelStyle: TextStyle(color: subText),
                 prefixText: '\$ ',
                 prefixStyle: TextStyle(color: lightText),
@@ -813,7 +833,7 @@ class _AdminAlbumsScreenState extends State<AdminAlbumsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: const Text('Cancelar'),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -822,10 +842,10 @@ class _AdminAlbumsScreenState extends State<AdminAlbumsScreen> {
             onPressed: () {
               // ... Lógica de guardado simplificada ...
               Navigator.pop(context);
-              _showSnack(isEditing ? 'Album updated' : 'Album created');
+              _showSnack(isEditing ? 'Álbum actualizado' : 'Álbum creado');
               _loadAlbums();
             },
-            child: Text(isEditing ? 'Update' : 'Create'),
+            child: Text(isEditing ? 'Actualizar' : 'Crear'),
           ),
         ],
       ),

@@ -60,10 +60,11 @@ class _AdminSongsScreenState extends State<AdminSongsScreen> {
       if (response.success && response.data != null) {
         setState(() {
           _songs = response.data!;
-          _filterSongs(_searchController.text); // Re-apply filters
+          _filterSongs(_searchController.text); // Volver a aplicar filtros
         });
       } else {
-        setState(() => _error = response.error ?? 'Failed to load songs');
+        setState(
+            () => _error = response.error ?? 'Error al cargar las canciones');
       }
     } catch (e) {
       setState(() => _error = e.toString());
@@ -107,20 +108,20 @@ class _AdminSongsScreenState extends State<AdminSongsScreen> {
     final adminId = authProvider.currentUser?.id;
 
     if (adminId == null) {
-      _showSnack('Error: Admin ID not available', isError: true);
+      _showSnack('Error: ID de administrador no disponible', isError: true);
       return;
     }
 
     final result = await showApproveDialog(
       context: context,
       itemName: song.name,
-      itemType: 'song',
+      itemType: 'canción',
     );
 
     if (result == true) {
       _executeModerationAction(() async {
         return await _moderationService.approveSong(song.id, adminId);
-      }, 'Song "${song.name}" approved successfully');
+      }, 'Canción "${song.name}" aprobada exitosamente');
     }
   }
 
@@ -129,14 +130,14 @@ class _AdminSongsScreenState extends State<AdminSongsScreen> {
     final adminId = authProvider.currentUser?.id;
 
     if (adminId == null) {
-      _showSnack('Error: Admin ID not available', isError: true);
+      _showSnack('Error: ID de administrador no disponible', isError: true);
       return;
     }
 
     final result = await showRejectDialog(
       context: context,
       itemName: song.name,
-      itemType: 'song',
+      itemType: 'canción',
     );
 
     if (result != null && result['reason'] != null) {
@@ -147,7 +148,7 @@ class _AdminSongsScreenState extends State<AdminSongsScreen> {
           result['reason']!,
           notes: result['notes'],
         );
-      }, 'Song "${song.name}" rejected');
+      }, 'Canción "${song.name}" rechazada');
     }
   }
 
@@ -159,7 +160,7 @@ class _AdminSongsScreenState extends State<AdminSongsScreen> {
         _showSnack(successMessage, color: Colors.green);
         _loadSongs();
       } else {
-        _showSnack(response.error ?? 'Action failed', isError: true);
+        _showSnack(response.error ?? 'La acción falló', isError: true);
       }
     } catch (e) {
       _showSnack('Error: $e', isError: true);
@@ -171,18 +172,18 @@ class _AdminSongsScreenState extends State<AdminSongsScreen> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: darkCardBg,
-        title: Text('Delete Song', style: TextStyle(color: lightText)),
-        content: Text('Are you sure you want to delete this song?',
+        title: Text('Eliminar Canción', style: TextStyle(color: lightText)),
+        content: Text('¿Estás seguro de que quieres eliminar esta canción?',
             style: TextStyle(color: subText)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: const Text('Cancelar'),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
-            child: const Text('Delete'),
+            child: const Text('Eliminar'),
           ),
         ],
       ),
@@ -192,10 +193,11 @@ class _AdminSongsScreenState extends State<AdminSongsScreen> {
       try {
         final response = await _musicService.deleteSong(songId);
         if (response.success) {
-          _showSnack('Song deleted successfully');
+          _showSnack('Canción eliminada exitosamente');
           _loadSongs();
         } else {
-          _showSnack(response.error ?? 'Failed to delete song', isError: true);
+          _showSnack(response.error ?? 'Error al eliminar la canción',
+              isError: true);
         }
       } catch (e) {
         _showSnack('Error: $e', isError: true);
@@ -225,7 +227,7 @@ class _AdminSongsScreenState extends State<AdminSongsScreen> {
         elevation: 0,
         centerTitle: false,
         title: Text(
-          'Song Management',
+          'Administración de Canciones',
           style: TextStyle(
               color: AppTheme.primaryBlue, fontWeight: FontWeight.w800),
         ),
@@ -239,7 +241,7 @@ class _AdminSongsScreenState extends State<AdminSongsScreen> {
             child: IconButton(
               icon: Icon(Icons.add, color: AppTheme.primaryBlue),
               onPressed: () => _showSongForm(null),
-              tooltip: 'Add new song',
+              tooltip: 'Añadir nueva canción',
             ),
           ),
         ],
@@ -257,14 +259,14 @@ class _AdminSongsScreenState extends State<AdminSongsScreen> {
                   children: [
                     Expanded(
                         child: _buildMiniStat(
-                            'Total Songs',
+                            'Canciones Totales',
                             _songs.length.toString(),
                             Icons.library_music,
                             Colors.blueGrey)),
                     const SizedBox(width: 12),
                     Expanded(
                         child: _buildMiniStat(
-                            'Pending Review',
+                            'Pendientes de Revisión',
                             pendingCount.toString(),
                             Icons.rate_review,
                             Colors.orange)),
@@ -282,7 +284,7 @@ class _AdminSongsScreenState extends State<AdminSongsScreen> {
                     controller: _searchController,
                     style: TextStyle(color: lightText),
                     decoration: InputDecoration(
-                      hintText: 'Search songs by name or description...',
+                      hintText: 'Buscar canciones por nombre o descripción...',
                       hintStyle: TextStyle(color: subText),
                       prefixIcon: Icon(Icons.search, color: subText),
                       border: InputBorder.none,
@@ -302,13 +304,13 @@ class _AdminSongsScreenState extends State<AdminSongsScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Row(
               children: [
-                _buildFilterChip('all', 'All Songs'),
+                _buildFilterChip('all', 'Todas las Canciones'),
                 const SizedBox(width: 8),
-                _buildFilterChip('pending', 'Pending'),
+                _buildFilterChip('pending', 'Pendientes'),
                 const SizedBox(width: 8),
-                _buildFilterChip('approved', 'Approved'),
+                _buildFilterChip('approved', 'Aprobadas'),
                 const SizedBox(width: 8),
-                _buildFilterChip('rejected', 'Rejected'),
+                _buildFilterChip('rejected', 'Rechazadas'),
               ],
             ),
           ),
@@ -327,7 +329,7 @@ class _AdminSongsScreenState extends State<AdminSongsScreen> {
                         ? _buildEmptyState()
                         : ListView.separated(
                             padding: const EdgeInsets.fromLTRB(20, 0, 20,
-                                80), // Padding bottom for FAB if needed
+                                80), // Padding inferior para el FAB si es necesario
                             itemCount: _filteredSongs.length,
                             separatorBuilder: (c, i) =>
                                 const SizedBox(height: 12),
@@ -357,16 +359,31 @@ class _AdminSongsScreenState extends State<AdminSongsScreen> {
         children: [
           Icon(icon, color: color, size: 20),
           const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(value,
+          // 1. Usamos Expanded para restringir el ancho de la columna
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  value,
+                  // 2. Agregamos estas dos propiedades
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
                   style: TextStyle(
-                      color: lightText,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16)),
-              Text(label, style: TextStyle(color: subText, fontSize: 11)),
-            ],
+                    color: lightText,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+                Text(
+                  label,
+                  // 2. Lo mismo para el label si quieres que también tenga ...
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                  style: TextStyle(color: subText, fontSize: 11),
+                ),
+              ],
+            ),
           )
         ],
       ),
@@ -486,7 +503,7 @@ class _AdminSongsScreenState extends State<AdminSongsScreen> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Rejected: ${song.rejectionReason}',
+                      'Rechazo: ${song.rejectionReason}',
                       style: TextStyle(color: Colors.red[200], fontSize: 12),
                     ),
                   ),
@@ -510,14 +527,14 @@ class _AdminSongsScreenState extends State<AdminSongsScreen> {
                   TextButton.icon(
                     icon:
                         const Icon(Icons.check, size: 16, color: Colors.green),
-                    label: const Text('Approve',
+                    label: const Text('Aprobar',
                         style: TextStyle(color: Colors.green)),
                     onPressed: () => _approveSong(song),
                   ),
                   TextButton.icon(
                     icon: const Icon(Icons.close,
                         size: 16, color: Colors.redAccent),
-                    label: const Text('Reject',
+                    label: const Text('Rechazar',
                         style: TextStyle(color: Colors.redAccent)),
                     onPressed: () => _rejectSong(song),
                   ),
@@ -529,19 +546,19 @@ class _AdminSongsScreenState extends State<AdminSongsScreen> {
                 // Botones estándar
                 IconButton(
                   icon: Icon(Icons.edit, size: 18, color: subText),
-                  tooltip: 'Edit Song',
+                  tooltip: 'Editar Canción',
                   onPressed: () async {
                     await Navigator.push<bool>(
                       context,
                       MaterialPageRoute(
                           builder: (context) => EditSongScreen(song: song)),
                     );
-                    _loadSongs(); // Reload on return
+                    _loadSongs(); // Recargar al volver
                   },
                 ),
                 IconButton(
                   icon: Icon(Icons.delete, size: 18, color: Colors.red[900]),
-                  tooltip: 'Delete',
+                  tooltip: 'Eliminar',
                   onPressed: () => _deleteSong(song.id),
                 ),
               ],
@@ -555,23 +572,28 @@ class _AdminSongsScreenState extends State<AdminSongsScreen> {
   Widget _buildStatusBadge(String status) {
     Color color;
     IconData icon;
+    String translatedStatus;
 
     switch (status) {
       case 'APPROVED':
         color = Colors.green;
         icon = Icons.check_circle;
+        translatedStatus = 'APROBADA';
         break;
       case 'PENDING':
         color = Colors.orange;
         icon = Icons.access_time_filled;
+        translatedStatus = 'PENDIENTE';
         break;
       case 'REJECTED':
         color = Colors.red;
         icon = Icons.cancel;
+        translatedStatus = 'RECHAZADA';
         break;
       default:
         color = Colors.grey;
         icon = Icons.help;
+        translatedStatus = 'DESCONOCIDO';
     }
 
     return Container(
@@ -587,7 +609,7 @@ class _AdminSongsScreenState extends State<AdminSongsScreen> {
           Icon(icon, size: 12, color: color),
           const SizedBox(width: 4),
           Text(
-            status,
+            translatedStatus,
             style: TextStyle(
                 color: color, fontSize: 10, fontWeight: FontWeight.bold),
           ),
@@ -603,7 +625,7 @@ class _AdminSongsScreenState extends State<AdminSongsScreen> {
         children: [
           Icon(Icons.queue_music, size: 64, color: Colors.grey[800]),
           const SizedBox(height: 16),
-          Text('No songs found',
+          Text('No se encontraron canciones',
               style: TextStyle(color: subText, fontSize: 16)),
         ],
       ),
@@ -623,7 +645,7 @@ class _AdminSongsScreenState extends State<AdminSongsScreen> {
             onPressed: _loadSongs,
             style:
                 ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryBlue),
-            child: const Text('Retry'),
+            child: const Text('Reintentar'),
           ),
         ],
       ),
@@ -666,20 +688,20 @@ class _AdminSongsScreenState extends State<AdminSongsScreen> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: darkCardBg,
-        title: Text(isEditing ? 'Edit Song' : 'Add New Song',
+        title: Text(isEditing ? 'Editar Canción' : 'Añadir Nueva Canción',
             style: TextStyle(color: lightText)),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              buildDialogField('Song Name', nameController),
+              buildDialogField('Nombre de la Canción', nameController),
               const SizedBox(height: 16),
-              buildDialogField('Description', descriptionController, lines: 3),
+              buildDialogField('Descripción', descriptionController, lines: 3),
               const SizedBox(height: 16),
-              buildDialogField('Price', priceController,
+              buildDialogField('Precio', priceController,
                   isNumber: true, prefix: '\$ '),
               const SizedBox(height: 16),
-              buildDialogField('Duration (seconds)', durationController,
+              buildDialogField('Duración (segundos)', durationController,
                   isNumber: true),
             ],
           ),
@@ -687,19 +709,19 @@ class _AdminSongsScreenState extends State<AdminSongsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: const Text('Cancelar'),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primaryBlue,
                 foregroundColor: Colors.white),
             onPressed: () async {
-              // ... (Logica de guardado original, simplificada para el ejemplo)
+              // ... (Lógica de guardado original, simplificada para el ejemplo)
               Navigator.pop(context);
-              _showSnack(isEditing ? 'Song updated' : 'Song created');
+              _showSnack(isEditing ? 'Canción actualizada' : 'Canción creada');
               _loadSongs();
             },
-            child: Text(isEditing ? 'Update' : 'Create'),
+            child: Text(isEditing ? 'Actualizar' : 'Crear'),
           ),
         ],
       ),

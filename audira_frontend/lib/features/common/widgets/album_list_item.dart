@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:provider/provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 
 // Imports de tu proyecto
+import 'package:audira_frontend/core/providers/auth_provider.dart';
+import 'package:audira_frontend/core/providers/cart_provider.dart';
+import 'package:audira_frontend/core/providers/library_provider.dart';
 import '../../../config/theme.dart';
 import '../../../config/constants.dart';
 import '../../../core/models/album.dart';
-import '../../../core/providers/auth_provider.dart';
-import '../../../core/providers/cart_provider.dart';
-import '../../../core/providers/library_provider.dart';
 
 class AlbumListItem extends StatelessWidget {
   final Album album;
@@ -190,8 +191,7 @@ class AlbumListItem extends StatelessWidget {
                             success
                                 ? '${album.name} añadido al carrito'
                                 : 'Ya está en el carrito',
-                            isError: !success &&
-                                !success, // Orange warning logic handled in snackbar helper
+                            isError: !success,
                             isWarning: !success,
                           );
                         }
@@ -204,7 +204,7 @@ class AlbumListItem extends StatelessWidget {
           ),
         ),
       ),
-    );
+    ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0);
   }
 
   void _showSnackBar(BuildContext context, String message,

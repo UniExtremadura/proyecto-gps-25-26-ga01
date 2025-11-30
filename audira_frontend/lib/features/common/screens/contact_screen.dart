@@ -68,7 +68,7 @@ class _ContactScreenState extends State<ContactScreen> {
         setState(() => _artistAlbums = albumsResponse.data!);
       }
     } catch (e) {
-      debugPrint('Error loading artist content: $e');
+      debugPrint('Error al cargar contenido de artista: $e');
     } finally {
       setState(() => _isLoadingContent = false);
     }

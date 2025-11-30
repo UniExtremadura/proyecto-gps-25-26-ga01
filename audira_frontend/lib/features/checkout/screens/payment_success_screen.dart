@@ -88,7 +88,6 @@ class _PaymentSuccessScreenState extends State<PaymentSuccessScreen> {
       debugPrint('Stack trace: $stackTrace');
 
       setState(() {
-        _isAddingToLibrary = false;
         _errorMessage = 'Error al sincronizar la biblioteca: $e';
       });
 

@@ -70,7 +70,9 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
         }
       } else {
         if (mounted) {
-          setState(() => _error = response.error ?? 'Failed to load playlist');
+          // TRADUCCIÓN: 'Failed to load playlist'
+          setState(
+              () => _error = response.error ?? 'Error al cargar la playlist');
         }
       }
     } catch (e) {
@@ -154,6 +156,7 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
         }
         await _loadPlaylist();
         if (mounted) {
+          // TRADUCCIÓN: 'canciones añadidas'
           _showSnackBar('${selectedSongs.length} canciones añadidas');
         }
       } catch (e) {
@@ -169,17 +172,21 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF252836),
+        // TRADUCCIÓN: 'Eliminar canción'
         title: const Text('Eliminar canción',
             style: TextStyle(color: Colors.white)),
+        // TRADUCCIÓN: '¿Quitar "${song.name}" de la lista?'
         content: Text('¿Quitar "${song.name}" de la lista?',
             style: const TextStyle(color: Colors.white70)),
         actions: [
+          // TRADUCCIÓN: 'Cancelar'
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
               child: const Text('Cancelar')),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: TextButton.styleFrom(foregroundColor: AppTheme.errorRed),
+            // TRADUCCIÓN: 'Eliminar'
             child: const Text('Eliminar'),
           ),
         ],
@@ -190,6 +197,7 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
       try {
         await _playlistService.removeSongFromPlaylist(
             widget.playlistId, song.id);
+        // TRADUCCIÓN: 'Canción eliminada'
         _showSnackBar('Canción eliminada');
         _loadPlaylist(); // Recargar lista
       } catch (e) {
@@ -204,17 +212,21 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF252836),
+        // TRADUCCIÓN: 'Eliminar Playlist'
         title: const Text('Eliminar Playlist',
             style: TextStyle(color: Colors.white)),
+        // TRADUCCIÓN: 'Esta acción es irreversible.'
         content: const Text('Esta acción es irreversible.',
             style: TextStyle(color: Colors.white70)),
         actions: [
+          // TRADUCCIÓN: 'Cancelar'
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
               child: const Text('Cancelar')),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: TextButton.styleFrom(foregroundColor: AppTheme.errorRed),
+            // TRADUCCIÓN: 'Eliminar'
             child: const Text('Eliminar'),
           ),
         ],
@@ -228,6 +240,7 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
             .read<LibraryProvider>()
             .deletePlaylist(widget.playlistId);
         if (mounted) {
+          // TRADUCCIÓN: 'Playlist eliminada'
           _showSnackBar('Playlist eliminada');
           Navigator.pop(context); // Volver atrás
         }
@@ -284,6 +297,7 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
         backgroundColor: AppTheme.backgroundBlack,
         appBar: AppBar(backgroundColor: Colors.transparent),
         body: Center(
+            // TRADUCCIÓN: 'Error desconocido'
             child: Text(_error ?? 'Error desconocido',
                 style: const TextStyle(color: Colors.white))),
       );
@@ -351,9 +365,11 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
               }
             },
             itemBuilder: (context) => [
+              // TRADUCCIÓN: 'Editar'
               const PopupMenuItem(
                   value: 'edit',
                   child: Text('Editar', style: TextStyle(color: Colors.white))),
+              // TRADUCCIÓN: 'Eliminar'
               const PopupMenuItem(
                   value: 'delete',
                   child: Text('Eliminar',
@@ -447,8 +463,10 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
+                // TRADUCCIÓN: 'canciones'
                 _buildBadge(Icons.music_note, '${_songs.length} canciones'),
                 const SizedBox(width: 12),
+                // TRADUCCIÓN: 'Pública' / 'Privada'
                 _buildBadge(_playlist!.isPublic ? Icons.public : Icons.lock,
                     _playlist!.isPublic ? 'Pública' : 'Privada'),
               ],
@@ -486,6 +504,7 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
           children: [
             Expanded(
               child: ElevatedButton.icon(
+                // TRADUCCIÓN: 'Reproducir'
                 onPressed: () => _playPlaylist(shuffle: false),
                 icon: const Icon(Icons.play_arrow_rounded),
                 label: const Text("Reproducir"),
@@ -501,6 +520,7 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
             const SizedBox(width: 16),
             Expanded(
               child: OutlinedButton.icon(
+                // TRADUCCIÓN: 'Aleatorio'
                 onPressed: () => _playPlaylist(shuffle: true),
                 icon: const Icon(Icons.shuffle_rounded),
                 label: const Text("Aleatorio"),
@@ -530,6 +550,7 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
               Icon(Icons.library_music_outlined,
                   size: 60, color: Colors.white.withValues(alpha: 0.2)),
               const SizedBox(height: 16),
+              // TRADUCCIÓN: "Aún no hay canciones"
               Text("Aún no hay canciones",
                   style: TextStyle(color: Colors.white.withValues(alpha: 0.5))),
             ],
@@ -568,6 +589,7 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
                 ? IconButton(
                     icon: Icon(Icons.remove_circle_outline,
                         color: Colors.white.withValues(alpha: 0.3), size: 20),
+                    // TRADUCCIÓN: 'Quitar'
                     onPressed: () => _removeSong(song),
                   )
                 : Text(song.durationFormatted,

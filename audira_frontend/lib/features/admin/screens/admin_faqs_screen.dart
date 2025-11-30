@@ -41,7 +41,8 @@ class _AdminFaqsScreenState extends State<AdminFaqsScreen> {
       if (response.success && response.data != null) {
         setState(() => _faqs = response.data!);
       } else {
-        setState(() => _error = response.error ?? 'Failed to load FAQs');
+        setState(() => _error =
+            response.error ?? 'Error al cargar las Preguntas Frecuentes');
       }
     } catch (e) {
       setState(() => _error = e.toString());
@@ -55,18 +56,20 @@ class _AdminFaqsScreenState extends State<AdminFaqsScreen> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: darkCardBg,
-        title: Text('Delete FAQ', style: TextStyle(color: lightText)),
-        content: Text('Are you sure you want to delete this FAQ?',
+        title: Text('Eliminar Pregunta Frecuente',
+            style: TextStyle(color: lightText)),
+        content: Text(
+            '¿Estás seguro de que quieres eliminar esta Pregunta Frecuente?',
             style: TextStyle(color: subText)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: const Text('Cancelar'),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
-            child: const Text('Delete'),
+            child: const Text('Eliminar'),
           ),
         ],
       ),
@@ -78,10 +81,12 @@ class _AdminFaqsScreenState extends State<AdminFaqsScreen> {
         final response = await _faqService.deleteFaq(id);
         if (!currentContext.mounted) return;
         if (response.success) {
-          _showSnack('FAQ deleted successfully');
+          _showSnack('Pregunta Frecuente eliminada exitosamente');
           _loadFaqs();
         } else {
-          _showSnack(response.error ?? 'Failed to delete FAQ', isError: true);
+          _showSnack(
+              response.error ?? 'Error al eliminar la Pregunta Frecuente',
+              isError: true);
         }
       } catch (e) {
         if (!currentContext.mounted) return;
@@ -105,7 +110,7 @@ class _AdminFaqsScreenState extends State<AdminFaqsScreen> {
     return Scaffold(
       backgroundColor: darkBg,
       appBar: AppBar(
-        title: const Text('Manage FAQs',
+        title: const Text('Administrar Preguntas Frecuentes',
             style: TextStyle(
                 color: AppTheme.primaryBlue, fontWeight: FontWeight.w800)),
         backgroundColor: darkBg,
@@ -121,7 +126,7 @@ class _AdminFaqsScreenState extends State<AdminFaqsScreen> {
             child: IconButton(
               icon: Icon(Icons.add, color: AppTheme.primaryBlue),
               onPressed: () => _showFaqForm(null),
-              tooltip: 'Add FAQ',
+              tooltip: 'Añadir Pregunta Frecuente',
             ),
           ),
         ],
@@ -135,12 +140,12 @@ class _AdminFaqsScreenState extends State<AdminFaqsScreen> {
             child: Row(
               children: [
                 Expanded(
-                  child: _buildMiniStat('Total Questions',
+                  child: _buildMiniStat('Preguntas Totales',
                       _faqs.length.toString(), Icons.quiz, Colors.purpleAccent),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
-                  child: _buildMiniStat('Total Views', totalViews.toString(),
+                  child: _buildMiniStat('Vistas Totales', totalViews.toString(),
                       Icons.visibility, Colors.orangeAccent),
                 ),
               ],
@@ -241,7 +246,7 @@ class _AdminFaqsScreenState extends State<AdminFaqsScreen> {
               shape: BoxShape.circle,
             ),
             child: Text(
-              'Q${index + 1}',
+              'P${index + 1}', // Q -> P de Question (Pregunta)
               style: const TextStyle(
                   color: AppTheme.primaryBlue,
                   fontWeight: FontWeight.bold,
@@ -296,7 +301,7 @@ class _AdminFaqsScreenState extends State<AdminFaqsScreen> {
                       Icon(Icons.chat_bubble_outline,
                           size: 16, color: AppTheme.primaryBlue),
                       const SizedBox(width: 8),
-                      Text("ANSWER",
+                      Text("RESPUESTA",
                           style: TextStyle(
                               color: AppTheme.primaryBlue,
                               fontSize: 11,
@@ -318,13 +323,13 @@ class _AdminFaqsScreenState extends State<AdminFaqsScreen> {
                 TextButton.icon(
                   onPressed: () => _showFaqForm(faq),
                   icon: const Icon(Icons.edit, size: 16),
-                  label: const Text('Edit'),
+                  label: const Text('Editar'),
                   style: TextButton.styleFrom(foregroundColor: subText),
                 ),
                 TextButton.icon(
                   onPressed: () => _deleteFaq(faq.id),
                   icon: const Icon(Icons.delete, size: 16),
-                  label: const Text('Delete'),
+                  label: const Text('Eliminar'),
                   style:
                       TextButton.styleFrom(foregroundColor: Colors.redAccent),
                 ),
@@ -343,7 +348,8 @@ class _AdminFaqsScreenState extends State<AdminFaqsScreen> {
         children: [
           Icon(Icons.help_outline, size: 64, color: Colors.grey[800]),
           const SizedBox(height: 16),
-          Text('No FAQs found', style: TextStyle(color: subText, fontSize: 16)),
+          Text('No se encontraron Preguntas Frecuentes',
+              style: TextStyle(color: subText, fontSize: 16)),
         ],
       ),
     );
@@ -362,7 +368,7 @@ class _AdminFaqsScreenState extends State<AdminFaqsScreen> {
             onPressed: _loadFaqs,
             style:
                 ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryBlue),
-            child: const Text('Retry'),
+            child: const Text('Reintentar'),
           ),
         ],
       ),
@@ -403,7 +409,10 @@ class _AdminFaqsScreenState extends State<AdminFaqsScreen> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: darkCardBg,
-        title: Text(isEditing ? 'Edit FAQ' : 'Add New FAQ',
+        title: Text(
+            isEditing
+                ? 'Editar Pregunta Frecuente'
+                : 'Añadir Nueva Pregunta Frecuente',
             style: TextStyle(color: lightText)),
         content: SingleChildScrollView(
           child: SizedBox(
@@ -411,11 +420,11 @@ class _AdminFaqsScreenState extends State<AdminFaqsScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                buildTextField('Question', questionController, lines: 2),
+                buildTextField('Pregunta', questionController, lines: 2),
                 const SizedBox(height: 16),
-                buildTextField('Answer', answerController, lines: 5),
+                buildTextField('Respuesta', answerController, lines: 5),
                 const SizedBox(height: 16),
-                buildTextField('Category', categoryController),
+                buildTextField('Categoría', categoryController),
               ],
             ),
           ),
@@ -423,7 +432,7 @@ class _AdminFaqsScreenState extends State<AdminFaqsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: const Text('Cancelar'),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -435,7 +444,8 @@ class _AdminFaqsScreenState extends State<AdminFaqsScreen> {
               final category = categoryController.text.trim();
 
               if (question.isEmpty || answer.isEmpty) {
-                _showSnack('Question and answer are required', isError: true);
+                _showSnack('La pregunta y la respuesta son obligatorias',
+                    isError: true);
                 return;
               }
 
@@ -444,7 +454,7 @@ class _AdminFaqsScreenState extends State<AdminFaqsScreen> {
               try {
                 if (isEditing) {
                   await _faqService.updateFaq(
-                    id: faq.id,
+                    id: faq!.id,
                     question: question,
                     answer: answer,
                     category: category,
@@ -458,15 +468,15 @@ class _AdminFaqsScreenState extends State<AdminFaqsScreen> {
                 }
                 if (!currentContext.mounted) return;
                 _showSnack(isEditing
-                    ? 'FAQ updated successfully'
-                    : 'FAQ created successfully');
+                    ? 'Pregunta Frecuente actualizada exitosamente'
+                    : 'Pregunta Frecuente creada exitosamente');
                 _loadFaqs();
               } catch (e) {
                 if (!currentContext.mounted) return;
                 _showSnack('Error: $e', isError: true);
               }
             },
-            child: Text(isEditing ? 'Update' : 'Create'),
+            child: Text(isEditing ? 'Actualizar' : 'Crear'),
           ),
         ],
       ),

@@ -6,7 +6,6 @@ import 'package:audira_frontend/core/models/song.dart';
 import 'package:audira_frontend/core/models/genre.dart';
 import 'package:audira_frontend/core/models/recommendations_response.dart';
 
-
 class DiscoveryService {
   static final DiscoveryService _instance = DiscoveryService._internal();
   factory DiscoveryService() => _instance;
@@ -14,15 +13,15 @@ class DiscoveryService {
 
   final ApiClient _apiClient = ApiClient();
 
-  /// Search songs 
+  /// Search songs
   Future<ApiResponse<Map<String, dynamic>>> searchSongs(
     String query, {
     int page = 0,
     int size = 20,
     int? genreId,
     String? sortBy,
-    double? minPrice,  // NUEVO
-    double? maxPrice,  // NUEVO
+    double? minPrice, // NUEVO
+    double? maxPrice, // NUEVO
   }) async {
     final Map<String, String> queryParams = {
       'query': query,
@@ -65,7 +64,7 @@ class DiscoveryService {
 
       return ApiResponse(
         success: false,
-        error: response.error ?? 'Failed to search songs',
+        error: response.error ?? 'Fallo al buscar canciones',
         statusCode: response.statusCode,
       );
     } catch (e) {
@@ -80,8 +79,8 @@ class DiscoveryService {
     int size = 20,
     int? genreId,
     String? sortBy,
-    double? minPrice,  // NUEVO
-    double? maxPrice,  // NUEVO
+    double? minPrice, // NUEVO
+    double? maxPrice, // NUEVO
   }) async {
     final Map<String, String> queryParams = {
       'query': query,
@@ -124,7 +123,7 @@ class DiscoveryService {
 
       return ApiResponse(
         success: false,
-        error: response.error ?? 'Failed to search albums',
+        error: response.error ?? 'Fallo al buscar álbumes',
         statusCode: response.statusCode,
       );
     } catch (e) {
@@ -157,7 +156,7 @@ class DiscoveryService {
 
       return ApiResponse(
         success: false,
-        error: response.error ?? 'Failed to search artists',
+        error: response.error ?? 'Fallo al buscar artistas',
         statusCode: response.statusCode,
       );
     } catch (e) {
@@ -173,12 +172,12 @@ class DiscoveryService {
         final List<dynamic> data = response.data as List;
         final genres = data.map((json) => Genre.fromJson(json)).toList();
         return ApiResponse(
-          success: true,
-          data: genres,
-          statusCode: response.statusCode
-        );
+            success: true, data: genres, statusCode: response.statusCode);
       }
-      return ApiResponse(success: false, error: 'Error fetching genres');
+      return ApiResponse(
+        success: false,
+        error: 'Fallo al obtener los géneros',
+      );
     } catch (e) {
       return ApiResponse(success: false, error: e.toString());
     }
@@ -205,7 +204,7 @@ class DiscoveryService {
 
       return ApiResponse(
         success: false,
-        error: response.error ?? 'Failed to fetch trending songs',
+        error: response.error ?? 'Fallo al obtener las canciones de tendencia',
         statusCode: response.statusCode,
       );
     } catch (e) {
@@ -233,7 +232,7 @@ class DiscoveryService {
 
       return ApiResponse(
         success: false,
-        error: response.error ?? 'Failed to fetch trending albums',
+        error: response.error ?? 'Fallo al obtener los álbumes de tendencia',
         statusCode: response.statusCode,
       );
     } catch (e) {
@@ -262,7 +261,7 @@ class DiscoveryService {
 
       return ApiResponse(
         success: false,
-        error: response.error ?? 'Failed to fetch latest releases',
+        error: response.error ?? 'Fallo al obtener los últimos lanzamientos',
         statusCode: response.statusCode,
       );
     } catch (e) {
@@ -291,7 +290,7 @@ class DiscoveryService {
 
       return ApiResponse(
         success: false,
-        error: response.error ?? 'Failed to fetch recommendations',
+        error: response.error ?? 'Fallo al obtener las recomendaciones',
         statusCode: response.statusCode,
       );
     } catch (e) {

@@ -243,16 +243,17 @@ class AppRoutes {
 
       case downloads:
         return MaterialPageRoute(builder: (_) => const DownloadsScreen());
-      
+
       case userTicket:
         return MaterialPageRoute(builder: (_) => const MyTicketsScreen());
 
       case adminModerationHistory:
-        return MaterialPageRoute(builder: (_) => const AdminModerationHistoryScreen());
-
+        return MaterialPageRoute(
+            builder: (_) => const AdminModerationHistoryScreen());
 
       case adminFeaturedContent:
-        return MaterialPageRoute(builder: (_) => const AdminFeaturedContentScreen());
+        return MaterialPageRoute(
+            builder: (_) => const AdminFeaturedContentScreen());
 
       default:
         return MaterialPageRoute(
@@ -264,7 +265,7 @@ class AppRoutes {
                 children: [
                   const Icon(Icons.error_outline, size: 64, color: Colors.red),
                   const SizedBox(height: 16),
-                  Text('Route not found: ${settings.name}'),
+                  Text('No se ha podido encontrar: ${settings.name}'),
                 ],
               ),
             ),

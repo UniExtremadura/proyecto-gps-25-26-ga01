@@ -450,7 +450,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           setState(() => _hasChanges = false);
         }
       } else {
-        throw Exception(response.error ?? 'Failed to update profile');
+        throw Exception(response.error ?? 'Error al actualizar perfil');
       }
     } catch (e) {
       if (mounted) _showSnack('Error al actualizar perfil: $e', isError: true);
@@ -576,7 +576,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     return Scaffold(
       backgroundColor: darkBg,
       appBar: AppBar(
-        title: const Text('Edit Profile',
+        title: const Text('Editar Perfil',
             style: TextStyle(
                 color: AppTheme.primaryBlue, fontWeight: FontWeight.w800)),
         backgroundColor: darkBg,
@@ -591,7 +591,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       height: 20,
                       child: CircularProgressIndicator(
                           strokeWidth: 2, color: AppTheme.primaryBlue))
-                  : const Text('Save',
+                  : const Text('Guardar',
                       style: TextStyle(
                           color: AppTheme.primaryBlue,
                           fontWeight: FontWeight.bold)),
@@ -615,7 +615,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 child: Column(
                   children: [
                     Text(
-                      user?.displayName ?? 'User',
+                      user?.displayName ?? 'Usuario',
                       style: Theme.of(context)
                           .textTheme
                           .headlineMedium
@@ -624,7 +624,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     ).animate().fadeIn(delay: 300.ms),
                     const SizedBox(height: 4),
                     Text(
-                      '@${user?.username ?? 'username'}',
+                      '@${user?.username ?? 'nombre_usuario'}',
                       style: Theme.of(context)
                           .textTheme
                           .bodyLarge
@@ -634,7 +634,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     ElevatedButton.icon(
                       onPressed: _isUploadingImage ? null : _pickImage,
                       icon: const Icon(Icons.photo_camera, size: 18),
-                      label: const Text('Change Image'),
+                      label: const Text('Cambiar Imagen'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppTheme.primaryBlue,
                         foregroundColor: Colors.white,
@@ -655,65 +655,65 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildSectionTitle('Personal Information'),
+                    _buildSectionTitle('Información Personal'),
                     _buildDarkTextField(
                       controller: _firstNameController,
-                      label: 'First Name',
+                      label: 'Nombre',
                       icon: Icons.person_outline,
                     ),
                     _buildDarkTextField(
                       controller: _lastNameController,
-                      label: 'Last Name',
+                      label: 'Apellido',
                       icon: Icons.person,
                     ),
                     _buildDarkTextField(
                       controller: _bioController,
-                      label: 'Bio',
+                      label: 'Biografía',
                       icon: Icons.description,
                       maxLines: 3,
                     ),
                     _buildDarkTextField(
                       controller: _locationController,
-                      label: 'Location',
+                      label: 'Ubicación',
                       icon: Icons.location_on,
                     ),
                     _buildDarkTextField(
                       controller: _websiteController,
-                      label: 'Website',
+                      label: 'Sitio Web',
                       icon: Icons.link,
                       keyboardType: TextInputType.url,
                     ),
                     if (isArtist) ...[
                       const SizedBox(height: 30),
-                      _buildSectionTitle('Artist Information',
+                      _buildSectionTitle('Información de Artista',
                           icon: Icons.star_border),
                       _buildDarkTextField(
                         controller: _artistNameController,
-                        label: 'Artist Name',
+                        label: 'Nombre de Artista',
                         icon: Icons.stars,
-                        hint: 'Your professional artist name',
+                        hint: 'Tu nombre artístico profesional',
                       ),
                       _buildDarkTextField(
                         controller: _artistBioController,
-                        label: 'Artist Bio',
+                        label: 'Biografía de Artista',
                         icon: Icons.music_note,
                         maxLines: 4,
-                        hint: 'Tell your fans about your music',
+                        hint: 'Háblales a tus fans sobre tu música',
                       ),
                       _buildDarkTextField(
                         controller: _recordLabelController,
-                        label: 'Record Label',
+                        label: 'Sello Discográfico',
                         icon: Icons.album,
-                        hint: 'Independent or label name',
+                        hint: 'Independiente o nombre del sello',
                       ),
                     ],
                     const SizedBox(height: 30),
-                    _buildSectionTitle('Social Media', icon: Icons.share),
+                    _buildSectionTitle('Redes Sociales', icon: Icons.share),
                     _buildSocialField(
                       controller: _twitterController,
                       label: 'Twitter / X',
                       icon: Icons.alternate_email,
-                      hint: 'https://twitter.com/username',
+                      hint: 'https://twitter.com/nombre_usuario',
                       validationState: _twitterValidation,
                       onChanged: _onTwitterChanged,
                     ),
@@ -721,7 +721,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       controller: _instagramController,
                       label: 'Instagram',
                       icon: Icons.camera_alt,
-                      hint: 'https://instagram.com/username',
+                      hint: 'https://instagram.com/nombre_usuario',
                       validationState: _instagramValidation,
                       onChanged: _onInstagramChanged,
                     ),
@@ -729,7 +729,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       controller: _facebookController,
                       label: 'Facebook',
                       icon: Icons.facebook,
-                      hint: 'https://facebook.com/username',
+                      hint: 'https://facebook.com/nombre_usuario',
                       validationState: _facebookValidation,
                       onChanged: _onFacebookChanged,
                     ),
@@ -737,7 +737,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       controller: _youtubeController,
                       label: 'YouTube',
                       icon: Icons.play_circle_outline,
-                      hint: 'https://youtube.com/c/channel',
+                      hint: 'https://youtube.com/c/canal',
                       validationState: _youtubeValidation,
                       onChanged: _onYoutubeChanged,
                     ),
@@ -753,7 +753,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       controller: _tiktokController,
                       label: 'TikTok',
                       icon: Icons.video_library_outlined,
-                      hint: 'https://tiktok.com/@username',
+                      hint: 'https://tiktok.com/@nombre_usuario',
                       validationState: _tiktokValidation,
                       onChanged: _onTiktokChanged,
                     ),
@@ -820,7 +820,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           child: ElevatedButton.icon(
             onPressed: _isUploadingBanner ? null : _pickBanner,
             icon: const Icon(Icons.photo_camera, size: 18),
-            label: const Text('Edit Banner'),
+            label: const Text('Editar Banner'),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.black54,
               foregroundColor: Colors.white,

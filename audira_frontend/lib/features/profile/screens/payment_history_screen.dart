@@ -45,7 +45,7 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
 
     if (userId == null) {
       setState(() {
-        _error = 'User not identified';
+        _error = 'Usuario no identificado';
         _isLoading = false;
       });
       return;
@@ -61,7 +61,7 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
       });
     } else {
       setState(() {
-        _error = response.error ?? 'Error loading payment history';
+        _error = response.error ?? 'Error al cargar el historial de pagos';
         _isLoading = false;
       });
     }
@@ -74,7 +74,7 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
     return Scaffold(
       backgroundColor: darkBg,
       appBar: AppBar(
-        title: const Text('Payment History',
+        title: const Text('Historial de Pagos',
             style: TextStyle(
                 color: AppTheme.primaryBlue, fontWeight: FontWeight.w800)),
         backgroundColor: darkBg,
@@ -119,7 +119,7 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
                 size: 64, color: Colors.grey[700]),
           ),
           const SizedBox(height: 24),
-          Text('No payments yet',
+          Text('Aún no hay pagos',
               style: TextStyle(color: subText, fontSize: 18)),
         ],
       ),
@@ -136,7 +136,7 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
           Text(_error!, style: const TextStyle(color: Colors.red)),
           const SizedBox(height: 16),
           ElevatedButton(
-              onPressed: _loadPaymentHistory, child: const Text('Retry')),
+              onPressed: _loadPaymentHistory, child: const Text('Reintentar')),
         ],
       ),
     );
@@ -278,17 +278,17 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
               const SizedBox(height: 40),
 
               // Details Grid
-              _buildDetailItem('Date', _formatDateLong(payment.createdAt),
+              _buildDetailItem('Fecha', _formatDateLong(payment.createdAt),
                   Icons.calendar_today),
               _buildDetailItem(
-                  'Method', payment.paymentMethod.displayName, Icons.payment),
+                  'Método', payment.paymentMethod.displayName, Icons.payment),
               _buildDetailItem(
-                  'Transaction ID', payment.transactionId, Icons.receipt,
+                  'ID de Transacción', payment.transactionId, Icons.receipt,
                   isCopyable: true),
 
               if (payment.completedAt != null)
                 _buildDetailItem(
-                    'Completed At',
+                    'Completado el',
                     _formatDateLong(payment.completedAt!),
                     Icons.check_circle_outline),
 
@@ -316,7 +316,7 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.all(16)),
                     icon: const Icon(Icons.receipt_long),
-                    label: const Text('View Receipt'),
+                    label: const Text('Ver Recibo'),
                   ),
                 ),
 
@@ -333,7 +333,7 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.all(16)),
                     icon: const Icon(Icons.refresh),
-                    label: const Text('Retry Payment'),
+                    label: const Text('Reintentar Pago'),
                   ),
                 ),
             ],
@@ -391,14 +391,14 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
       if (response.success && response.data != null) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(response.data!.success
-              ? 'Payment processed'
-              : 'Payment failed again'),
+              ? 'Pago procesado'
+              : 'El pago falló de nuevo'),
           backgroundColor: response.data!.success ? Colors.green : Colors.red,
         ));
         _loadPaymentHistory();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(response.error ?? 'Retry error'),
+            content: Text(response.error ?? 'Error de reintento'),
             backgroundColor: Colors.red));
       }
     }

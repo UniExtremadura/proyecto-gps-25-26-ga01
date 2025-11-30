@@ -14,13 +14,11 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
-  // --- Colores Locales Dark Mode ---
   final Color _darkBgStart = const Color(0xFF0F111A);
   final Color _darkBgEnd = Colors.black;
   final Color _darkSurface = const Color(0xFF1A1D2B);
   final Color _darkInputFill = const Color(0xFF24283B);
   final Color _textLightGrey = const Color(0xFFB0B3C7);
-  // ----------------------------------------------------
 
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
@@ -45,7 +43,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Future<void> _handleRegister() async {
-    FocusScope.of(context).unfocus(); // Cerrar teclado
+    FocusScope.of(context).unfocus();
 
     if (!_formKey.currentState!.validate()) return;
 
@@ -118,14 +116,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
           ),
         ),
         child: SafeArea(
-          // SOLUCIÓN: Envolvemos todo el contenido en SingleChildScrollView
           child: SingleChildScrollView(
             physics: const BouncingScrollPhysics(),
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // --- BRANDING HEADER ---
                 Center(
                   child: Column(
                     children: [
@@ -145,10 +141,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ],
                   ),
                 ).animate().fadeIn(duration: 600.ms),
-
                 const SizedBox(height: 24),
-
-                // Texto secundario
                 Text(
                   'Crea tu cuenta',
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
@@ -156,10 +149,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         color: Colors.white,
                       ),
                 ).animate().fadeIn(delay: 200.ms),
-
                 const SizedBox(height: 30),
-
-                // --- Form Container ---
                 Container(
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
@@ -181,7 +171,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // --- Selector de Rol Personalizado ---
                         Text(
                           'QUIERO SER',
                           style: TextStyle(
@@ -211,12 +200,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             ),
                           ],
                         ).animate().fadeIn(delay: 300.ms),
-
                         const SizedBox(height: 24),
                         const Divider(color: Colors.white10),
                         const SizedBox(height: 24),
-
-                        // --- Campos Principales ---
                         _buildDarkInput(
                           controller: _usernameController,
                           label: 'Usuario *',
@@ -232,9 +218,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             return null;
                           },
                         ).animate().fadeIn(delay: 400.ms).slideX(),
-
                         const SizedBox(height: 16),
-
                         _buildDarkInput(
                           controller: _emailController,
                           label: 'Email *',
@@ -249,9 +233,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             return null;
                           },
                         ).animate().fadeIn(delay: 500.ms).slideX(),
-
                         const SizedBox(height: 16),
-
                         _buildDarkInput(
                           controller: _passwordController,
                           label: 'Contraseña *',
@@ -271,10 +253,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             return null;
                           },
                         ).animate().fadeIn(delay: 600.ms).slideX(),
-
                         const SizedBox(height: 24),
-
-                        // --- Datos Personales (Opcionales) ---
                         Text(
                           'OPCIONAL',
                           style: TextStyle(
@@ -284,9 +263,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             letterSpacing: 1.5,
                           ),
                         ).animate().fadeIn(delay: 700.ms),
-
                         const SizedBox(height: 12),
-
                         Row(
                           children: [
                             Expanded(
@@ -310,8 +287,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             ),
                           ],
                         ).animate().fadeIn(delay: 800.ms),
-
-                        // --- Campo Condicional para Artista ---
                         if (_selectedRole == AppConstants.roleArtist) ...[
                           const SizedBox(height: 16),
                           _buildDarkInput(
@@ -326,10 +301,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               .fadeIn(duration: 400.ms)
                               .slideY(begin: -0.2),
                         ],
-
                         const SizedBox(height: 32),
-
-                        // --- Botón de Registro ---
                         SizedBox(
                           width: double.infinity,
                           height: 56,
@@ -369,9 +341,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                   ),
                 ),
-
                 const SizedBox(height: 24),
-
                 Center(
                   child: TextButton(
                     onPressed: () => Navigator.pop(context),
@@ -392,7 +362,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                   ),
                 ).animate().fadeIn(delay: 1000.ms),
-
                 const SizedBox(height: 20),
               ],
             ),
@@ -402,7 +371,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-  // Widget personalizado para seleccionar Rol
   Widget _buildRoleCard({
     required String title,
     required String value,
@@ -449,7 +417,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-  // Input Helper
   Widget _buildDarkInput({
     required TextEditingController controller,
     required String label,
