@@ -1,0 +1,304 @@
+import 'package:audira_frontend/core/api/api_client.dart';
+import 'package:audira_frontend/core/models/faq.dart';
+
+class FaqService {
+  static final FaqService _instance = FaqService._internal();
+  factory FaqService() => _instance;
+  FaqService._internal();
+
+  final ApiClient _apiClient = ApiClient();
+
+  /// Get all FAQs (no auth required - public access)
+  Future<ApiResponse<List<FAQ>>> getAllFaqs() async {
+    try {
+      final response = await _apiClient.get('/api/faqs', requiresAuth: false);
+
+      if (response.success && response.data != null) {
+        final List<dynamic> data = response.data as List;
+        final faqs = data.map((json) => FAQ.fromJson(json)).toList();
+        return ApiResponse(
+          success: true,
+          data: faqs,
+          statusCode: response.statusCode,
+        );
+      }
+
+      return ApiResponse(
+        success: false,
+        error: response.error ?? 'Fallo al obtener las FAQs',
+        statusCode: response.statusCode,
+      );
+    } catch (e) {
+      return ApiResponse(success: false, error: e.toString());
+    }
+  }
+
+  /// Get active FAQs only (no auth required - public access)
+  Future<ApiResponse<List<FAQ>>> getActiveFaqs() async {
+    try {
+      final response =
+          await _apiClient.get('/api/faqs/active', requiresAuth: false);
+
+      if (response.success && response.data != null) {
+        final List<dynamic> data = response.data as List;
+        final faqs = data.map((json) => FAQ.fromJson(json)).toList();
+        return ApiResponse(
+          success: true,
+          data: faqs,
+          statusCode: response.statusCode,
+        );
+      }
+
+      return ApiResponse(
+        success: false,
+        error: response.error ?? 'Fallo al obtener las FAQs activas',
+        statusCode: response.statusCode,
+      );
+    } catch (e) {
+      return ApiResponse(success: false, error: e.toString());
+    }
+  }
+
+  /// Get FAQs by category (no auth required - public access)
+  Future<ApiResponse<List<FAQ>>> getFaqsByCategory(String category) async {
+    try {
+      final response = await _apiClient.get('/api/faqs/category/$category',
+          requiresAuth: false);
+
+      if (response.success && response.data != null) {
+        final List<dynamic> data = response.data as List;
+        final faqs = data.map((json) => FAQ.fromJson(json)).toList();
+        return ApiResponse(
+          success: true,
+          data: faqs,
+          statusCode: response.statusCode,
+        );
+      }
+
+      return ApiResponse(
+        success: false,
+        error: response.error ?? 'Fallo al obtener las FAQs por categoría',
+        statusCode: response.statusCode,
+      );
+    } catch (e) {
+      return ApiResponse(success: false, error: e.toString());
+    }
+  }
+
+  /// Get FAQ by ID (no auth required - public access)
+  Future<ApiResponse<FAQ>> getFaqById(int id) async {
+    try {
+      final response =
+          await _apiClient.get('/api/faqs/$id', requiresAuth: false);
+
+      if (response.success && response.data != null) {
+        final faq = FAQ.fromJson(response.data);
+        return ApiResponse(
+          success: true,
+          data: faq,
+          statusCode: response.statusCode,
+        );
+      }
+
+      return ApiResponse(
+        success: false,
+        error: response.error ?? 'Fallo al obtener la FAQ',
+        statusCode: response.statusCode,
+      );
+    } catch (e) {
+      return ApiResponse(success: false, error: e.toString());
+    }
+  }
+
+  /// Increment view count for FAQ (no auth required)
+  Future<ApiResponse<void>> incrementViewCount(int id) async {
+    try {
+      final response =
+          await _apiClient.post('/api/faqs/$id/view', requiresAuth: false);
+
+      if (response.success) {
+        return ApiResponse(
+          success: true,
+          data: null,
+          statusCode: response.statusCode,
+        );
+      }
+
+      return ApiResponse(
+        success: false,
+        error: response.error ?? 'Fallo al incrementar las visitas',
+        statusCode: response.statusCode,
+      );
+    } catch (e) {
+      return ApiResponse(success: false, error: e.toString());
+    }
+  }
+
+  /// Mark FAQ as helpful (no auth required)
+  Future<ApiResponse<void>> markAsHelpful(int id) async {
+    try {
+      final response =
+          await _apiClient.post('/api/faqs/$id/helpful', requiresAuth: false);
+
+      if (response.success) {
+        return ApiResponse(
+          success: true,
+          data: null,
+          statusCode: response.statusCode,
+        );
+      }
+
+      return ApiResponse(
+        success: false,
+        error: response.error ?? 'Fallo al marcar como útil',
+        statusCode: response.statusCode,
+      );
+    } catch (e) {
+      return ApiResponse(success: false, error: e.toString());
+    }
+  }
+
+  /// Mark FAQ as not helpful (no auth required)
+  Future<ApiResponse<void>> markAsNotHelpful(int id) async {
+    try {
+      final response = await _apiClient.post('/api/faqs/$id/not-helpful',
+          requiresAuth: false);
+
+      if (response.success) {
+        return ApiResponse(
+          success: true,
+          data: null,
+          statusCode: response.statusCode,
+        );
+      }
+
+      return ApiResponse(
+        success: false,
+        error: response.error ?? 'Fallo al marcar como no útil',
+        statusCode: response.statusCode,
+      );
+    } catch (e) {
+      return ApiResponse(success: false, error: e.toString());
+    }
+  }
+
+  /// Create FAQ (admin only)
+  Future<ApiResponse<FAQ>> createFaq({
+    required String question,
+    required String answer,
+    required String category,
+    bool isActive = true,
+  }) async {
+    try {
+      final response = await _apiClient.post(
+        '/api/faqs',
+        body: {
+          'question': question,
+          'answer': answer,
+          'category': category,
+          'isActive': isActive,
+        },
+      );
+
+      if (response.success && response.data != null) {
+        final faq = FAQ.fromJson(response.data);
+        return ApiResponse(
+          success: true,
+          data: faq,
+          statusCode: response.statusCode,
+        );
+      }
+
+      return ApiResponse(
+        success: false,
+        error: response.error ?? 'Fallo al crear la FAQ',
+        statusCode: response.statusCode,
+      );
+    } catch (e) {
+      return ApiResponse(success: false, error: e.toString());
+    }
+  }
+
+  /// Update FAQ (admin only)
+  Future<ApiResponse<FAQ>> updateFaq({
+    required int id,
+    String? question,
+    String? answer,
+    String? category,
+    bool? isActive,
+  }) async {
+    try {
+      final body = <String, dynamic>{};
+      if (question != null) body['question'] = question;
+      if (answer != null) body['answer'] = answer;
+      if (category != null) body['category'] = category;
+      if (isActive != null) body['isActive'] = isActive;
+
+      final response = await _apiClient.put('/api/faqs/$id', body: body);
+
+      if (response.success && response.data != null) {
+        final faq = FAQ.fromJson(response.data);
+        return ApiResponse(
+          success: true,
+          data: faq,
+          statusCode: response.statusCode,
+        );
+      }
+
+      return ApiResponse(
+        success: false,
+        error: response.error ?? 'Fallo al actualizar la FAQ',
+        statusCode: response.statusCode,
+      );
+    } catch (e) {
+      return ApiResponse(success: false, error: e.toString());
+    }
+  }
+
+  /// Toggle FAQ active status (admin only)
+  Future<ApiResponse<FAQ>> toggleActive(int id) async {
+    try {
+      final response = await _apiClient.put('/api/faqs/$id/toggle-active');
+
+      if (response.success && response.data != null) {
+        final faq = FAQ.fromJson(response.data);
+        return ApiResponse(
+          success: true,
+          data: faq,
+          statusCode: response.statusCode,
+        );
+      }
+
+      return ApiResponse(
+        success: false,
+        error: response.error ?? 'Fallo al cambiar el estado activo de la FAQ',
+        statusCode: response.statusCode,
+      );
+    } catch (e) {
+      return ApiResponse(success: false, error: e.toString());
+    }
+  }
+
+  /// Delete FAQ (admin only)
+  Future<ApiResponse<void>> deleteFaq(int id) async {
+    try {
+      final response = await _apiClient.delete('/api/faqs/$id');
+
+      if (response.success) {
+        return ApiResponse(
+          success: true,
+          data: null,
+          statusCode: response.statusCode,
+        );
+      }
+
+      return ApiResponse(
+        success: false,
+        error: response.error ?? 'Fallo al eliminar la FAQ',
+        statusCode: response.statusCode,
+      );
+    } catch (e) {
+      return ApiResponse(success: false, error: e.toString());
+    }
+  }
+}
