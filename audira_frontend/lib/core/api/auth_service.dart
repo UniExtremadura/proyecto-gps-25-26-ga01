@@ -1,5 +1,3 @@
-// ignore_for_file: empty_catches
-
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
@@ -170,7 +168,9 @@ class AuthService {
         }
         return User.fromJson(userJson);
       }
-    } catch (e) {}
+    } catch (e) {
+      // Error
+    }
     return null;
   }
 

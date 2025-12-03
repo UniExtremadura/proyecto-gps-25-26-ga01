@@ -1,11 +1,21 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+
+// Imports de tu proyecto
 import '../../../config/theme.dart';
 import '../../../core/providers/audio_provider.dart';
 
 class MiniPlayer extends StatelessWidget {
-  const MiniPlayer({super.key});
+  // Puedes pasar un padding adicional si en alguna pantalla específica lo necesitas más arriba
+  final double bottomPadding;
+
+  const MiniPlayer(
+      {super.key,
+      this.bottomPadding = 12.0 // Margen estándar pequeño y elegante
+      });
 
   @override
   Widget build(BuildContext context) {
@@ -13,161 +23,148 @@ class MiniPlayer extends StatelessWidget {
       builder: (context, audioProvider, child) {
         final song = audioProvider.currentSong;
 
-        // Don't show mini player if no song is playing
-        if (song == null || audioProvider.demoFinished) {
+        // Si no hay canción o el miniplayer está oculto, no mostramos nada
+        if (song == null ||
+            audioProvider.demoFinished ||
+            !audioProvider.miniPlayerVisible) {
           return const SizedBox.shrink();
         }
 
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Demo banner on top of mini player
-            if (audioProvider.isDemoMode)
-              Container(
-                width: double.infinity,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFFFFA726), Color(0xFFFF6F00)],
+        return Padding(
+          // Usamos el bottomPadding aquí. Si hay un BottomNavBar flotante,
+          // el Stack padre debería posicionar este widget encima, no el padding interno.
+          padding: EdgeInsets.fromLTRB(12, 0, 12, bottomPadding),
+          child: GestureDetector(
+            onTap: () {
+              Navigator.pushNamed(context, '/playback');
+            },
+            // Contenedor principal con animación de entrada
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(
+                  12), // Bordes un poco menos redondos para encajar mejor con el menú
+              child: BackdropFilter(
+                filter: ImageFilter.blur(
+                    sigmaX: 15, sigmaY: 15), // Blur más fuerte para legibilidad
+                child: Container(
+                  height: 64, // Altura compacta y elegante
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1E1E1E).withValues(
+                        alpha: 0.95), // Casi opaco para que destaque
+                    borderRadius: BorderRadius.circular(12),
+                    border:
+                        Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.5),
+                        blurRadius: 10,
+                        offset: const Offset(
+                            0, 4), // Sombra hacia abajo para separarlo
+                      ),
+                    ],
                   ),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Expanded(
-                      child: Text(
-                        'Vista previa limitada - 10 segundos',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: () {
-                        Navigator.pushNamed(context, '/register');
-                      },
-                      style: TextButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 4,
-                        ),
-                        minimumSize: Size.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                      child: const Text(
-                        'Registrarse',
-                        style: TextStyle(
-                          color: Color(0xFFFF6F00),
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            GestureDetector(
-              onTap: () {
-                Navigator.pushNamed(context, '/playback');
-              },
-              child: Container(
-                height: 70,
-                decoration: BoxDecoration(
-                  color: AppTheme.surfaceBlack,
-                  border: Border(
-                    top: BorderSide(
-                      color: AppTheme.textGrey.withValues(alpha: 0.2),
-                      width: 1,
-                    ),
-                  ),
-                ),
-                child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  child: Row(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // Album Art
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: song.coverImageUrl != null
-                            ? CachedNetworkImage(
-                                imageUrl: song.coverImageUrl!,
-                                width: 60,
-                                height: 60,
-                                fit: BoxFit.cover,
-                                placeholder: (context, url) => Container(
-                                  color: AppTheme.backgroundBlack,
-                                  child: const Center(
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                    ),
-                                  ),
-                                ),
-                                errorWidget: (context, url, error) => Container(
-                                  color: AppTheme.backgroundBlack,
-                                  child: const Icon(Icons.music_note, size: 30),
-                                ),
-                              )
-                            : Container(
-                                width: 60,
-                                height: 60,
-                                color: AppTheme.backgroundBlack,
-                                child: const Icon(Icons.music_note, size: 30),
-                              ),
-                      ),
-                      const SizedBox(width: 12),
-
-                      // Song Info
+                      // --- Contenido Principal ---
                       Expanded(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        child: Row(
                           children: [
-                            Text(
-                              song.name,
-                              style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
+                            // 1. Carátula
+                            Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: Hero(
+                                tag: 'miniplayer_art',
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(6),
+                                  child: song.coverImageUrl != null
+                                      ? CachedNetworkImage(
+                                          imageUrl: song.coverImageUrl!,
+                                          width: 48,
+                                          height: 48,
+                                          fit: BoxFit.cover,
+                                          placeholder: (_, __) => Container(
+                                              color: AppTheme.surfaceBlack),
+                                          errorWidget: (_, __, ___) =>
+                                              Container(
+                                                  color: AppTheme.surfaceBlack,
+                                                  child: const Icon(
+                                                      Icons.music_note,
+                                                      size: 20)),
+                                        )
+                                      : Container(
+                                          width: 48,
+                                          height: 48,
+                                          color: AppTheme.surfaceBlack,
+                                          child: const Icon(Icons.music_note,
+                                              color: Colors.white54),
+                                        ),
+                                ),
                               ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
                             ),
-                            const SizedBox(height: 4),
-                            Row(
-                              children: [
-                                if (audioProvider.isDemoMode)
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 6, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: Colors.amber,
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: const Text(
-                                      'DEMO',
-                                      style: TextStyle(
-                                        color: Colors.black,
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                if (audioProvider.isDemoMode)
-                                  const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    song.artistName,
+
+                            // 2. Info Texto
+                            Expanded(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // Título
+                                  Text(
+                                    song.name,
                                     style: const TextStyle(
-                                      fontSize: 12,
-                                      color: AppTheme.textGrey,
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 13,
                                     ),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                   ),
+                                  const SizedBox(height: 2),
+                                  // Artista
+                                  Text(
+                                    song.artistName,
+                                    style: TextStyle(
+                                      color:
+                                          Colors.white.withValues(alpha: 0.6),
+                                      fontSize: 11,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                            // 3. Controles Mini
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: Icon(
+                                    audioProvider.isPlaying
+                                        ? Icons.pause_rounded
+                                        : Icons.play_arrow_rounded,
+                                    color: Colors.white,
+                                    size: 28,
+                                  ),
+                                  onPressed: () {
+                                    audioProvider.togglePlayPause();
+                                  },
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.skip_next_rounded,
+                                      color: Colors.white, size: 28),
+                                  onPressed: () {
+                                    audioProvider.next();
+                                  },
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.close_rounded,
+                                      color: Colors.white70, size: 20),
+                                  tooltip: 'Ocultar reproductor',
+                                  onPressed: () {
+                                    audioProvider.hideMiniPlayer();
+                                  },
                                 ),
                               ],
                             ),
@@ -175,49 +172,26 @@ class MiniPlayer extends StatelessWidget {
                         ),
                       ),
 
-                      // Controls
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          if (!audioProvider.isDemoMode)
-                            IconButton(
-                              icon: const Icon(Icons.skip_previous_rounded),
-                              iconSize: 28,
-                              color: Colors.white,
-                              onPressed: () {
-                                audioProvider.previous();
-                              },
-                            ),
-                          IconButton(
-                            icon: Icon(
-                              audioProvider.isPlaying
-                                  ? Icons.pause_rounded
-                                  : Icons.play_arrow_rounded,
-                            ),
-                            iconSize: 32,
-                            color: AppTheme.primaryBlue,
-                            onPressed: () {
-                              audioProvider.togglePlayPause();
-                            },
-                          ),
-                          if (!audioProvider.isDemoMode)
-                            IconButton(
-                              icon: const Icon(Icons.skip_next_rounded),
-                              iconSize: 28,
-                              color: Colors.white,
-                              onPressed: () {
-                                audioProvider.next();
-                              },
-                            ),
-                        ],
-                      ),
+                      // --- Barra de Progreso Lineal (Al borde inferior) ---
+                      if (audioProvider.totalDuration.inMilliseconds > 0)
+                        LinearProgressIndicator(
+                          value: audioProvider.progress.clamp(0.0, 1.0),
+                          backgroundColor: Colors.transparent,
+                          valueColor: const AlwaysStoppedAnimation<Color>(
+                              AppTheme.primaryBlue),
+                          minHeight: 2,
+                        ),
                     ],
                   ),
                 ),
               ),
             ),
-          ],
-        );
+          ),
+        )
+            .animate()
+            .slideY(
+                begin: 1.0, end: 0.0, duration: 300.ms, curve: Curves.easeOut)
+            .fadeIn();
       },
     );
   }

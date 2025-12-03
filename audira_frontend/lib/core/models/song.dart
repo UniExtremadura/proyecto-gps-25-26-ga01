@@ -19,6 +19,11 @@ class Song extends Equatable {
   final int plays;
   final DateTime? createdAt;
   final DateTime? updatedAt;
+  final bool published;
+  final String? moderationStatus; // PENDING, APPROVED, REJECTED
+  final String? rejectionReason;
+  final int? moderatedBy;
+  final DateTime? moderatedAt;
 
   const Song({
     required this.id,
@@ -39,6 +44,11 @@ class Song extends Equatable {
     this.plays = 0,
     this.createdAt,
     this.updatedAt,
+    this.published = false,
+    this.moderationStatus,
+    this.rejectionReason,
+    this.moderatedBy,
+    this.moderatedAt,
   });
 
   String get durationFormatted {
@@ -73,6 +83,13 @@ class Song extends Equatable {
       updatedAt: json['updatedAt'] != null
           ? DateTime.parse(json['updatedAt'] as String)
           : null,
+      published: json['published'] as bool? ?? false,
+      moderationStatus: json['moderationStatus'] as String?,
+      rejectionReason: json['rejectionReason'] as String?,
+      moderatedBy: json['moderatedBy'] as int?,
+      moderatedAt: json['moderatedAt'] != null
+          ? DateTime.parse(json['moderatedAt'] as String)
+          : null,
     );
   }
 
@@ -96,6 +113,11 @@ class Song extends Equatable {
       'plays': plays,
       'createdAt': createdAt?.toIso8601String(),
       'updatedAt': updatedAt?.toIso8601String(),
+      'published': published,
+      'moderationStatus': moderationStatus,
+      'rejectionReason': rejectionReason,
+      'moderatedBy': moderatedBy,
+      'moderatedAt': moderatedAt?.toIso8601String(),
     };
   }
 
@@ -118,6 +140,11 @@ class Song extends Equatable {
     int? plays,
     DateTime? createdAt,
     DateTime? updatedAt,
+    bool? published,
+    String? moderationStatus,
+    String? rejectionReason,
+    int? moderatedBy,
+    DateTime? moderatedAt,
   }) {
     return Song(
       id: id ?? this.id,
@@ -138,7 +165,25 @@ class Song extends Equatable {
       plays: plays ?? this.plays,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      published: published ?? this.published,
+      moderationStatus: moderationStatus ?? this.moderationStatus,
+      rejectionReason: rejectionReason ?? this.rejectionReason,
+      moderatedBy: moderatedBy ?? this.moderatedBy,
+      moderatedAt: moderatedAt ?? this.moderatedAt,
     );
+  }
+
+  String get moderationStatusDisplay {
+    switch (moderationStatus) {
+      case 'PENDING':
+        return 'En revisión';
+      case 'APPROVED':
+        return 'Aprobado';
+      case 'REJECTED':
+        return 'Rechazado';
+      default:
+        return 'Desconocido';
+    }
   }
 
   @override
@@ -161,5 +206,10 @@ class Song extends Equatable {
         plays,
         createdAt,
         updatedAt,
+        published,
+        moderationStatus,
+        rejectionReason,
+        moderatedBy,
+        moderatedAt,
       ];
 }

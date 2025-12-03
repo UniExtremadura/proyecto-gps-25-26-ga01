@@ -1,5 +1,3 @@
-// ignore_for_file: use_build_context_synchronously
-
 import 'dart:io';
 import 'dart:async';
 import 'package:audira_frontend/core/models/user.dart';
@@ -22,6 +20,8 @@ class EditProfileScreen extends StatefulWidget {
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
   final _formKey = GlobalKey<FormState>();
+
+  // --- Controladores (Lógica Original) ---
   late TextEditingController _firstNameController;
   late TextEditingController _lastNameController;
   late TextEditingController _bioController;
@@ -45,7 +45,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   bool _isUploadingBanner = false;
   final ImagePicker _picker = ImagePicker();
 
-  // Estados de validación de redes sociales
+  // --- Estados de validación (Lógica Original) ---
   SocialMediaValidationState _twitterValidation =
       SocialMediaValidationState.initial();
   SocialMediaValidationState _instagramValidation =
@@ -59,7 +59,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   SocialMediaValidationState _tiktokValidation =
       SocialMediaValidationState.initial();
 
-  // Timers para debounce de validación
+  // --- Timers (Lógica Original) ---
   Timer? _twitterDebounce;
   Timer? _instagramDebounce;
   Timer? _facebookDebounce;
@@ -67,10 +67,18 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   Timer? _spotifyDebounce;
   Timer? _tiktokDebounce;
 
+  // --- Colores del Nuevo Diseño ---
+  final Color darkBg = Colors.black;
+  final Color inputFill = const Color(0xFF212121);
+  final Color lightText = Colors.white;
+  final Color subText = Colors.grey;
+
   @override
   void initState() {
     super.initState();
     final user = context.read<AuthProvider>().currentUser;
+
+    // Inicialización idéntica a tu código
     _firstNameController = TextEditingController(text: user?.firstName ?? '');
     _lastNameController = TextEditingController(text: user?.lastName ?? '');
     _bioController = TextEditingController(text: user?.bio ?? '');
@@ -88,6 +96,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _spotifyController = TextEditingController(text: user?.spotifyUrl ?? '');
     _tiktokController = TextEditingController(text: user?.tiktokUrl ?? '');
 
+    // Listeners originales
     _firstNameController.addListener(() => setState(() => _hasChanges = true));
     _lastNameController.addListener(() => setState(() => _hasChanges = true));
     _bioController.addListener(() => setState(() => _hasChanges = true));
@@ -104,7 +113,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _spotifyController.addListener(() => setState(() => _hasChanges = true));
     _tiktokController.addListener(() => setState(() => _hasChanges = true));
 
-    // Validar URLs existentes al cargar
+    // Validaciones al cargar (Lógica Original)
     if (user?.twitterUrl != null && user!.twitterUrl!.isNotEmpty) {
       _validateTwitter(user.twitterUrl!);
     }
@@ -153,12 +162,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   @override
   void didUpdateWidget(EditProfileScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Actualizar controladores si el usuario cambia
     final user = context.read<AuthProvider>().currentUser;
     if (user != null) {
       _updateControllersFromUser(user);
     }
   }
+
+  // --- Lógica Original Intacta ---
 
   void _updateControllersFromUser(User user) {
     _firstNameController.text = user.firstName ?? '';
@@ -176,7 +186,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _spotifyController.text = user.spotifyUrl ?? '';
     _tiktokController.text = user.tiktokUrl ?? '';
 
-    // Validar URLs existentes
     if (user.twitterUrl != null && user.twitterUrl!.isNotEmpty) {
       _validateTwitter(user.twitterUrl!);
     }
@@ -358,59 +367,40 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       return;
     }
 
-    // Validar que todas las URLs de redes sociales sean válidas antes de guardar
     if (!_twitterValidation.isValid &&
         _twitterController.text.trim().isNotEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content:
-                Text('Por favor, corrige la URL de Twitter antes de guardar')),
-      );
+      _showSnack('Por favor, corrige la URL de Twitter antes de guardar',
+          isError: true);
       return;
     }
     if (!_instagramValidation.isValid &&
         _instagramController.text.trim().isNotEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text(
-                'Por favor, corrige la URL de Instagram antes de guardar')),
-      );
+      _showSnack('Por favor, corrige la URL de Instagram antes de guardar',
+          isError: true);
       return;
     }
     if (!_facebookValidation.isValid &&
         _facebookController.text.trim().isNotEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content:
-                Text('Por favor, corrige la URL de Facebook antes de guardar')),
-      );
+      _showSnack('Por favor, corrige la URL de Facebook antes de guardar',
+          isError: true);
       return;
     }
     if (!_youtubeValidation.isValid &&
         _youtubeController.text.trim().isNotEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content:
-                Text('Por favor, corrige la URL de YouTube antes de guardar')),
-      );
+      _showSnack('Por favor, corrige la URL de YouTube antes de guardar',
+          isError: true);
       return;
     }
     if (!_spotifyValidation.isValid &&
         _spotifyController.text.trim().isNotEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content:
-                Text('Por favor, corrige la URL de Spotify antes de guardar')),
-      );
+      _showSnack('Por favor, corrige la URL de Spotify antes de guardar',
+          isError: true);
       return;
     }
     if (!_tiktokValidation.isValid &&
         _tiktokController.text.trim().isNotEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content:
-                Text('Por favor, corrige la URL de TikTok antes de guardar')),
-      );
+      _showSnack('Por favor, corrige la URL de TikTok antes de guardar',
+          isError: true);
       return;
     }
 
@@ -427,14 +417,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         'website': _websiteController.text.trim(),
       };
 
-      // Add artist-specific fields if user is an artist
       if (user?.isArtist == true) {
         updates['artistName'] = _artistNameController.text.trim();
         updates['artistBio'] = _artistBioController.text.trim();
         updates['recordLabel'] = _recordLabelController.text.trim();
       }
 
-      // Add social media links - solo si no están vacías
       final twitterUrl = _twitterController.text.trim();
       final instagramUrl = _instagramController.text.trim();
       final facebookUrl = _facebookController.text.trim();
@@ -442,83 +430,32 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       final spotifyUrl = _spotifyController.text.trim();
       final tiktokUrl = _tiktokController.text.trim();
 
-      if (twitterUrl.isNotEmpty) {
-        updates['twitterUrl'] = twitterUrl;
-      }
-      if (instagramUrl.isNotEmpty) {
-        updates['instagramUrl'] = instagramUrl;
-      }
-      if (facebookUrl.isNotEmpty) {
-        updates['facebookUrl'] = facebookUrl;
-      }
-      if (youtubeUrl.isNotEmpty) {
-        updates['youtubeUrl'] = youtubeUrl;
-      }
-      if (spotifyUrl.isNotEmpty) {
-        updates['spotifyUrl'] = spotifyUrl;
-      }
-      if (tiktokUrl.isNotEmpty) {
-        updates['tiktokUrl'] = tiktokUrl;
-      }
-
-      debugPrint('🔵 Enviando actualizaciones: $updates');
+      if (twitterUrl.isNotEmpty) updates['twitterUrl'] = twitterUrl;
+      if (instagramUrl.isNotEmpty) updates['instagramUrl'] = instagramUrl;
+      if (facebookUrl.isNotEmpty) updates['facebookUrl'] = facebookUrl;
+      if (youtubeUrl.isNotEmpty) updates['youtubeUrl'] = youtubeUrl;
+      if (spotifyUrl.isNotEmpty) updates['spotifyUrl'] = spotifyUrl;
+      if (tiktokUrl.isNotEmpty) updates['tiktokUrl'] = tiktokUrl;
 
       final ApiResponse<User> response =
           await authService.updateProfile(updates);
 
-      debugPrint(
-          '🟢 Response recibido - success: ${response.success}, data: ${response.data != null}');
-
       if (response.success && response.data != null) {
         final updatedUser = response.data!;
-        debugPrint('🟡 Usuario actualizado recibido:');
-        debugPrint('  - Twitter: ${updatedUser.twitterUrl}');
-        debugPrint('  - Instagram: ${updatedUser.instagramUrl}');
-        debugPrint('  - Facebook: ${updatedUser.facebookUrl}');
-        debugPrint('  - YouTube: ${updatedUser.youtubeUrl}');
-        debugPrint('  - Spotify: ${updatedUser.spotifyUrl}');
-        debugPrint('  - TikTok: ${updatedUser.tiktokUrl}');
-
         if (mounted) {
-          // Actualizar el provider DIRECTAMENTE con los datos del response
-          // Esto evita hacer otra llamada al backend y problemas de sincronización
           final authProvider = context.read<AuthProvider>();
           authProvider.updateUser(updatedUser);
-
-          debugPrint('🟣 Usuario actualizado en provider');
-
-          // Usar los datos del response para actualizar los controladores
           _updateControllersFromUser(updatedUser);
-
-          debugPrint('🟢 Controladores actualizados');
-          debugPrint('  - Twitter controller: ${_twitterController.text}');
-          debugPrint('  - Instagram controller: ${_instagramController.text}');
-
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Perfil actualizado exitosamente'),
-              backgroundColor: Colors.green,
-            ),
-          );
+          _showSnack('Perfil actualizado exitosamente', isSuccess: true);
           setState(() => _hasChanges = false);
         }
       } else {
-        debugPrint('🔴 Error en response: ${response.error}');
-        throw Exception(response.error ?? 'Failed to update profile');
+        throw Exception(response.error ?? 'Error al actualizar perfil');
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error al actualizar perfil: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      if (mounted) _showSnack('Error al actualizar perfil: $e', isError: true);
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -538,26 +475,18 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         await _uploadImage();
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al seleccionar imagen: $e')),
-        );
-      }
+      if (mounted) _showSnack('Error al seleccionar imagen: $e');
     }
   }
 
   Future<void> _uploadImage() async {
     if (_selectedImage == null) return;
-
     setState(() => _isUploadingImage = true);
 
     try {
       final authProvider = context.read<AuthProvider>();
       final userId = authProvider.currentUser?.id;
-
-      if (userId == null) {
-        throw Exception('Usuario no identificado');
-      }
+      if (userId == null) throw Exception('Usuario no identificado');
 
       final authService = AuthService();
       final response =
@@ -565,28 +494,17 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
       if (response.success) {
         await authProvider.refreshProfile();
-
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Foto de perfil actualizada exitosamente'),
-              backgroundColor: Colors.green,
-            ),
-          );
+          _showSnack('Foto de perfil actualizada exitosamente',
+              isSuccess: true);
         }
       } else {
         throw Exception(response.error ?? 'Error al subir imagen');
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
-      }
+      if (mounted) _showSnack('Error: $e');
     } finally {
-      if (mounted) {
-        setState(() => _isUploadingImage = false);
-      }
+      if (mounted) setState(() => _isUploadingImage = false);
     }
   }
 
@@ -606,26 +524,18 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         await _uploadBanner();
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al seleccionar banner: $e')),
-        );
-      }
+      if (mounted) _showSnack('Error al seleccionar banner: $e');
     }
   }
 
   Future<void> _uploadBanner() async {
     if (_selectedBanner == null) return;
-
     setState(() => _isUploadingBanner = true);
 
     try {
       final authProvider = context.read<AuthProvider>();
       final userId = authProvider.currentUser?.id;
-
-      if (userId == null) {
-        throw Exception('Usuario no identificado');
-      }
+      if (userId == null) throw Exception('Usuario no identificado');
 
       final authService = AuthService();
       final response =
@@ -633,39 +543,44 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
       if (response.success) {
         await authProvider.refreshProfile();
-
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Banner actualizado exitosamente'),
-              backgroundColor: Colors.green,
-            ),
-          );
+          _showSnack('Banner actualizado exitosamente', isSuccess: true);
         }
       } else {
         throw Exception(response.error ?? 'Error al subir banner');
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
-      }
+      if (mounted) _showSnack('Error: $e');
     } finally {
-      if (mounted) {
-        setState(() => _isUploadingBanner = false);
-      }
+      if (mounted) setState(() => _isUploadingBanner = false);
     }
   }
 
+  void _showSnack(String msg, {bool isError = false, bool isSuccess = false}) {
+    Color color = Colors.grey;
+    if (isError) color = Colors.red[900]!;
+    if (isSuccess) color = Colors.green[800]!;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg), backgroundColor: color),
+    );
+  }
+
+  // --- UI BUILD REFACTORIZADA CON MANTENIMIENTO DE LÓGICA ---
+
   @override
   Widget build(BuildContext context) {
-    // Use watch to listen to AuthProvider changes
     final user = context.watch<AuthProvider>().currentUser;
+    final isArtist = user?.isArtist == true;
 
     return Scaffold(
+      backgroundColor: darkBg,
       appBar: AppBar(
-        title: const Text('Edit Profile'),
+        title: const Text('Editar Perfil',
+            style: TextStyle(
+                color: AppTheme.primaryBlue, fontWeight: FontWeight.w800)),
+        backgroundColor: darkBg,
+        elevation: 0,
         actions: [
           if (_hasChanges)
             TextButton(
@@ -674,485 +589,411 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   ? const SizedBox(
                       width: 20,
                       height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Save'),
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: AppTheme.primaryBlue))
+                  : const Text('Guardar',
+                      style: TextStyle(
+                          color: AppTheme.primaryBlue,
+                          fontWeight: FontWeight.bold)),
             ),
         ],
       ),
       body: SingleChildScrollView(
         child: Form(
           key: _formKey,
-          child:
-              Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            // Header with Stack (Banner + Profile Picture)
-            Stack(
-              clipBehavior: Clip.none,
-              children: [
-                // Banner Background
-                Container(
-                  height: 200,
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    gradient:
-                        _selectedBanner == null && user?.bannerImageUrl == null
-                            ? LinearGradient(
-                                colors: [
-                                  AppTheme.primaryBlue.withValues(alpha: 0.8),
-                                  AppTheme.primaryBlue.withValues(alpha: 0.4),
-                                ],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              )
-                            : null,
-                    image: _selectedBanner != null
-                        ? DecorationImage(
-                            image: FileImage(_selectedBanner!),
-                            fit: BoxFit.cover,
-                          )
-                        : (user?.bannerImageUrl != null
-                            ? DecorationImage(
-                                image: NetworkImage(user!.bannerImageUrl!),
-                                fit: BoxFit.cover,
-                              )
-                            : null),
-                  ),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.transparent,
-                          Colors.black.withValues(alpha: 0.3),
-                        ],
-                      ),
-                    ),
-                  ),
-                ).animate().fadeIn().slideY(begin: -0.2),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // 1. Header (Banner & Avatar) - Reestilizado
+              _buildHeader(user),
 
-                // Upload Banner Indicator
-                if (_isUploadingBanner)
-                  Positioned.fill(
-                    child: Container(
-                      color: Colors.black54,
-                      child: const Center(
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ),
+              const SizedBox(height: 60), // Espacio para el avatar superpuesto
 
-                // Change Banner Button
-                Positioned(
-                  top: 16,
-                  right: 16,
-                  child: ElevatedButton.icon(
-                    onPressed: _isUploadingBanner ? null : _pickBanner,
-                    icon: const Icon(Icons.photo_camera, size: 18),
-                    label: const Text('Change Banner'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primaryBlue,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
-                    ),
-                  ),
-                ).animate().fadeIn(delay: 200.ms),
-
-                // Profile Picture - Positioned overlapping the banner
-                Positioned(
-                  bottom: -50,
-                  left: 20,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: Theme.of(context).scaffoldBackgroundColor,
-                        width: 5,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.2),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Stack(
-                      children: [
-                        CircleAvatar(
-                          radius: 60,
-                          backgroundColor: AppTheme.primaryBlue,
-                          backgroundImage: _selectedImage != null
-                              ? FileImage(_selectedImage!)
-                              : (user?.profileImageUrl != null
-                                  ? NetworkImage(user!.profileImageUrl!)
-                                  : null) as ImageProvider?,
-                          child: (_selectedImage == null &&
-                                  user?.profileImageUrl == null)
-                              ? const Icon(Icons.person,
-                                  size: 60, color: Colors.white)
-                              : null,
-                        ),
-                        if (_isUploadingImage)
-                          Positioned.fill(
-                            child: CircleAvatar(
-                              radius: 60,
-                              backgroundColor: Colors.black54,
-                              child: const CircularProgressIndicator(
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ).animate().fadeIn(delay: 250.ms).scale(delay: 250.ms),
-                ),
-              ],
-            ),
-
-            // Space for overlapping avatar
-            const SizedBox(height: 60),
-
-            // User Info Section
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    user?.displayName ?? 'User',
-                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                  ).animate().fadeIn(delay: 300.ms),
-                  const SizedBox(height: 4),
-                  Text(
-                    '@${user?.username ?? 'username'}',
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          color: AppTheme.textGrey,
-                        ),
-                  ).animate().fadeIn(delay: 350.ms),
-                  const SizedBox(height: 16),
-                  // Change Profile Image Button - Completely separated from Stack
-                  ElevatedButton.icon(
-                    onPressed: _isUploadingImage ? null : _pickImage,
-                    icon: const Icon(Icons.photo_camera, size: 18),
-                    label: const Text('Change Image'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primaryBlue,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                    ),
-                  ).animate().fadeIn(delay: 400.ms),
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Column(
-                children: [
-                  TextFormField(
-                    controller: _firstNameController,
-                    decoration: const InputDecoration(
-                      labelText: 'First Name',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.person),
-                    ),
-                    validator: (value) {
-                      return null;
-                    },
-                  ).animate(delay: 100.ms).fadeIn().slideX(begin: -0.2),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _lastNameController,
-                    decoration: const InputDecoration(
-                      labelText: 'Last Name',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.person_outline),
-                    ),
-                  ).animate(delay: 200.ms).fadeIn().slideX(begin: -0.2),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _bioController,
-                    decoration: const InputDecoration(
-                      labelText: 'Bio',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.description),
-                      alignLabelWithHint: true,
-                    ),
-                    maxLines: 3,
-                  ).animate(delay: 300.ms).fadeIn().slideX(begin: -0.2),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _locationController,
-                    decoration: const InputDecoration(
-                      labelText: 'Location',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.location_on),
-                    ),
-                  ).animate(delay: 400.ms).fadeIn().slideX(begin: -0.2),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _websiteController,
-                    decoration: const InputDecoration(
-                      labelText: 'Website',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.link),
-                    ),
-                    keyboardType: TextInputType.url,
-                  ).animate(delay: 500.ms).fadeIn().slideX(begin: -0.2),
-                  const SizedBox(height: 16),
-
-                  // Artist-specific fields
-                  if (context.read<AuthProvider>().currentUser?.isArtist ==
-                      true) ...[
-                    const Divider(height: 32),
+              // 2. Info Principal
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Column(
+                  children: [
                     Text(
-                      'Artist Information',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            color: AppTheme.primaryBlue,
-                            fontWeight: FontWeight.bold,
-                          ),
-                    ).animate(delay: 600.ms).fadeIn(),
+                      user?.displayName ?? 'Usuario',
+                      style: Theme.of(context)
+                          .textTheme
+                          .headlineMedium
+                          ?.copyWith(
+                              color: lightText, fontWeight: FontWeight.bold),
+                    ).animate().fadeIn(delay: 300.ms),
+                    const SizedBox(height: 4),
+                    Text(
+                      '@${user?.username ?? 'nombre_usuario'}',
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodyLarge
+                          ?.copyWith(color: subText),
+                    ).animate().fadeIn(delay: 350.ms),
                     const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _artistNameController,
-                      decoration: const InputDecoration(
-                        labelText: 'Artist Name / Stage Name',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.stars),
-                        hintText: 'Your professional artist name',
+                    ElevatedButton.icon(
+                      onPressed: _isUploadingImage ? null : _pickImage,
+                      icon: const Icon(Icons.photo_camera, size: 18),
+                      label: const Text('Cambiar Imagen'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primaryBlue,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 12),
                       ),
-                    ).animate(delay: 700.ms).fadeIn().slideX(begin: -0.2),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _artistBioController,
-                      decoration: const InputDecoration(
-                        labelText: 'Artist Bio',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.music_note),
-                        alignLabelWithHint: true,
-                        hintText: 'Tell your fans about your music',
-                      ),
-                      maxLines: 4,
-                    ).animate(delay: 800.ms).fadeIn().slideX(begin: -0.2),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _recordLabelController,
-                      decoration: const InputDecoration(
-                        labelText: 'Record Label',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.album),
-                        hintText: 'Independent or label name',
-                      ),
-                    ).animate(delay: 900.ms).fadeIn().slideX(begin: -0.2),
-                    const SizedBox(height: 16),
+                    ).animate().fadeIn(delay: 400.ms),
                   ],
-
-                  const Divider(height: 32),
-                  Text(
-                    'Social Media Links',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          color: AppTheme.primaryBlue,
-                          fontWeight: FontWeight.bold,
-                        ),
-                  ).animate(delay: 1000.ms).fadeIn(),
-                  const SizedBox(height: 16),
-
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      TextFormField(
-                        controller: _twitterController,
-                        decoration: const InputDecoration(
-                          labelText: 'Twitter/X',
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.alternate_email),
-                          hintText: 'https://twitter.com/username',
-                        ),
-                        keyboardType: TextInputType.url,
-                        onChanged: _onTwitterChanged,
-                      ),
-                      _buildValidationFeedback(_twitterValidation),
-                    ],
-                  ).animate(delay: 1100.ms).fadeIn().slideX(begin: -0.2),
-                  const SizedBox(height: 16),
-
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      TextFormField(
-                        controller: _instagramController,
-                        decoration: const InputDecoration(
-                          labelText: 'Instagram',
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.camera_alt),
-                          hintText: 'https://instagram.com/username',
-                        ),
-                        keyboardType: TextInputType.url,
-                        onChanged: _onInstagramChanged,
-                      ),
-                      _buildValidationFeedback(_instagramValidation),
-                    ],
-                  ).animate(delay: 1200.ms).fadeIn().slideX(begin: -0.2),
-                  const SizedBox(height: 16),
-
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      TextFormField(
-                        controller: _facebookController,
-                        decoration: const InputDecoration(
-                          labelText: 'Facebook',
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.facebook),
-                          hintText: 'https://facebook.com/username',
-                        ),
-                        keyboardType: TextInputType.url,
-                        onChanged: _onFacebookChanged,
-                      ),
-                      _buildValidationFeedback(_facebookValidation),
-                    ],
-                  ).animate(delay: 1300.ms).fadeIn().slideX(begin: -0.2),
-                  const SizedBox(height: 16),
-
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      TextFormField(
-                        controller: _youtubeController,
-                        decoration: const InputDecoration(
-                          labelText: 'YouTube',
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.play_circle_outline),
-                          hintText: 'https://youtube.com/c/channel',
-                        ),
-                        keyboardType: TextInputType.url,
-                        onChanged: _onYoutubeChanged,
-                      ),
-                      _buildValidationFeedback(_youtubeValidation),
-                    ],
-                  ).animate(delay: 1400.ms).fadeIn().slideX(begin: -0.2),
-                  const SizedBox(height: 16),
-
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      TextFormField(
-                        controller: _spotifyController,
-                        decoration: const InputDecoration(
-                          labelText: 'Spotify',
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.music_note_outlined),
-                          hintText: 'https://open.spotify.com/artist/...',
-                        ),
-                        keyboardType: TextInputType.url,
-                        onChanged: _onSpotifyChanged,
-                      ),
-                      _buildValidationFeedback(_spotifyValidation),
-                    ],
-                  ).animate(delay: 1500.ms).fadeIn().slideX(begin: -0.2),
-                  const SizedBox(height: 16),
-
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      TextFormField(
-                        controller: _tiktokController,
-                        decoration: const InputDecoration(
-                          labelText: 'TikTok',
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.video_library_outlined),
-                          hintText: 'https://tiktok.com/@username',
-                        ),
-                        keyboardType: TextInputType.url,
-                        onChanged: _onTiktokChanged,
-                      ),
-                      _buildValidationFeedback(_tiktokValidation),
-                    ],
-                  ).animate(delay: 1600.ms).fadeIn().slideX(begin: -0.2),
-
-                  const SizedBox(height: 32),
-                  ElevatedButton(
-                    onPressed: _hasChanges && !_isLoading ? _saveChanges : null,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primaryBlue,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                    ),
-                    child: _isLoading
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Text('Save Changes',
-                            style: TextStyle(fontSize: 16)),
-                  )
-                      .animate(delay: 600.ms)
-                      .fadeIn()
-                      .scale(begin: const Offset(0.9, 0.9)),
-                ],
+                ),
               ),
-            ),
-          ]),
+
+              const SizedBox(height: 30),
+
+              // 3. Formularios
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildSectionTitle('Información Personal'),
+                    _buildDarkTextField(
+                      controller: _firstNameController,
+                      label: 'Nombre',
+                      icon: Icons.person_outline,
+                    ),
+                    _buildDarkTextField(
+                      controller: _lastNameController,
+                      label: 'Apellido',
+                      icon: Icons.person,
+                    ),
+                    _buildDarkTextField(
+                      controller: _bioController,
+                      label: 'Biografía',
+                      icon: Icons.description,
+                      maxLines: 3,
+                    ),
+                    _buildDarkTextField(
+                      controller: _locationController,
+                      label: 'Ubicación',
+                      icon: Icons.location_on,
+                    ),
+                    _buildDarkTextField(
+                      controller: _websiteController,
+                      label: 'Sitio Web',
+                      icon: Icons.link,
+                      keyboardType: TextInputType.url,
+                    ),
+                    if (isArtist) ...[
+                      const SizedBox(height: 30),
+                      _buildSectionTitle('Información de Artista',
+                          icon: Icons.star_border),
+                      _buildDarkTextField(
+                        controller: _artistNameController,
+                        label: 'Nombre de Artista',
+                        icon: Icons.stars,
+                        hint: 'Tu nombre artístico profesional',
+                      ),
+                      _buildDarkTextField(
+                        controller: _artistBioController,
+                        label: 'Biografía de Artista',
+                        icon: Icons.music_note,
+                        maxLines: 4,
+                        hint: 'Háblales a tus fans sobre tu música',
+                      ),
+                      _buildDarkTextField(
+                        controller: _recordLabelController,
+                        label: 'Sello Discográfico',
+                        icon: Icons.album,
+                        hint: 'Independiente o nombre del sello',
+                      ),
+                    ],
+                    const SizedBox(height: 30),
+                    _buildSectionTitle('Redes Sociales', icon: Icons.share),
+                    _buildSocialField(
+                      controller: _twitterController,
+                      label: 'Twitter / X',
+                      icon: Icons.alternate_email,
+                      hint: 'https://twitter.com/nombre_usuario',
+                      validationState: _twitterValidation,
+                      onChanged: _onTwitterChanged,
+                    ),
+                    _buildSocialField(
+                      controller: _instagramController,
+                      label: 'Instagram',
+                      icon: Icons.camera_alt,
+                      hint: 'https://instagram.com/nombre_usuario',
+                      validationState: _instagramValidation,
+                      onChanged: _onInstagramChanged,
+                    ),
+                    _buildSocialField(
+                      controller: _facebookController,
+                      label: 'Facebook',
+                      icon: Icons.facebook,
+                      hint: 'https://facebook.com/nombre_usuario',
+                      validationState: _facebookValidation,
+                      onChanged: _onFacebookChanged,
+                    ),
+                    _buildSocialField(
+                      controller: _youtubeController,
+                      label: 'YouTube',
+                      icon: Icons.play_circle_outline,
+                      hint: 'https://youtube.com/c/canal',
+                      validationState: _youtubeValidation,
+                      onChanged: _onYoutubeChanged,
+                    ),
+                    _buildSocialField(
+                      controller: _spotifyController,
+                      label: 'Spotify',
+                      icon: Icons.music_note_outlined,
+                      hint: 'http://googleusercontent.com/spotify.com/...',
+                      validationState: _spotifyValidation,
+                      onChanged: _onSpotifyChanged,
+                    ),
+                    _buildSocialField(
+                      controller: _tiktokController,
+                      label: 'TikTok',
+                      icon: Icons.video_library_outlined,
+                      hint: 'https://tiktok.com/@nombre_usuario',
+                      validationState: _tiktokValidation,
+                      onChanged: _onTiktokChanged,
+                    ),
+                    const SizedBox(height: 50),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildValidationFeedback(SocialMediaValidationState state) {
-    if (state.username != null && state.isValid) {
-      return Padding(
-        padding: const EdgeInsets.only(top: 4, left: 12),
-        child: Row(
-          children: [
-            const Icon(Icons.check_circle, color: Colors.green, size: 16),
-            const SizedBox(width: 4),
-            Expanded(
-              child: Text(
-                'Usuario encontrado: @${state.username}',
-                style: const TextStyle(
-                  color: Colors.green,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                ),
+  // --- WIDGETS DE COMPOSICIÓN (Nuevo Estilo) ---
+
+  Widget _buildHeader(User? user) {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        // Banner Area
+        Container(
+          height: 200,
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: const Color(0xFF1E1E1E),
+            gradient: (_selectedBanner == null && user?.bannerImageUrl == null)
+                ? LinearGradient(
+                    colors: [
+                      AppTheme.primaryBlue.withValues(alpha: 0.8),
+                      AppTheme.primaryBlue.withValues(alpha: 0.4)
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  )
+                : null,
+            image: _selectedBanner != null
+                ? DecorationImage(
+                    image: FileImage(_selectedBanner!), fit: BoxFit.cover)
+                : (user?.bannerImageUrl != null
+                    ? DecorationImage(
+                        image: NetworkImage(user!.bannerImageUrl!),
+                        fit: BoxFit.cover)
+                    : null),
+          ),
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.transparent,
+                  Colors.black.withValues(alpha: 0.7)
+                ],
               ),
             ),
-          ],
+          ),
         ),
-      );
-    } else if (!state.isValid && state.errorMessage != null) {
-      return Padding(
-        padding: const EdgeInsets.only(top: 4, left: 12),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Icon(Icons.error, color: Colors.red, size: 16),
-            const SizedBox(width: 4),
-            Expanded(
-              child: Text(
-                state.errorMessage!,
-                style: const TextStyle(
-                  color: Colors.red,
-                  fontSize: 12,
-                ),
-              ),
+
+        // Upload Banner Button
+        Positioned(
+          top: 16,
+          right: 16,
+          child: ElevatedButton.icon(
+            onPressed: _isUploadingBanner ? null : _pickBanner,
+            icon: const Icon(Icons.photo_camera, size: 18),
+            label: const Text('Editar Banner'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.black54,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             ),
-          ],
+          ),
         ),
-      );
-    }
-    return const SizedBox.shrink();
+
+        // Loader Banner
+        if (_isUploadingBanner)
+          Positioned.fill(
+              child: Container(
+                  color: Colors.black54,
+                  child: const Center(
+                      child: CircularProgressIndicator(color: Colors.white)))),
+
+        // Avatar
+        Positioned(
+          bottom: -50,
+          left: 20,
+          child: Container(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: darkBg, width: 5),
+              boxShadow: [
+                BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.5),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4))
+              ],
+            ),
+            child: Stack(
+              children: [
+                CircleAvatar(
+                  radius: 60,
+                  backgroundColor: inputFill,
+                  backgroundImage: _selectedImage != null
+                      ? FileImage(_selectedImage!)
+                      : (user?.profileImageUrl != null
+                          ? NetworkImage(user!.profileImageUrl!)
+                              as ImageProvider
+                          : null),
+                  child: (_selectedImage == null &&
+                          user?.profileImageUrl == null)
+                      ? const Icon(Icons.person, size: 60, color: Colors.grey)
+                      : null,
+                ),
+                if (_isUploadingImage)
+                  const Positioned.fill(
+                      child: CircleAvatar(
+                          radius: 60,
+                          backgroundColor: Colors.black54,
+                          child:
+                              CircularProgressIndicator(color: Colors.white))),
+              ],
+            ),
+          ),
+        ),
+      ],
+    ).animate().fadeIn();
+  }
+
+  Widget _buildSectionTitle(String title, {IconData? icon}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Row(
+        children: [
+          if (icon != null) ...[
+            Icon(icon, color: AppTheme.primaryBlue, size: 20),
+            const SizedBox(width: 8)
+          ],
+          Text(title,
+              style: TextStyle(
+                  color: lightText, fontSize: 18, fontWeight: FontWeight.bold)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDarkTextField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    int maxLines = 1,
+    String? hint,
+    TextInputType keyboardType = TextInputType.text,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: TextFormField(
+        controller: controller,
+        style: TextStyle(color: lightText),
+        maxLines: maxLines,
+        keyboardType: keyboardType,
+        decoration: InputDecoration(
+          labelText: label,
+          labelStyle: TextStyle(color: subText),
+          hintText: hint,
+          hintStyle: TextStyle(color: Colors.grey[700]),
+          prefixIcon: Icon(icon, color: subText),
+          filled: true,
+          fillColor: inputFill, // Fondo oscuro sólido
+          border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none),
+          focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: AppTheme.primaryBlue)),
+          alignLabelWithHint: maxLines > 1,
+        ),
+        validator: (value) => null, // Validación básica manejada en submit
+      ),
+    );
+  }
+
+  Widget _buildSocialField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    required String hint,
+    required SocialMediaValidationState validationState,
+    required Function(String) onChanged,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          TextFormField(
+            controller: controller,
+            style: TextStyle(color: lightText),
+            keyboardType: TextInputType.url,
+            onChanged: onChanged,
+            decoration: InputDecoration(
+              labelText: label,
+              labelStyle: TextStyle(color: subText),
+              hintText: hint,
+              hintStyle: TextStyle(color: Colors.grey[700]),
+              prefixIcon: Icon(icon,
+                  color: controller.text.isNotEmpty
+                      ? AppTheme.primaryBlue
+                      : subText),
+              suffixIcon: validationState.isValid
+                  ? const Icon(Icons.check_circle, color: Colors.green)
+                  : (controller.text.isNotEmpty
+                      ? const Icon(Icons.error, color: Colors.red)
+                      : null),
+              filled: true,
+              fillColor: inputFill,
+              border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none),
+              focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: AppTheme.primaryBlue)),
+            ),
+          ),
+          // Feedback de validación
+          if (controller.text.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 4, left: 12),
+              child: validationState.isValid
+                  ? Text('Validado: @${validationState.username}',
+                      style: const TextStyle(
+                          color: Colors.green,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold))
+                  : Text(validationState.errorMessage ?? 'URL inválida',
+                      style: const TextStyle(
+                          color: Colors.redAccent, fontSize: 11)),
+            ),
+        ],
+      ),
+    );
   }
 }

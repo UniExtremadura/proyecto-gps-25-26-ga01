@@ -15,18 +15,19 @@ spring:
         - id: community-service
           uri: lb://community-service
           predicates:
-            - Path=/api/auth/**,/api/users/**,/api/metrics/**,/api/ratings/**,/api/comments/**,/api/contact/**,/api/faq/**,/api/notifications/**
+            - Path=/api/auth/**,/api/users/**,/api/admin/**,/api/ratings/**,/api/comments/**,/api/contact/**,/api/faqs/**
 
         # File Service - Gestión de archivos de audio e imágenes
         - id: file-service
           uri: lb://file-service
           predicates:
             - Path=/api/files/**
+
         # ÉPICA 2: Catálogo Musical y Contenido
         - id: music-catalog-service
           uri: lb://music-catalog-service
           predicates:
-            - Path=/api/albums/**,/api/songs/**, /api/collaborations/**,/api/discovery/**,/api/genres/**
+            - Path=/api/albums/**,/api/playlists/**,/api/songs/**, /api/collaborations/**,/api/discovery/**,/api/genres/**,/api/featured-content/**,/api/metrics/**,/api/moderation/**
         
         # ÉPICA 3: Reproducción y Experiencia del Usuario
 
@@ -34,7 +35,7 @@ spring:
         - id: commerce-service
           uri: lb://commerce-service
           predicates:
-            - Path=/api/products/**,/api/cart/**,/api/orders/**,/api/payments/**,/api/library/**,/api/receipts/**
+            - Path=/api/products/**,/api/cart/**,/api/orders/**,/api/payments/**,/api/library/**,/api/receipts/**, /api/notifications/**, /api/favorites/**
 
 eureka:
   client:

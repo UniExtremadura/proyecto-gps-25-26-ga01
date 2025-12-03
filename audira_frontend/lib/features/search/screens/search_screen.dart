@@ -1,15 +1,22 @@
-// ignore_for_file: use_build_context_synchronously
-
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'dart:async';
+import 'package:provider/provider.dart';
+
+// Imports de tu proyecto
 import '../../../core/models/song.dart';
 import '../../../core/models/album.dart';
+import '../../../core/models/genre.dart';
 import '../../../core/models/artist.dart';
+import '../../../core/models/recommended_song.dart';
 import '../../../core/api/services/discovery_service.dart';
+import '../../../core/api/services/music_service.dart';
+import '../../../core/providers/auth_provider.dart';
 import '../../../config/theme.dart';
 import '../../common/widgets/song_list_item.dart';
 import '../../common/widgets/album_list_item.dart';
+import '../../common/widgets/recommended_song_card.dart';
+import '../../common/widgets/mini_player.dart'; // Importante: MiniPlayer
 
 enum SearchFilter { all, songs, albums, artists }
 
@@ -24,34 +31,56 @@ class _SearchScreenState extends State<SearchScreen>
     with SingleTickerProviderStateMixin {
   final TextEditingController _searchController = TextEditingController();
   final DiscoveryService _discoveryService = DiscoveryService();
+  final MusicService _musicService = MusicService();
   final ScrollController _songsScrollController = ScrollController();
   final ScrollController _albumsScrollController = ScrollController();
 
+  // Data Sources
   List<Song> _songs = [];
   List<Album> _albums = [];
   List<Artist> _artists = [];
+  List<Genre> _availableGenres = [];
 
+  // Recommendations
+  List<RecommendedSong> _byPurchasedGenres = [];
+  List<RecommendedSong> _byPurchasedArtists = [];
+  List<RecommendedSong> _byLikedSongs = [];
+  List<RecommendedSong> _fromFollowedArtists = [];
+  List<RecommendedSong> _trending = [];
+  List<RecommendedSong> _newReleases = [];
+
+  // State flags
   bool _isLoading = false;
   bool _isLoadingMoreSongs = false;
   bool _isLoadingMoreAlbums = false;
   bool _hasSearched = false;
+  bool _hasRecommendations = false;
   late TabController _tabController;
 
+  // Pagination & Filtering
   int _currentSongPage = 0;
   int _currentAlbumPage = 0;
+  int? _selectedGenreId;
   bool _hasMoreSongs = false;
   bool _hasMoreAlbums = false;
   String _currentQuery = '';
+  String _selectedSort = 'recent';
   Timer? _debounceTimer;
+
+  // Price Range
+  double? _minPrice;
+  double? _maxPrice;
+  final TextEditingController _minPriceController = TextEditingController();
+  final TextEditingController _maxPriceController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
     _loadTrendingContent();
-
     _songsScrollController.addListener(_onSongsScroll);
     _albumsScrollController.addListener(_onAlbumsScroll);
+    _loadGenres();
   }
 
   @override
@@ -60,10 +89,13 @@ class _SearchScreenState extends State<SearchScreen>
     _tabController.dispose();
     _songsScrollController.dispose();
     _albumsScrollController.dispose();
+    _minPriceController.dispose();
+    _maxPriceController.dispose();
     _debounceTimer?.cancel();
     super.dispose();
   }
 
+  // --- SCROLL LISTENERS ---
   void _onSongsScroll() {
     if (_songsScrollController.position.pixels >=
             _songsScrollController.position.maxScrollExtent * 0.8 &&
@@ -82,45 +114,161 @@ class _SearchScreenState extends State<SearchScreen>
     }
   }
 
+  // --- DATA LOADING LOGIC ---
+
   Future<void> _loadTrendingContent() async {
     setState(() => _isLoading = true);
-
     try {
-      final songsResponse = await _discoveryService.getTrendingSongs(limit: 10);
-      final albumsResponse =
-          await _discoveryService.getTrendingAlbums(limit: 10);
+      final songsResponse = await _musicService.getTopPublishedSongs();
+      final albumsResponse = await _musicService.getRecentPublishedAlbums();
 
       if (songsResponse.success && songsResponse.data != null) {
-        _songs = songsResponse.data!;
+        _songs = songsResponse.data!.take(10).toList();
+      }
+      if (albumsResponse.success && albumsResponse.data != null) {
+        _albums = albumsResponse.data!.take(10).toList();
       }
 
-      if (albumsResponse.success && albumsResponse.data != null) {
-        _albums = albumsResponse.data!;
+      // Enriquecer nombres de artistas en canciones
+      await _enrichSongsData();
+
+      if (mounted) {
+        final authProvider = Provider.of<AuthProvider>(context, listen: false);
+        if (authProvider.isAuthenticated && authProvider.currentUser != null) {
+          await _loadRecommendations(authProvider.currentUser!.id);
+        }
       }
     } catch (e) {
-      debugPrint('Error loading trending content: $e');
+      debugPrint('Error loading trending: $e');
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  Future<void> _performSearch(String query) async {
-    if (query.trim().isEmpty) {
+  Future<void> _loadRecommendations(int userId) async {
+    try {
+      final response = await _discoveryService.getRecommendations(userId);
+      if (response.success && response.data != null) {
+        final recs = response.data!;
+        _byPurchasedGenres = recs.byPurchasedGenres;
+        _byPurchasedArtists = recs.byPurchasedArtists;
+        _byLikedSongs = recs.byLikedSongs;
+        _fromFollowedArtists = recs.fromFollowedArtists;
+        _trending = recs.trending;
+        _newReleases = recs.newReleases;
+
+        _hasRecommendations = [
+          _byPurchasedGenres,
+          _byPurchasedArtists,
+          _byLikedSongs,
+          _fromFollowedArtists,
+          _trending,
+          _newReleases
+        ].any((list) => list.isNotEmpty);
+
+        // Enriquecer datos de artistas en las recomendaciones
+        await _enrichRecommendationsData();
+      } else {
+        _hasRecommendations = false;
+      }
+    } catch (e) {
+      _hasRecommendations = false;
+    }
+  }
+
+  Future<void> _enrichRecommendationsData() async {
+    final Map<int, String> artistCache = {};
+
+    _byPurchasedGenres =
+        await _enrichRecommendationList(_byPurchasedGenres, artistCache);
+    _byPurchasedArtists =
+        await _enrichRecommendationList(_byPurchasedArtists, artistCache);
+    _byLikedSongs = await _enrichRecommendationList(_byLikedSongs, artistCache);
+    _fromFollowedArtists =
+        await _enrichRecommendationList(_fromFollowedArtists, artistCache);
+    _trending = await _enrichRecommendationList(_trending, artistCache);
+    _newReleases = await _enrichRecommendationList(_newReleases, artistCache);
+
+    if (mounted) {
+      setState(() {}); // Actualizar UI con los nombres enriquecidos
+    }
+  }
+
+  Future<List<RecommendedSong>> _enrichRecommendationList(
+      List<RecommendedSong> songs, Map<int, String> artistCache) async {
+    List<RecommendedSong> enrichedSongs = List.from(songs);
+
+    for (int i = 0; i < enrichedSongs.length; i++) {
+      final song = enrichedSongs[i];
+      if (_needsEnrichment(song.artistName)) {
+        final realName = await _fetchArtistName(song.artistId, artistCache);
+        if (realName != null) {
+          enrichedSongs[i] = song.copyWith(artistName: realName);
+        }
+      }
+    }
+
+    return enrichedSongs;
+  }
+
+  bool _needsEnrichment(String name) {
+    return name == 'Artista Desconocido' ||
+        name == 'Artista desconocido' ||
+        name.startsWith('Artist #') ||
+        name.startsWith('Artista #') ||
+        name.startsWith('user');
+  }
+
+  Future<String?> _fetchArtistName(int artistId, Map<int, String> cache) async {
+    if (cache.containsKey(artistId)) return cache[artistId];
+
+    try {
+      final response = await _musicService.getArtistById(artistId);
+      if (response.success && response.data != null) {
+        final artist = response.data!;
+        final name = artist.artistName ?? artist.displayName;
+        cache[artistId] = name;
+        return name;
+      }
+    } catch (e) {
+      debugPrint("Error fetching artist $artistId: $e");
+    }
+    return null;
+  }
+
+  Future<void> _loadGenres() async {
+    final response = await _discoveryService.getGenres();
+    if (response.success && response.data != null && mounted) {
+      setState(() => _availableGenres = response.data!);
+    }
+  }
+
+  // --- SEARCH LOGIC ---
+
+  void _onSearchChanged(String query) {
+    _debounceTimer?.cancel();
+    if (query.trim().isEmpty &&
+        _selectedGenreId == null &&
+        _minPrice == null &&
+        _maxPrice == null) {
       setState(() {
         _hasSearched = false;
         _songs = [];
         _albums = [];
         _artists = [];
-        _currentSongPage = 0;
-        _currentAlbumPage = 0;
-        _hasMoreSongs = false;
-        _hasMoreAlbums = false;
         _currentQuery = '';
       });
       _loadTrendingContent();
       return;
     }
 
+    _debounceTimer = Timer(const Duration(milliseconds: 400), () {
+      if (query.trim().isNotEmpty) _performSearch(query);
+    });
+  }
+
+  Future<void> _performSearch(String query) async {
+    // Reset state for new search
     setState(() {
       _isLoading = true;
       _hasSearched = true;
@@ -130,326 +278,497 @@ class _SearchScreenState extends State<SearchScreen>
     });
 
     try {
-      final songsResponse = await _discoveryService.searchSongs(
-        query,
-        page: 0,
-        size: 20,
-      );
-      if (songsResponse.success && songsResponse.data != null) {
-        final data = songsResponse.data!;
-        _songs = List<Song>.from(data['songs'] as List);
-        _hasMoreSongs = data['hasMore'] as bool;
-        _currentSongPage = 0;
-      } else {
-        _songs = [];
-        _hasMoreSongs = false;
+      // 1. Songs
+      if (_tabController.index <= 1) {
+        final res = await _discoveryService.searchSongs(
+          query,
+          page: 0,
+          genreId: _selectedGenreId,
+          sortBy: _selectedSort,
+          minPrice: _minPrice,
+          maxPrice: _maxPrice,
+        );
+        if (res.success && res.data != null) {
+          final data = res.data as Map<String, dynamic>;
+          if (mounted) {
+            setState(() {
+              _songs = data['songs'] as List<Song>;
+              _hasMoreSongs = data['hasMore'] as bool;
+            });
+            // Enriquecer nombres de artistas en canciones
+            await _enrichSongsData();
+          }
+        }
       }
 
-      final albumsResponse = await _discoveryService.searchAlbums(
-        query,
-        page: 0,
-        size: 20,
-      );
-      if (albumsResponse.success && albumsResponse.data != null) {
-        final data = albumsResponse.data!;
-        _albums = List<Album>.from(data['albums'] as List);
-        _hasMoreAlbums = data['hasMore'] as bool;
-        _currentAlbumPage = 0;
-      } else {
-        _albums = [];
-        _hasMoreAlbums = false;
+      // 2. Albums
+      if (_tabController.index == 0 || _tabController.index == 2) {
+        final res = await _discoveryService.searchAlbums(
+          query,
+          page: 0,
+          genreId: _selectedGenreId,
+          sortBy: _selectedSort,
+          minPrice: _minPrice,
+          maxPrice: _maxPrice,
+        );
+        if (res.success && res.data != null) {
+          final data = res.data as Map<String, dynamic>;
+          if (mounted) {
+            setState(() {
+              _albums = data['albums'] as List<Album>;
+              _hasMoreAlbums = data['hasMore'] as bool;
+            });
+          }
+        }
       }
 
-      // Artist search functionality
-      _artists = [];
+      // 3. Artists
+      final artistRes = await _discoveryService.searchArtists(query);
+      if (artistRes.success && mounted) {
+        setState(() => _artists = artistRes.data ?? []);
+      }
     } catch (e) {
-      debugPrint('Search error: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error searching: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _enrichSongsData() async {
+    final Map<int, String> artistCache = {};
+    List<Song> enrichedSongs = List.from(_songs);
+    bool needsUpdate = false;
+
+    for (int i = 0; i < enrichedSongs.length; i++) {
+      final song = enrichedSongs[i];
+      if (_needsEnrichment(song.artistName)) {
+        final realName = await _fetchArtistName(song.artistId, artistCache);
+        if (realName != null) {
+          enrichedSongs[i] = song.copyWith(artistName: realName);
+          needsUpdate = true;
+        }
+      }
+    }
+
+    if (needsUpdate && mounted) {
+      setState(() {
+        _songs = enrichedSongs;
+      });
     }
   }
 
   Future<void> _loadMoreSongs() async {
-    if (_isLoadingMoreSongs || !_hasMoreSongs) return;
-
     setState(() => _isLoadingMoreSongs = true);
-
     try {
-      final response = await _discoveryService.searchSongs(
+      final nextPage = _currentSongPage + 1;
+      final res = await _discoveryService.searchSongs(
         _currentQuery,
-        page: _currentSongPage + 1,
-        size: 20,
+        page: nextPage,
+        genreId: _selectedGenreId,
+        sortBy: _selectedSort,
+        minPrice: _minPrice,
+        maxPrice: _maxPrice,
       );
-
-      if (response.success && response.data != null) {
-        final data = response.data!;
-        setState(() {
-          _songs.addAll(List<Song>.from(data['songs'] as List));
-          _hasMoreSongs = data['hasMore'] as bool;
-          _currentSongPage++;
-        });
+      if (res.success && res.data != null) {
+        final data = res.data as Map<String, dynamic>;
+        if (mounted) {
+          setState(() {
+            _songs.addAll(data['songs'] as List<Song>);
+            _currentSongPage = nextPage;
+            _hasMoreSongs = data['hasMore'] as bool;
+          });
+        }
       }
-    } catch (e) {
-      debugPrint('Error loading more songs: $e');
     } finally {
-      setState(() => _isLoadingMoreSongs = false);
+      if (mounted) setState(() => _isLoadingMoreSongs = false);
     }
   }
 
   Future<void> _loadMoreAlbums() async {
-    if (_isLoadingMoreAlbums || !_hasMoreAlbums) return;
-
     setState(() => _isLoadingMoreAlbums = true);
-
     try {
-      final response = await _discoveryService.searchAlbums(
+      final nextPage = _currentAlbumPage + 1;
+      final res = await _discoveryService.searchAlbums(
         _currentQuery,
-        page: _currentAlbumPage + 1,
-        size: 20,
+        page: nextPage,
+        genreId: _selectedGenreId,
+        sortBy: _selectedSort,
+        minPrice: _minPrice,
+        maxPrice: _maxPrice,
       );
-
-      if (response.success && response.data != null) {
-        final data = response.data!;
-        setState(() {
-          _albums.addAll(List<Album>.from(data['albums'] as List));
-          _hasMoreAlbums = data['hasMore'] as bool;
-          _currentAlbumPage++;
-        });
+      if (res.success && res.data != null) {
+        final data = res.data as Map<String, dynamic>;
+        if (mounted) {
+          setState(() {
+            _albums.addAll(data['albums'] as List<Album>);
+            _currentAlbumPage = nextPage;
+            _hasMoreAlbums = data['hasMore'] as bool;
+          });
+        }
       }
-    } catch (e) {
-      debugPrint('Error loading more albums: $e');
     } finally {
-      setState(() => _isLoadingMoreAlbums = false);
+      if (mounted) setState(() => _isLoadingMoreAlbums = false);
     }
   }
+
+  // --- UI BUILDING ---
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: TextField(
-          controller: _searchController,
-          autofocus: true,
-          style: const TextStyle(color: Colors.white),
-          decoration: InputDecoration(
-            hintText: 'Search songs, albums, artists...',
-            hintStyle: TextStyle(color: AppTheme.textGrey),
-            border: InputBorder.none,
-            suffixIcon: _searchController.text.isNotEmpty
-                ? IconButton(
-                    icon: const Icon(Icons.clear),
-                    onPressed: () {
-                      _searchController.clear();
-                      _performSearch('');
-                    },
-                  )
-                : null,
+      backgroundColor: const Color(0xFF121212),
+      body: Stack(
+        children: [
+          NestedScrollView(
+            headerSliverBuilder: (context, innerBoxIsScrolled) => [
+              _buildSliverAppBar(),
+              if (_hasSearched)
+                SliverPersistentHeader(
+                  delegate: _SliverTabBarDelegate(_buildFilterTabs()),
+                  pinned: true,
+                ),
+            ],
+            body: _isLoading
+                ? const Center(
+                    child:
+                        CircularProgressIndicator(color: AppTheme.primaryBlue))
+                : _hasSearched
+                    ? TabBarView(
+                        controller: _tabController,
+                        children: [
+                          _buildAllResults(),
+                          _buildSongsList(),
+                          _buildAlbumsList(),
+                          _buildArtistsList(),
+                        ],
+                      )
+                    : _buildTrendingSection(),
           ),
-          onChanged: (value) {
-            setState(() {});
-            _debounceTimer?.cancel();
-            _debounceTimer = Timer(const Duration(milliseconds: 500), () {
-              if (_searchController.text == value) {
-                _performSearch(value);
-              }
-            });
-          },
-          onSubmitted: _performSearch,
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.search),
-            onPressed: () => _performSearch(_searchController.text),
+
+          // Mini Player siempre visible
+          const Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: MiniPlayer(),
           ),
         ],
       ),
-      body: Column(
-        children: [
-          if (_hasSearched) _buildFilterTabs(),
-          Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _buildContent(),
+    );
+  }
+
+  // --- SLIVER APP BAR CON BÚSQUEDA ---
+  Widget _buildSliverAppBar() {
+    return SliverAppBar(
+      backgroundColor: const Color(0xFF121212),
+      floating: true,
+      pinned: true,
+      snap: true,
+      elevation: 0,
+      expandedHeight: 80, // Altura para la barra de búsqueda
+      flexibleSpace: FlexibleSpaceBar(
+        background: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+          child: Row(
+            children: [
+              Expanded(
+                child: Container(
+                  height: 50,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF2A2A2A),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.white10),
+                  ),
+                  child: TextField(
+                    controller: _searchController,
+                    style: const TextStyle(color: Colors.white, fontSize: 16),
+                    textAlignVertical: TextAlignVertical.center,
+                    decoration: InputDecoration(
+                      hintText: 'Buscar música, artistas...',
+                      hintStyle: TextStyle(color: Colors.grey[500]),
+                      prefixIcon: Icon(Icons.search, color: Colors.grey[500]),
+                      suffixIcon: _searchController.text.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear, color: Colors.grey),
+                              onPressed: () {
+                                _searchController.clear();
+                                setState(() {
+                                  _hasSearched = false;
+                                });
+                                _onSearchChanged('');
+                              },
+                            )
+                          : null,
+                      border: InputBorder.none,
+                      contentPadding:
+                          const EdgeInsets.symmetric(horizontal: 16),
+                    ),
+                    onChanged: (val) {
+                      setState(() {});
+                      _onSearchChanged(val);
+                    },
+                    onSubmitted: _performSearch,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              // Botón de Filtro Estilizado
+              GestureDetector(
+                onTap: _showFilterBottomSheet,
+                child: Container(
+                  height: 50,
+                  width: 50,
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryBlue.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                        color: AppTheme.primaryBlue.withValues(alpha: 0.5)),
+                  ),
+                  child: const Icon(Icons.tune_rounded,
+                      color: AppTheme.primaryBlue),
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
 
   Widget _buildFilterTabs() {
-    return TabBar(
-      controller: _tabController,
-      labelColor: AppTheme.primaryBlue,
-      unselectedLabelColor: AppTheme.textSecondary,
-      indicatorColor: AppTheme.primaryBlue,
-      tabs: [
-        Tab(text: 'All (${_songs.length + _albums.length + _artists.length})'),
-        Tab(text: 'Songs (${_songs.length})'),
-        Tab(text: 'Albums (${_albums.length})'),
-        Tab(text: 'Artists (${_artists.length})'),
+    return Container(
+      color: const Color(0xFF121212),
+      child: TabBar(
+        controller: _tabController,
+        isScrollable: true,
+        labelColor: Colors.white,
+        unselectedLabelColor: Colors.grey,
+        indicatorColor: AppTheme.primaryBlue,
+        indicatorWeight: 3,
+        indicatorSize: TabBarIndicatorSize.label,
+        padding: EdgeInsets.zero,
+        tabAlignment: TabAlignment.start,
+        labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+        tabs: [
+          const Tab(text: 'Todo'),
+          Tab(text: 'Canciones (${_songs.length})'),
+          Tab(text: 'Álbumes (${_albums.length})'),
+          Tab(text: 'Artistas (${_artists.length})'),
+        ],
+      ),
+    );
+  }
+
+  // --- VISTA DE TENDENCIAS (DEFAULT) ---
+  Widget _buildTrendingSection() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 100),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Título de sección
+          Text(
+            "Descubre",
+            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+          ).animate().fadeIn().slideX(),
+
+          const SizedBox(height: 24),
+
+          // Carruseles de Recomendaciones
+          if (_hasRecommendations) ...[
+            if (_newReleases.isNotEmpty)
+              _buildHorizontalSection('Nuevos Lanzamientos', _newReleases,
+                  Icons.new_releases_rounded),
+            if (_trending.isNotEmpty)
+              _buildHorizontalSection(
+                  'Tendencias Globales', _trending, Icons.trending_up_rounded),
+            if (_byLikedSongs.isNotEmpty)
+              _buildHorizontalSection(
+                  'Porque te gustó...', _byLikedSongs, Icons.favorite_rounded),
+            if (_byPurchasedArtists.isNotEmpty)
+              _buildHorizontalSection('De tus artistas', _byPurchasedArtists,
+                  Icons.verified_rounded),
+          ],
+
+          // Listas estáticas si no hay recs
+          if (_songs.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            _buildSectionHeader('Canciones Destacadas', null),
+            const SizedBox(height: 10),
+            ..._songs.take(5).map((s) => SongListItem(
+                song: s,
+                onTap: () =>
+                    Navigator.pushNamed(context, '/song', arguments: s.id))),
+          ],
+
+          if (_albums.isNotEmpty) ...[
+            const SizedBox(height: 24),
+            _buildSectionHeader('Álbumes Populares', null),
+            const SizedBox(height: 10),
+            ..._albums.take(5).map((a) => AlbumListItem(
+                album: a,
+                onTap: () =>
+                    Navigator.pushNamed(context, '/album', arguments: a.id))),
+          ]
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHorizontalSection(
+      String title, List<RecommendedSong> items, IconData icon) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionHeader(title, icon),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 220, // Altura fija para las cards
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: items.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 12),
+            itemBuilder: (context, index) {
+              return RecommendedSongCard(song: items[index])
+                  .animate()
+                  .fadeIn(duration: 400.ms, delay: (50 * index).ms)
+                  .slideX();
+            },
+          ),
+        ),
+        const SizedBox(height: 30),
       ],
     );
   }
 
-  Widget _buildContent() {
-    if (!_hasSearched) {
-      return _buildTrendingSection();
-    }
+  Widget _buildSectionHeader(String title, IconData? icon) {
+    return Row(
+      children: [
+        if (icon != null) ...[
+          Icon(icon, color: AppTheme.primaryBlue, size: 22),
+          const SizedBox(width: 8),
+        ],
+        Text(
+          title,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 0.5,
+          ),
+        ),
+      ],
+    );
+  }
 
+  // --- RESULTADOS DE BÚSQUEDA ---
+
+  Widget _buildAllResults() {
     if (_songs.isEmpty && _albums.isEmpty && _artists.isEmpty) {
       return _buildEmptyState();
     }
 
-    return TabBarView(
-      controller: _tabController,
-      children: [
-        _buildAllResults(),
-        _buildSongsList(),
-        _buildAlbumsList(),
-        _buildArtistsList(),
-      ],
-    );
-  }
-
-  Widget _buildTrendingSection() {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Trending Now',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-            ),
-          ).animate().fadeIn(),
-          const SizedBox(height: 16),
-          if (_songs.isNotEmpty) ...[
-            const Text(
-              'Trending Songs',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
+          // Sección de Artistas (Círculos)
+          if (_artists.isNotEmpty) ...[
+            const Text("Artistas",
+                style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18)),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 110,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: _artists.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 16),
+                itemBuilder: (context, index) {
+                  final artist = _artists[index];
+                  return GestureDetector(
+                    onTap: () => Navigator.pushNamed(context, '/artist',
+                        arguments: artist.id),
+                    child: Column(
+                      children: [
+                        CircleAvatar(
+                          radius: 35,
+                          backgroundColor: Colors.grey[800],
+                          backgroundImage: artist.profileImageUrl != null
+                              ? NetworkImage(artist.profileImageUrl!)
+                              : null,
+                          child: artist.profileImageUrl == null
+                              ? const Icon(Icons.person, color: Colors.white)
+                              : null,
+                        ),
+                        const SizedBox(height: 8),
+                        SizedBox(
+                          width: 80,
+                          child: Text(
+                            artist.artistName ?? artist.username,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                                color: Colors.white, fontSize: 12),
+                          ),
+                        )
+                      ],
+                    ),
+                  );
+                },
               ),
             ),
-            const SizedBox(height: 8),
-            ..._songs.map((song) => SongListItem(
-                  song: song,
-                  onTap: () =>
-                      Navigator.pushNamed(context, '/song', arguments: song.id),
-                )),
+            const SizedBox(height: 20),
           ],
-          if (_albums.isNotEmpty) ...[
-            const SizedBox(height: 24),
-            const Text(
-              'Trending Albums',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            ..._albums.map((album) => AlbumListItem(
-                  album: album,
-                  onTap: () => Navigator.pushNamed(context, '/album',
-                      arguments: album.id),
-                )),
-          ],
-        ],
-      ),
-    );
-  }
 
-  Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(
-            Icons.search_off,
-            size: 64,
-            color: AppTheme.textGrey,
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            'No results found',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Try searching with different keywords',
-            style: TextStyle(color: AppTheme.textSecondary),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAllResults() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+          // Canciones
           if (_songs.isNotEmpty) ...[
-            const Text(
-              'Songs',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
+            const Text("Canciones",
+                style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18)),
             const SizedBox(height: 8),
-            ..._songs.take(5).map((song) => SongListItem(
-                  song: song,
+            ..._songs.take(5).map((s) => SongListItem(
+                  song: s,
                   onTap: () =>
-                      Navigator.pushNamed(context, '/song', arguments: song.id),
+                      Navigator.pushNamed(context, '/song', arguments: s.id),
                 )),
             if (_songs.length > 5)
               TextButton(
                 onPressed: () => _tabController.animateTo(1),
-                child: const Text('View all songs'),
+                child: const Text("Ver más canciones"),
               ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
           ],
+
+          // Álbumes
           if (_albums.isNotEmpty) ...[
-            const Text(
-              'Albums',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
+            const Text("Álbumes",
+                style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18)),
             const SizedBox(height: 8),
-            ..._albums.take(5).map((album) => AlbumListItem(
-                  album: album,
-                  onTap: () => Navigator.pushNamed(context, '/album',
-                      arguments: album.id),
+            ..._albums.take(5).map((a) => AlbumListItem(
+                  album: a,
+                  onTap: () =>
+                      Navigator.pushNamed(context, '/album', arguments: a.id),
                 )),
             if (_albums.length > 5)
               TextButton(
                 onPressed: () => _tabController.animateTo(2),
-                child: const Text('View all albums'),
-              ),
-            const SizedBox(height: 16),
-          ],
-          if (_artists.isNotEmpty) ...[
-            const Text(
-              'Artists',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            ..._artists.take(5).map((artist) => ListTile(
-                  leading: const CircleAvatar(child: Icon(Icons.person)),
-                  title: Text(artist.artistName ?? artist.username),
-                  onTap: () => Navigator.pushNamed(context, '/artist',
-                      arguments: artist.id),
-                )),
-            if (_artists.length > 5)
-              TextButton(
-                onPressed: () => _tabController.animateTo(3),
-                child: const Text('View all artists'),
+                child: const Text("Ver más álbumes"),
               ),
           ],
         ],
@@ -458,71 +777,314 @@ class _SearchScreenState extends State<SearchScreen>
   }
 
   Widget _buildSongsList() {
+    if (_songs.isEmpty) return _buildEmptyState();
     return ListView.builder(
       controller: _songsScrollController,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
       itemCount: _songs.length + (_hasMoreSongs ? 1 : 0),
       itemBuilder: (context, index) {
         if (index == _songs.length) {
-          // Loading indicator at bottom (GA01-98)
-          return const Center(
-            child: Padding(
-              padding: EdgeInsets.all(16.0),
-              child: CircularProgressIndicator(),
-            ),
-          );
+          return const Center(child: CircularProgressIndicator());
         }
-
-        final song = _songs[index];
         return SongListItem(
-          song: song,
-          onTap: () =>
-              Navigator.pushNamed(context, '/song', arguments: song.id),
-        );
+          song: _songs[index],
+          onTap: () => Navigator.pushNamed(context, '/song',
+              arguments: _songs[index].id),
+        ).animate().fadeIn(delay: (20 * (index % 10)).ms);
       },
     );
   }
 
   Widget _buildAlbumsList() {
+    if (_albums.isEmpty) return _buildEmptyState();
     return ListView.builder(
       controller: _albumsScrollController,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
       itemCount: _albums.length + (_hasMoreAlbums ? 1 : 0),
       itemBuilder: (context, index) {
         if (index == _albums.length) {
-          // Loading indicator at bottom (GA01-98)
-          return const Center(
-            child: Padding(
-              padding: EdgeInsets.all(16.0),
-              child: CircularProgressIndicator(),
-            ),
-          );
+          return const Center(child: CircularProgressIndicator());
         }
-
-        final album = _albums[index];
         return AlbumListItem(
-          album: album,
-          onTap: () =>
-              Navigator.pushNamed(context, '/album', arguments: album.id),
-        );
+          album: _albums[index],
+          onTap: () => Navigator.pushNamed(context, '/album',
+              arguments: _albums[index].id),
+        ).animate().fadeIn(delay: (20 * (index % 10)).ms);
       },
     );
   }
 
   Widget _buildArtistsList() {
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
+    if (_artists.isEmpty) return _buildEmptyState();
+    return ListView.separated(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
       itemCount: _artists.length,
+      separatorBuilder: (_, __) => const Divider(color: Colors.white10),
       itemBuilder: (context, index) {
         final artist = _artists[index];
         return ListTile(
-          leading: const CircleAvatar(child: Icon(Icons.person)),
-          title: Text(artist.artistName ?? artist.username),
-          subtitle: artist.bio != null ? Text(artist.bio!) : null,
+          contentPadding: const EdgeInsets.symmetric(vertical: 8),
+          leading: CircleAvatar(
+            radius: 28,
+            backgroundColor: Colors.grey[800],
+            backgroundImage: artist.profileImageUrl != null
+                ? NetworkImage(artist.profileImageUrl!)
+                : null,
+            child: artist.profileImageUrl == null
+                ? const Icon(Icons.person, color: Colors.white)
+                : null,
+          ),
+          title: Text(artist.artistName ?? artist.username,
+              style: const TextStyle(
+                  color: Colors.white, fontWeight: FontWeight.bold)),
+          subtitle: Text("${artist.followerIds.length} seguidores",
+              style: const TextStyle(color: Colors.grey)),
+          trailing: const Icon(Icons.arrow_forward_ios_rounded,
+              color: Colors.grey, size: 16),
           onTap: () =>
               Navigator.pushNamed(context, '/artist', arguments: artist.id),
-        );
+        ).animate().fadeIn(delay: (20 * (index % 10)).ms);
       },
     );
   }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.search_off_rounded, size: 80, color: Colors.grey[800]),
+          const SizedBox(height: 16),
+          Text(
+            "No encontramos resultados",
+            style: TextStyle(
+                color: Colors.grey[400],
+                fontSize: 18,
+                fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            "Intenta con otra palabra clave",
+            style: TextStyle(color: Colors.grey[600]),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- FILTROS (BOTTOM SHEET) ---
+
+  void _showFilterBottomSheet() {
+    _minPriceController.text = _minPrice?.toString() ?? '';
+    _maxPriceController.text = _maxPrice?.toString() ?? '';
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF1E1E1E),
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) {
+          return Padding(
+            padding: EdgeInsets.fromLTRB(
+                24, 24, 24, MediaQuery.of(context).viewInsets.bottom + 24),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Filtros',
+                          style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white)),
+                      TextButton(
+                          onPressed: () {
+                            // Reset Logic
+                            setModalState(() {
+                              _selectedSort = 'recent';
+                              _selectedGenreId = null;
+                              _minPrice = null;
+                              _maxPrice = null;
+                              _minPriceController.clear();
+                              _maxPriceController.clear();
+                            });
+                          },
+                          child: const Text("Reset",
+                              style: TextStyle(color: AppTheme.primaryBlue)))
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  const Text('Ordenar por',
+                      style: TextStyle(color: Colors.grey, fontSize: 14)),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: [
+                      _buildChip('Recientes', 'recent', setModalState),
+                      _buildChip('Antiguos', 'oldest', setModalState),
+                      _buildChip('Precio Bajo', 'price_asc', setModalState),
+                      _buildChip('Precio Alto', 'price_desc', setModalState),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  const Text('Precio',
+                      style: TextStyle(color: Colors.grey, fontSize: 14)),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                          child: _buildPriceInput(
+                              _minPriceController, 'Min', setModalState, true)),
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 16),
+                        child: Text("-",
+                            style: TextStyle(color: Colors.grey, fontSize: 24)),
+                      ),
+                      Expanded(
+                          child: _buildPriceInput(_maxPriceController, 'Max',
+                              setModalState, false)),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  const Text('Género',
+                      style: TextStyle(color: Colors.grey, fontSize: 14)),
+                  const SizedBox(height: 12),
+                  if (_availableGenres.isEmpty)
+                    const Text("Cargando...",
+                        style: TextStyle(color: Colors.grey))
+                  else
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxHeight: 120),
+                      child: SingleChildScrollView(
+                        child: Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: _availableGenres
+                              .map((g) => ChoiceChip(
+                                    label: Text(g.name),
+                                    selected: _selectedGenreId == g.id,
+                                    selectedColor: AppTheme.primaryBlue,
+                                    backgroundColor: Colors.grey[800],
+                                    labelStyle: TextStyle(
+                                        color: _selectedGenreId == g.id
+                                            ? Colors.white
+                                            : Colors.grey[300]),
+                                    onSelected: (sel) => setModalState(() =>
+                                        _selectedGenreId = sel ? g.id : null),
+                                    shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(20),
+                                        side: BorderSide.none),
+                                  ))
+                              .toList(),
+                        ),
+                      ),
+                    ),
+                  const SizedBox(height: 32),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primaryBlue,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                      ),
+                      onPressed: () {
+                        // Aplicar filtros al padre
+                        setState(() {
+                          _selectedSort = _selectedSort; // Ya está sync
+                          _selectedGenreId = _selectedGenreId;
+                          _minPrice = double.tryParse(_minPriceController.text);
+                          _maxPrice = double.tryParse(_maxPriceController.text);
+                        });
+                        Navigator.pop(context);
+                        _performSearch(_searchController.text); // Recargar
+                      },
+                      child: const Text("Aplicar Filtros",
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildChip(String label, String value, StateSetter setModalState) {
+    final isSelected = _selectedSort == value;
+    return ChoiceChip(
+      label: Text(label),
+      selected: isSelected,
+      selectedColor: AppTheme.primaryBlue,
+      backgroundColor: Colors.grey[800],
+      labelStyle:
+          TextStyle(color: isSelected ? Colors.white : Colors.grey[300]),
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20), side: BorderSide.none),
+      onSelected: (selected) {
+        if (selected) setModalState(() => _selectedSort = value);
+      },
+    );
+  }
+
+  Widget _buildPriceInput(TextEditingController ctrl, String hint,
+      StateSetter setModalState, bool isMin) {
+    return TextField(
+      controller: ctrl,
+      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+      style: const TextStyle(color: Colors.white),
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: TextStyle(color: Colors.grey[600]),
+        prefixIcon:
+            const Icon(Icons.attach_money, color: Colors.grey, size: 18),
+        filled: true,
+        fillColor: Colors.grey[800],
+        border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+      ),
+      onChanged: (val) {
+        setModalState(() {
+          if (isMin) {
+            _minPrice = double.tryParse(val);
+          } else {
+            _maxPrice = double.tryParse(val);
+          }
+        });
+      },
+    );
+  }
+}
+
+// Delegado simple para el TabBar pegajoso
+class _SliverTabBarDelegate extends SliverPersistentHeaderDelegate {
+  final Widget _tabBar;
+  _SliverTabBarDelegate(this._tabBar);
+
+  @override
+  double get minExtent => 48.0;
+  @override
+  double get maxExtent => 48.0;
+
+  @override
+  Widget build(
+          BuildContext context, double shrinkOffset, bool overlapsContent) =>
+      _tabBar;
+
+  @override
+  bool shouldRebuild(_SliverTabBarDelegate oldDelegate) => false;
 }

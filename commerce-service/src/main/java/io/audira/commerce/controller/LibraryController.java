@@ -11,6 +11,17 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+/**
+ * Controlador REST para manejar todas las operaciones relacionadas con la Biblioteca de Compras del Usuario.
+ * <p>
+ * Los endpoints base se mapean a {@code /api/library}. Esta clase permite a los usuarios
+ * consultar los artículos que han adquirido. Utiliza {@link LibraryService} para la lógica de negocio.
+ * </p>
+ *
+ * @author Grupo GA01
+ * @see LibraryService
+ * 
+ */
 @RestController
 @RequestMapping("/api/library")
 @RequiredArgsConstructor
@@ -18,11 +29,20 @@ import java.util.List;
 @CrossOrigin(origins = "*")
 public class LibraryController {
 
+    /**
+     * Servicio que contiene la lógica de negocio para la gestión de la biblioteca del usuario.
+     * Se inyecta automáticamente gracias a {@link RequiredArgsConstructor} de Lombok.
+     */
     private final LibraryService libraryService;
 
     /**
-     * Get user's complete library organized by type
-     * GET /api/library/user/{userId}
+     * Obtiene la biblioteca completa de un usuario, organizada por tipo de artículo.
+     * <p>
+     * Mapeo: {@code GET /api/library/user/{userId}}
+     * </p>
+     *
+     * @param userId El ID del usuario (tipo {@link Long}) cuya biblioteca se desea obtener.
+     * @return {@link ResponseEntity} que contiene el objeto {@link UserLibraryDTO} (biblioteca organizada) con estado HTTP 200 (OK).
      */
     @GetMapping("/user/{userId}")
     public ResponseEntity<UserLibraryDTO> getUserLibrary(@PathVariable Long userId) {
@@ -33,8 +53,13 @@ public class LibraryController {
     }
 
     /**
-     * Get all purchased items for a user (flat list)
-     * GET /api/library/user/{userId}/items
+     * Obtiene todos los artículos comprados por un usuario en una lista plana.
+     * <p>
+     * Mapeo: {@code GET /api/library/user/{userId}/items}
+     * </p>
+     *
+     * @param userId El ID del usuario (tipo {@link Long}) del que se desean obtener los artículos.
+     * @return {@link ResponseEntity} que contiene una {@link List} de {@link PurchasedItemDTO} con estado HTTP 200 (OK).
      */
     @GetMapping("/user/{userId}/items")
     public ResponseEntity<List<PurchasedItemDTO>> getAllPurchasedItems(@PathVariable Long userId) {
@@ -45,8 +70,14 @@ public class LibraryController {
     }
 
     /**
-     * Get purchased items of a specific type
-     * GET /api/library/user/{userId}/items/{itemType}
+     * Obtiene los artículos comprados de un usuario filtrados por un tipo específico.
+     * <p>
+     * Mapeo: {@code GET /api/library/user/{userId}/items/{itemType}}
+     * </p>
+     *
+     * @param userId El ID del usuario (tipo {@link Long}) del que se desean obtener los artículos.
+     * @param itemType El tipo de artículo (ej. SONG, ALBUM) como {@link ItemType}.
+     * @return {@link ResponseEntity} que contiene una {@link List} de {@link PurchasedItemDTO} filtrada con estado HTTP 200 (OK).
      */
     @GetMapping("/user/{userId}/items/{itemType}")
     public ResponseEntity<List<PurchasedItemDTO>> getPurchasedItemsByType(
@@ -59,8 +90,15 @@ public class LibraryController {
     }
 
     /**
-     * Check if user has purchased a specific item
-     * GET /api/library/user/{userId}/check/{itemType}/{itemId}
+     * Verifica si un usuario ha comprado un artículo específico.
+     * <p>
+     * Mapeo: {@code GET /api/library/user/{userId}/check/{itemType}/{itemId}}
+     * </p>
+     *
+     * @param userId El ID del usuario (tipo {@link Long}) a verificar.
+     * @param itemType El tipo de artículo ({@link ItemType}).
+     * @param itemId El ID del artículo (tipo {@link Long}) a verificar.
+     * @return {@link ResponseEntity} que contiene {@code true} si el artículo ha sido comprado, {@code false} en caso contrario, con estado HTTP 200 (OK).
      */
     @GetMapping("/user/{userId}/check/{itemType}/{itemId}")
     public ResponseEntity<Boolean> checkIfPurchased(
@@ -74,8 +112,13 @@ public class LibraryController {
     }
 
     /**
-     * Clear user library (for testing/admin purposes)
-     * DELETE /api/library/user/{userId}
+     * Elimina todos los artículos de la biblioteca de un usuario. Usado típicamente para pruebas o administración.
+     * <p>
+     * Mapeo: {@code DELETE /api/library/user/{userId}}
+     * </p>
+     *
+     * @param userId El ID del usuario (tipo {@link Long}) cuya biblioteca será limpiada.
+     * @return {@link ResponseEntity} con estado HTTP 204 (NO CONTENT) si la operación es exitosa.
      */
     @DeleteMapping("/user/{userId}")
     public ResponseEntity<Void> clearUserLibrary(@PathVariable Long userId) {

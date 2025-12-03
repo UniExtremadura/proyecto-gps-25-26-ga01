@@ -1,28 +1,27 @@
-// ignore_for_file: use_build_context_synchronously
-
-import 'package:audira_frontend/config/theme.dart';
-import 'package:audira_frontend/core/api/services/music_service.dart';
-import 'package:audira_frontend/core/models/album.dart';
-import 'package:audira_frontend/core/models/artist.dart';
-import 'package:audira_frontend/core/models/collaborator.dart';
-import 'package:audira_frontend/core/models/rating.dart';
-import 'package:audira_frontend/core/models/rating_stats.dart';
-import 'package:audira_frontend/core/models/song.dart';
-import 'package:audira_frontend/core/providers/audio_provider.dart';
-import 'package:audira_frontend/core/providers/auth_provider.dart';
-import 'package:audira_frontend/core/providers/cart_provider.dart';
-import 'package:audira_frontend/core/providers/library_provider.dart';
-import 'package:audira_frontend/features/common/widgets/app_bottom_navigation_bar.dart';
-import 'package:audira_frontend/features/common/widgets/mini_player.dart';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import '../../../config/theme.dart';
+import '../../../core/api/services/music_service.dart';
 import '../../../core/api/services/rating_service.dart';
 import '../../../core/api/services/library_service.dart';
+import '../../../core/models/song.dart';
+import '../../../core/models/album.dart';
+import '../../../core/models/artist.dart';
+import '../../../core/models/collaborator.dart';
+import '../../../core/models/rating.dart';
+import '../../../core/models/rating_stats.dart';
+import '../../../core/providers/audio_provider.dart';
+import '../../../core/providers/auth_provider.dart';
+import '../../../core/providers/cart_provider.dart';
+import '../../../core/providers/library_provider.dart';
+import '../../../features/common/widgets/mini_player.dart';
 import '../../../features/rating/widgets/rating_dialog.dart';
 import '../../../features/rating/widgets/rating_list.dart';
+import '../../../features/downloads/widgets/download_button.dart';
 
 class SongDetailScreen extends StatefulWidget {
   final int songId;
@@ -52,18 +51,22 @@ class _SongDetailScreenState extends State<SongDetailScreen>
   String? _error;
 
   late TabController _tabController;
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this); // Solo Info y Ratings
-    _loadSongDetails();
-    _loadRatingsAndComments();
+    _tabController = TabController(length: 2, vsync: this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadSongDetails();
+      _loadRatingsAndComments();
+    });
   }
 
   @override
   void dispose() {
     _tabController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -81,16 +84,12 @@ class _SongDetailScreenState extends State<SongDetailScreen>
         if (_song!.albumId != null) {
           final albumResponse =
               await _musicService.getAlbumById(_song!.albumId!);
-          if (albumResponse.success) {
-            _album = albumResponse.data;
-          }
+          if (albumResponse.success) _album = albumResponse.data;
         }
 
         final artistResponse =
             await _musicService.getArtistById(_song!.artistId);
-        if (artistResponse.success) {
-          _artist = artistResponse.data;
-        }
+        if (artistResponse.success) _artist = artistResponse.data;
 
         final collabResponse =
             await _musicService.getCollaboratorsBySongId(widget.songId);
@@ -98,180 +97,54 @@ class _SongDetailScreenState extends State<SongDetailScreen>
           _collaborators = collabResponse.data!;
         }
       } else {
-        _error = songResponse.error ?? 'Failed to load song';
+        // TRADUCCIÓN: 'Failed to load song'
+        _error = songResponse.error ?? 'Error al cargar la canción';
       }
     } catch (e) {
       _error = e.toString();
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
   Future<void> _loadRatingsAndComments() async {
     if (!mounted) return;
-    setState(() {
-      _isLoadingRatings = true;
-    });
+    setState(() => _isLoadingRatings = true);
 
     try {
-      // Cargar estadísticas (no requiere autenticación)
       final statsResponse = await _ratingService.getEntityRatingStats(
-        entityType: 'SONG',
-        entityId: widget.songId,
-      );
-      if (statsResponse.success) {
-        _ratingStats = statsResponse.data;
-      }
+          entityType: 'SONG', entityId: widget.songId);
+      if (statsResponse.success) _ratingStats = statsResponse.data;
 
-      // Cargar valoraciones con comentarios (no requiere autenticación)
       final ratingsResponse = await _ratingService.getEntityRatingsWithComments(
-        entityType: 'SONG',
-        entityId: widget.songId,
-      );
+          entityType: 'SONG', entityId: widget.songId);
       if (ratingsResponse.success && ratingsResponse.data != null) {
         _ratingsWithComments = ratingsResponse.data!;
       }
 
-      // Obtener mi valoración SOLO si estoy autenticado
-      final authProvider = context.read<AuthProvider>();
-      if (authProvider.isAuthenticated) {
-        final myRatingResponse = await _ratingService.getMyEntityRating(
-          entityType: 'SONG',
-          entityId: widget.songId,
-        );
-        if (myRatingResponse.success && myRatingResponse.data != null) {
-          _myRating = myRatingResponse.data;
+      if (mounted) {
+        final authProvider = context.read<AuthProvider>();
+        if (authProvider.isAuthenticated) {
+          final myRatingResponse = await _ratingService.getMyEntityRating(
+              entityType: 'SONG', entityId: widget.songId);
+          if (myRatingResponse.success) _myRating = myRatingResponse.data;
         }
-      } else {
-        // Usuario no autenticado (invitado)
-        _myRating = null;
       }
     } catch (e) {
-      debugPrint('Error loading ratings/comments: $e');
+      debugPrint('Error loading ratings: $e');
     } finally {
-      if (mounted) {
-        setState(() => _isLoadingRatings = false);
-      }
+      if (mounted) setState(() => _isLoadingRatings = false);
     }
   }
 
-  /// Mostrar diálogo para crear o editar valoración (con comentario incluido)
-  /// Verifica que el usuario haya comprado la canción antes de permitir valorar
-  Future<void> _showRatingDialog() async {
-    final authProvider = context.read<AuthProvider>();
-    if (!authProvider.isAuthenticated) {
-      // Usuario invitado - mostrar alerta para iniciar sesión
-      if (mounted) {
-        showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Inicie Sesión'),
-            content: const Text(
-              'Debe iniciar sesión para valorar productos y acceder a todas las funcionalidades de la plataforma.',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Cerrar'),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  // Redirigir a pantalla de login
-                  Navigator.pushNamed(context, '/login');
-                },
-                child: const Text('Iniciar Sesión'),
-              ),
-            ],
-          ),
-        );
-      }
-      return;
-    }
-
-    // Si ya tiene una valoración, puede editarla sin verificar compra
-    if (_myRating == null) {
-      // Verificar si ha comprado la canción
-      final purchaseResponse = await _libraryService.checkIfPurchased(
-        authProvider.currentUser!.id,
-        'SONG',
-        widget.songId,
-      );
-
-      if (!purchaseResponse.success || !(purchaseResponse.data ?? false)) {
-        // No ha comprado la canción
-        if (mounted) {
-          showDialog(
-            context: context,
-            builder: (context) => AlertDialog(
-              title: const Text('Compra requerida'),
-              content: const Text(
-                'Debes comprar esta canción antes de poder valorarla. '
-                '¿Deseas agregarla al carrito?',
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Cancelar'),
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                    _addToCart();
-                  },
-                  child: const Text('Agregar al carrito'),
-                ),
-              ],
-            ),
-          );
-        }
-        return;
-      }
-    }
-
-    final result = await showRatingDialog(
-      context,
-      entityType: 'SONG',
-      entityId: widget.songId,
-      existingRating: _myRating,
-      entityName: _song?.name,
-    );
-
-    if (result == true) {
-      _loadRatingsAndComments();
-    }
-  }
+  // --- ACTIONS ---
 
   Future<void> _addToCart() async {
     if (_song == null) return;
-
     final authProvider = context.read<AuthProvider>();
+
     if (!authProvider.isAuthenticated) {
-      // Usuario invitado - mostrar alerta para iniciar sesión
-      if (mounted) {
-        showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Inicie Sesión'),
-            content: const Text(
-              'Debe iniciar sesión para agregar productos al carrito y realizar compras.',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Cerrar'),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  Navigator.pushNamed(context, '/login');
-                },
-                child: const Text('Iniciar Sesión'),
-              ),
-            ],
-          ),
-        );
-      }
+      _showLoginDialog();
       return;
     }
 
@@ -286,430 +159,551 @@ class _SongDetailScreenState extends State<SongDetailScreen>
       );
 
       if (mounted) {
-        if (success) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('${_song!.name} añadido al carrito'),
-              backgroundColor: Colors.green,
-              duration: const Duration(seconds: 2),
-            ),
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('${_song!.name} ya está en el carrito'),
-              backgroundColor: Colors.orange,
-              duration: const Duration(seconds: 2),
-            ),
-          );
-        }
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(success
+                ? '${_song!.name} añadido al carrito'
+                : 'Ya está en el carrito'),
+            backgroundColor: success ? AppTheme.successGreen : Colors.orange));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Error: $e'), backgroundColor: AppTheme.errorRed));
       }
+    }
+  }
+
+  void _showLoginDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppTheme.cardBlack,
+        title:
+            const Text('Inicia Sesión', style: TextStyle(color: Colors.white)),
+        content: const Text('Necesitas una cuenta para realizar esta acción.',
+            style: TextStyle(color: AppTheme.textGrey)),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancelar')),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              Navigator.pushNamed(context, '/login');
+            },
+            child: const Text('Iniciar Sesión'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showRatingDialog() async {
+    final authProvider = context.read<AuthProvider>();
+    if (!authProvider.isAuthenticated) {
+      _showLoginDialog();
+      return;
+    }
+
+    if (_myRating == null) {
+      final purchaseRes = await _libraryService.checkIfPurchased(
+          authProvider.currentUser!.id, 'SONG', widget.songId);
+
+      if (!purchaseRes.success || !(purchaseRes.data ?? false)) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Debes comprar la canción para valorarla'),
+            backgroundColor: Colors.orange,
+          ));
+        }
+        return;
+      }
+    }
+
+    if (!mounted) return;
+    final result = await showRatingDialog(
+      context,
+      entityType: 'SONG',
+      entityId: widget.songId,
+      existingRating: _myRating,
+      entityName: _song?.name,
+    );
+
+    if (result == true) {
+      _loadRatingsAndComments();
     }
   }
 
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Loading...')),
-        body: const Center(child: CircularProgressIndicator()),
+      return const Scaffold(
+        backgroundColor: AppTheme.backgroundBlack,
+        body: Center(
+            child: CircularProgressIndicator(color: AppTheme.primaryBlue)),
       );
     }
 
     if (_error != null || _song == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Error')),
+        backgroundColor: AppTheme.backgroundBlack,
+        appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0),
         body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.error_outline, size: 64, color: Colors.red),
-              const SizedBox(height: 16),
-              Text(_error ?? 'Song not found'),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Go Back'),
-              ),
-            ],
-          ),
-        ),
+            child: Text(_error ?? 'Canción no encontrada',
+                style: const TextStyle(color: Colors.white))),
       );
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(_song!.name),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.share),
-            onPressed: () {
-              final textToCopy = 'Check out "${_song!.name}" on Audira!';
-              Clipboard.setData(ClipboardData(text: textToCopy));
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Song link copied to clipboard')),
-              );
-            },
+      backgroundColor: AppTheme.backgroundBlack,
+      body: CustomScrollView(
+        controller: _scrollController,
+        slivers: [
+          // 1. HEADER INMERSIVO (COVER ART)
+          SliverAppBar(
+            expandedHeight: 400,
+            pinned: true,
+            backgroundColor: AppTheme.backgroundBlack,
+            surfaceTintColor: Colors.transparent,
+            flexibleSpace: FlexibleSpaceBar(
+              background: Stack(
+                fit: StackFit.expand,
+                children: [
+                  // Fondo borroso
+                  if (_song!.coverImageUrl != null)
+                    Image.network(
+                      _song!.coverImageUrl!,
+                      fit: BoxFit.cover,
+                    ).animate().fadeIn(duration: 800.ms),
+
+                  // Blur Overlay
+                  BackdropFilter(
+                    filter: ui.ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+                    child:
+                        Container(color: Colors.black.withValues(alpha: 0.5)),
+                  ),
+
+                  // Gradiente inferior
+                  Align(
+                    alignment: Alignment.bottomCenter,
+                    child: Container(
+                      height: 200,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.transparent,
+                            AppTheme.backgroundBlack
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // Portada Central
+                  Center(
+                    child: Padding(
+                      padding:
+                          const EdgeInsets.only(top: 60), // Ajuste por SafeArea
+                      child: Hero(
+                        tag: 'song-${_song!.id}',
+                        child: Container(
+                          width: 240,
+                          height: 240,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.5),
+                                  blurRadius: 30,
+                                  offset: const Offset(0, 10))
+                            ],
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: _song!.coverImageUrl != null
+                                ? CachedNetworkImage(
+                                    imageUrl: _song!.coverImageUrl!,
+                                    fit: BoxFit.cover,
+                                    placeholder: (_, __) =>
+                                        Container(color: AppTheme.cardBlack),
+                                  )
+                                : Container(
+                                    color: AppTheme.cardBlack,
+                                    child: const Icon(Icons.music_note,
+                                        size: 80, color: AppTheme.textGrey),
+                                  ),
+                          ),
+                        )
+                            .animate()
+                            .scale(duration: 600.ms, curve: Curves.easeOutBack),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.share_outlined),
+                onPressed: () {
+                  Clipboard.setData(ClipboardData(
+                      // TRADUCCIÓN: 'Check out "${_song!.name}" on Audira!'
+                      text: 'Escucha "${_song!.name}" en Audira!'));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Link copiado')));
+                },
+              ),
+            ],
           ),
-        ],
-      ),
-      body: Column(
-        children: [
-          Expanded(
-            child: SingleChildScrollView(
+
+          // 2. INFO PRINCIPAL Y ACCIONES
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildSongHeader(),
-                  _buildActionButtons(),
-                  _buildTabs(),
-                ],
-              ),
-            ),
-          ),
-          const MiniPlayer(),
-        ],
-      ),
-      bottomNavigationBar: const AppBottomNavigationBar(
-        selectedIndex: null,
-      ),
-    );
-  }
+                  // Título
+                  Text(
+                    _song!.name,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 28,
+                      fontWeight: FontWeight.w900,
+                      fontFamily: 'Poppins',
+                      letterSpacing: 0.5,
+                    ),
+                  ).animate().fadeIn().slideY(begin: 0.2),
 
-  Widget _buildSongHeader() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Hero(
-            tag: 'song-${_song!.id}',
-            child: Container(
-              width: 120,
-              height: 120,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(8),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppTheme.primaryBlue.withValues(alpha: 0.3),
-                    blurRadius: 10,
-                    spreadRadius: 2,
+                  const SizedBox(height: 4),
+
+                  // Artista
+                  GestureDetector(
+                    onTap: _artist != null
+                        ? () => Navigator.pushNamed(context, '/artist',
+                            arguments: _artist!.id)
+                        : null,
+                    child: Text(
+                      _artist?.artistName ??
+                          _artist?.username ??
+                          _song!.artistName,
+                      style: const TextStyle(
+                        color: AppTheme.primaryBlue,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ).animate().fadeIn(delay: 100.ms),
+
+                  const SizedBox(height: 16),
+
+                  // Metadata Row (Album, Año, Duración)
+                  Row(
+                    children: [
+                      if (_album != null) ...[
+                        const Icon(Icons.album_outlined,
+                            size: 16, color: AppTheme.textGrey),
+                        const SizedBox(width: 4),
+
+                        // Envolver el Text en Expanded para limitar su espacio
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () => Navigator.pushNamed(context, '/album',
+                                arguments: _album!.id),
+                            child: Text(
+                              _album!.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: AppTheme.textGrey,
+                                fontSize: 13,
+                                decoration: TextDecoration.underline,
+                                decorationColor: AppTheme.textGrey,
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(width: 12),
+                      ],
+
+                      // Icono y texto de duración (estos tienen ancho fijo o limitado)
+                      const Icon(Icons.timer_outlined,
+                          size: 16, color: AppTheme.textGrey),
+                      const SizedBox(width: 4),
+                      Text(
+                        _song!.durationFormatted,
+                        style: const TextStyle(
+                            color: AppTheme.textGrey, fontSize: 13),
+                      ),
+                    ],
                   ),
+
+                  const SizedBox(height: 24),
+
+                  // Botones de Acción (Play & Buy)
+                  _buildActionButtons(),
+
+                  const SizedBox(height: 32),
                 ],
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: _song!.coverImageUrl != null
-                    ? CachedNetworkImage(
-                        imageUrl: _song!.coverImageUrl!,
-                        fit: BoxFit.cover,
-                        placeholder: (context, url) =>
-                            const Center(child: CircularProgressIndicator()),
-                        errorWidget: (context, url, error) =>
-                            const Icon(Icons.music_note, size: 48),
-                      )
-                    : const Icon(Icons.music_note, size: 48),
               ),
             ),
           ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+
+          // 3. TABS (Detalles / Reseñas)
+          SliverPersistentHeader(
+            pinned: true,
+            delegate: _StickyTabBarDelegate(
+              TabBar(
+                controller: _tabController,
+                indicatorColor: AppTheme.primaryBlue,
+                indicatorSize: TabBarIndicatorSize.label,
+                labelColor: AppTheme.primaryBlue,
+                unselectedLabelColor: AppTheme.textGrey,
+                labelStyle: const TextStyle(fontWeight: FontWeight.bold),
+                tabs: const [
+                  Tab(text: 'DETALLES'),
+                  Tab(text: 'RESEÑAS'),
+                ],
+              ),
+            ),
+          ),
+
+          // 4. CONTENIDO DE TABS
+          SliverFillRemaining(
+            child: TabBarView(
+              controller: _tabController,
               children: [
-                Text(
-                  _song!.name,
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                if (_artist != null)
-                  InkWell(
-                    onTap: () {
-                      Navigator.pushNamed(
-                        context,
-                        '/artist',
-                        arguments: _artist!.id,
-                      );
-                    },
-                    child: Text(
-                      _artist!.artistName ?? _artist!.username,
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: AppTheme.primaryBlue,
-                        decoration: TextDecoration.underline,
-                      ),
-                    ),
-                  ),
-                const SizedBox(height: 8),
-                if (_album != null)
-                  InkWell(
-                    onTap: () {
-                      Navigator.pushNamed(
-                        context,
-                        '/album',
-                        arguments: _album!.id,
-                      );
-                    },
-                    child: Row(
-                      children: [
-                        const Icon(Icons.album, size: 16),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Text(
-                            _album!.name,
-                            style: TextStyle(
-                              color: AppTheme.textSecondary,
-                              decoration: TextDecoration.underline,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Icon(Icons.timer, size: 16, color: AppTheme.textSecondary),
-                    const SizedBox(width: 4),
-                    Text(
-                      _song!.durationFormatted,
-                      style: TextStyle(color: AppTheme.textSecondary),
-                    ),
-                    const SizedBox(width: 16),
-                    Icon(Icons.attach_money,
-                        size: 16, color: AppTheme.textSecondary),
-                    Text(
-                      '\$${_song!.price.toStringAsFixed(2)}',
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.primaryBlue,
-                      ),
-                    ),
-                  ],
-                ),
-                if (_ratingStats != null &&
-                    _ratingStats!.averageRating > 0)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: Row(
-                      children: [
-                        ...List.generate(
-                          5,
-                          (index) => Icon(
-                            index < _ratingStats!.averageRating.floor()
-                                ? Icons.star
-                                : Icons.star_border,
-                            color: Colors.amber,
-                            size: 16,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          '${_ratingStats!.averageRating.toStringAsFixed(1)} (${_ratingStats!.totalRatings} ratings)',
-                          style: TextStyle(color: AppTheme.textSecondary),
-                        ),
-                      ],
-                    ),
-                  ),
+                _buildDetailsTab(),
+                _buildRatingsTab(),
               ],
             ),
           ),
         ],
       ),
-    ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.2, end: 0);
-  }
-
-  Widget _buildActionButtons() {
-    final audioProvider = Provider.of<AudioProvider>(context, listen: false);
-    final libraryProvider = Provider.of<LibraryProvider>(context);
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final isFavorite = libraryProvider.isSongFavorite(_song!.id);
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Row(
+      // MiniPlayer siempre visible abajo
+      bottomNavigationBar: const Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Expanded(
-            child: ElevatedButton.icon(
-              onPressed: () {
-                if (_song != null) {
-                  audioProvider.playSong(
-                    _song!,
-                    isUserAuthenticated: authProvider.isAuthenticated,
-                  );
-
-                  Navigator.pushNamed(context, '/playback');
-                }
-              },
-              icon: const Icon(Icons.play_arrow),
-              label: Text(
-                  authProvider.isAuthenticated ? 'Reproducir' : 'Vista previa'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryBlue,
-                padding: const EdgeInsets.symmetric(vertical: 12),
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: libraryProvider.isSongPurchased(_song!.id)
-                ? ElevatedButton.icon(
-                    onPressed: null, // Botón deshabilitado
-                    icon: const Icon(Icons.check_circle),
-                    label: const Text('Comprado'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      disabledBackgroundColor: Colors.green.withValues(alpha: 0.7),
-                      disabledForegroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                  )
-                : ElevatedButton.icon(
-                    onPressed: _addToCart,
-                    icon: const Icon(Icons.shopping_cart),
-                    label: const Text('Add to Cart'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.darkBlue,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                  ),
-          ),
-          const SizedBox(width: 8),
-          IconButton(
-            onPressed: () async {
-              if (!authProvider.isAuthenticated) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Please login to add favorites'),
-                  ),
-                );
-                return;
-              }
-              try {
-                await libraryProvider.toggleSongFavorite(
-                  authProvider.currentUser!.id,
-                  _song!,
-                );
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(isFavorite
-                        ? 'Removed from favorites'
-                        : 'Added to favorites'),
-                  ),
-                );
-              } catch (e) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Error: $e')),
-                );
-              }
-            },
-            icon: Icon(isFavorite ? Icons.favorite : Icons.favorite_border),
-            color: isFavorite ? Colors.red : AppTheme.primaryBlue,
-          ),
+          MiniPlayer(),
         ],
       ),
-    ).animate().fadeIn(delay: 200.ms);
+    );
   }
 
-  Widget _buildTabs() {
-    return Column(
+  // --- WIDGETS ---
+
+  Widget _buildActionButtons() {
+    final audioProvider = Provider.of<AudioProvider>(context);
+    final libraryProvider = Provider.of<LibraryProvider>(context);
+    final cartProvider = Provider.of<CartProvider>(context);
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final isPurchased = libraryProvider.isSongPurchased(_song!.id);
+    final isFavorite = libraryProvider.isSongFavorite(_song!.id);
+    final isInCart = cartProvider.isItemInCart('SONG', _song!.id);
+
+    return Row(
       children: [
-        TabBar(
-          controller: _tabController,
-          labelColor: AppTheme.primaryBlue,
-          unselectedLabelColor: AppTheme.textSecondary,
-          indicatorColor: AppTheme.primaryBlue,
-          tabs: const [
-            Tab(text: 'Details'),
-            Tab(text: 'Ratings'),
-          ],
-        ),
-        SizedBox(
-          height: 400,
-          child: TabBarView(
-            controller: _tabController,
-            children: [
-              _buildDetailsTab(),
-              _buildRatingsTab(),
-            ],
+        // Play Button (Grande)
+        Expanded(
+          flex: 2,
+          child: ElevatedButton.icon(
+            onPressed: () {
+              audioProvider.playSong(_song!,
+                  isUserAuthenticated: authProvider.isAuthenticated,
+                  userId: authProvider.currentUser?.id);
+              Navigator.pushNamed(context, '/playback');
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.white,
+              foregroundColor: Colors.black,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+            icon: const Icon(Icons.play_arrow_rounded, size: 22),
+            label: const Text("REPRODUCIR",
+                style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1,
+                    fontSize: 14)),
           ),
         ),
+        const SizedBox(width: 16),
+
+        // Buy/Owned/In Cart Button
+        Expanded(
+          flex: 2,
+          child: isPurchased
+              ? ElevatedButton.icon(
+                  onPressed: null,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.cardBlack,
+                    disabledBackgroundColor: AppTheme.cardBlack,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        side: BorderSide(
+                            color:
+                                AppTheme.successGreen.withValues(alpha: 0.5))),
+                  ),
+                  label: const Text("COMPRADO",
+                      style: TextStyle(
+                          color: AppTheme.successGreen,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13)),
+                )
+              : isInCart
+                  ? ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.pushNamed(context, '/cart');
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.warningOrange,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                      ),
+                      icon: const Icon(Icons.shopping_cart, size: 18),
+                      label: const Text("EN CARRITO",
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 13)),
+                    )
+                  : ElevatedButton.icon(
+                      onPressed: _addToCart,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primaryBlue,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                      ),
+                      icon: const Icon(Icons.add_shopping_cart, size: 18),
+                      label: Text("\$${_song!.price.toStringAsFixed(2)}",
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 14)),
+                    ),
+        ),
+        const SizedBox(width: 16),
+
+        // Favorite Button
+        Container(
+          decoration: BoxDecoration(
+            color: AppTheme.cardBlack,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+                color: isFavorite ? AppTheme.errorRed : Colors.transparent),
+          ),
+          child: IconButton(
+            icon: Icon(isFavorite ? Icons.favorite : Icons.favorite_border,
+                color: isFavorite ? AppTheme.errorRed : Colors.white),
+            onPressed: () async {
+              if (authProvider.isAuthenticated) {
+                await libraryProvider.toggleSongFavorite(
+                    authProvider.currentUser!.id, _song!);
+              } else {
+                _showLoginDialog();
+              }
+            },
+          ),
+        ),
+
+        // Download Button
+        if (isPurchased) ...[
+          const SizedBox(width: 8),
+          Container(
+            decoration: BoxDecoration(
+                color: AppTheme.cardBlack,
+                borderRadius: BorderRadius.circular(12)),
+            child: DownloadButton(song: _song!),
+          ),
+        ]
       ],
-    );
+    ).animate().fadeIn(delay: 200.ms).slideY(begin: 0.2);
   }
 
   Widget _buildDetailsTab() {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Descripción
           if (_song!.description != null && _song!.description!.isNotEmpty) ...[
-            const Text(
-              'Description',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
+            const Text("DESCRIPCIÓN",
+                style: TextStyle(
+                    color: AppTheme.textGrey,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.5)),
             const SizedBox(height: 8),
-            Text(_song!.description!),
-            const SizedBox(height: 16),
+            Text(_song!.description!,
+                style: const TextStyle(
+                    color: Colors.white, fontSize: 14, height: 1.5)),
+            const SizedBox(height: 32),
           ],
+
+          // Colaboradores
           if (_collaborators.isNotEmpty) ...[
-            const Text(
-              'Collaborators',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            const Text("CRÉDITOS",
+                style: TextStyle(
+                    color: AppTheme.textGrey,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.5)),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: _collaborators
+                  .map((c) => Chip(
+                        avatar: const CircleAvatar(
+                            backgroundColor: Colors.white24,
+                            child: Icon(Icons.person,
+                                size: 14, color: Colors.white)),
+                        label: Text('${c.role}: Artista #${c.artistId}'),
+                        backgroundColor: AppTheme.cardBlack,
+                        labelStyle:
+                            const TextStyle(color: Colors.white, fontSize: 12),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                            side: BorderSide.none),
+                      ))
+                  .toList(),
             ),
-            const SizedBox(height: 8),
-            ..._collaborators.map((collab) => ListTile(
-                  leading: const CircleAvatar(
-                    child: Icon(Icons.person),
-                  ),
-                  title: Text('Artist ID: ${collab.artistId}'),
-                  subtitle: Text(collab.role),
-                  onTap: () {
-                    Navigator.pushNamed(
-                      context,
-                      '/artist',
-                      arguments: collab.artistId,
-                    );
-                  },
-                )),
-            const SizedBox(height: 16),
+            const SizedBox(height: 32),
           ],
+
+          // Letras
           if (_song!.lyrics != null && _song!.lyrics!.isNotEmpty) ...[
-            const Text(
-              'Lyrics',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
+            const Text("LETRA",
+                style: TextStyle(
+                    color: AppTheme.textGrey,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.5)),
+            const SizedBox(height: 12),
             Container(
-              padding: const EdgeInsets.all(16),
+              width: double.infinity,
+              padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: AppTheme.surfaceBlack,
-                borderRadius: BorderRadius.circular(8),
+                color: AppTheme.cardBlack,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
               ),
               child: Text(
                 _song!.lyrics!,
-                style: TextStyle(
-                  color: AppTheme.textSecondary,
-                  height: 1.5,
-                ),
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    height: 1.8,
+                    fontFamily: 'Poppins',
+                    fontWeight: FontWeight.w500),
+                textAlign: TextAlign.center,
               ),
             ),
+            const SizedBox(height: 32),
           ],
         ],
       ),
@@ -717,43 +711,95 @@ class _SongDetailScreenState extends State<SongDetailScreen>
   }
 
   Widget _buildRatingsTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Botón para crear o editar mi valoración
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: ElevatedButton.icon(
-              onPressed: _showRatingDialog,
-              icon: Icon(_myRating != null ? Icons.edit : Icons.star),
-              label: Text(_myRating != null ? 'Editar mi valoración' : 'Valorar esta canción'),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
-              ),
-            ),
-          ),
+    return _isLoadingRatings
+        ? const Center(
+            child: CircularProgressIndicator(color: AppTheme.primaryBlue))
+        : ListView(
+            padding: const EdgeInsets.all(20),
+            children: [
+              // Resumen de Ratings
+              if (_ratingStats != null)
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  margin: const EdgeInsets.only(bottom: 24),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                        colors: [AppTheme.cardBlack, AppTheme.surfaceBlack]),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        _ratingStats!.averageRating.toStringAsFixed(1),
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 48,
+                            fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(width: 16),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                              children: List.generate(
+                                  5,
+                                  (i) => Icon(
+                                      i < _ratingStats!.averageRating.round()
+                                          ? Icons.star
+                                          : Icons.star_border,
+                                      color: Colors.amber,
+                                      size: 20))),
+                          const SizedBox(height: 4),
+                          const Text('opiniones',
+                              style: TextStyle(color: AppTheme.textGrey)),
+                        ],
+                      )
+                    ],
+                  ),
+                ),
 
-          const Divider(),
-
-          // Lista de valoraciones y comentarios unificados
-          if (_isLoadingRatings)
-            const Center(
-              child: Padding(
-                padding: EdgeInsets.all(32.0),
-                child: CircularProgressIndicator(),
+              // Botón de valorar
+              OutlinedButton.icon(
+                onPressed: _showRatingDialog,
+                icon: Icon(_myRating != null ? Icons.edit : Icons.star_border),
+                label: Text(
+                    _myRating != null ? "EDITAR MI RESEÑA" : "ESCRIBIR RESEÑA"),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.white,
+                  side: const BorderSide(color: Colors.white24),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
               ),
-            )
-          else
-            RatingList(
-              ratings: _ratingsWithComments,
-              currentUserId: context.read<AuthProvider>().currentUser?.id,
-              onRatingChanged: _loadRatingsAndComments,
-            ),
-        ],
-      ),
-    );
+              const SizedBox(height: 24),
+
+              // Lista
+              RatingList(
+                ratings: _ratingsWithComments,
+                currentUserId: context.read<AuthProvider>().currentUser?.id,
+                onRatingChanged: _loadRatingsAndComments,
+              ),
+
+              const SizedBox(height: 80), // Espacio final
+            ],
+          );
   }
+}
 
+class _StickyTabBarDelegate extends SliverPersistentHeaderDelegate {
+  final TabBar _tabBar;
+  _StickyTabBarDelegate(this._tabBar);
+  @override
+  double get minExtent => _tabBar.preferredSize.height;
+  @override
+  double get maxExtent => _tabBar.preferredSize.height;
+  @override
+  Widget build(
+          BuildContext context, double shrinkOffset, bool overlapsContent) =>
+      Container(color: AppTheme.backgroundBlack, child: _tabBar);
+  @override
+  bool shouldRebuild(_StickyTabBarDelegate oldDelegate) => false;
 }

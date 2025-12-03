@@ -1,6 +1,6 @@
 class AppConstants {
   // API Configuration
-  static const String apiGatewayUrl = 'http://68.221.240.178:8080';
+  static const String apiGatewayUrl = 'http://98.66.232.230:8080';
 
   // Auth endpoints
   static const String authRegisterUrl = '/api/auth/register';
@@ -32,6 +32,9 @@ class AppConstants {
 
   // Library endpoints
   static const String libraryUrl = '/api/library';
+
+  // Favorites endpoints
+  static const String favoritesUrl = '/api/favorites';
 
   // Playback endpoints
   static const String playbackUrl = '/api/playback';

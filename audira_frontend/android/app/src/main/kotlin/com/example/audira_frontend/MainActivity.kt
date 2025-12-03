@@ -1,4 +1,4 @@
-package com.example.audira_frontend
+package com.audira.app
 
 import io.flutter.embedding.android.FlutterActivity
 

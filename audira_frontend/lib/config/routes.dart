@@ -1,5 +1,10 @@
+import 'package:audira_frontend/features/admin/screens/admin_featured_content_screen.dart';
+import 'package:audira_frontend/features/admin/screens/admin_moderation_history_screen.dart';
 import 'package:audira_frontend/features/profile/screens/followed_artists_screen.dart';
 import 'package:audira_frontend/features/studio/screens/file_upload_demo_screen.dart';
+import 'package:audira_frontend/features/studio/screens/studio_catalog_screen.dart';
+import 'package:audira_frontend/features/studio/screens/studio_tickets_screen.dart';
+import 'package:audira_frontend/features/user/screens/my_tickets_screen.dart';
 import 'package:flutter/material.dart';
 import '../core/models/payment.dart';
 import '../features/auth/screens/login_screen.dart';
@@ -13,7 +18,6 @@ import '../features/common/screens/faq_screen.dart';
 import '../features/common/screens/contact_screen.dart';
 import '../features/playback/screens/playback_screen.dart';
 import '../features/search/screens/search_screen.dart';
-import '../features/notifications/screens/notifications_screen.dart';
 import '../features/playlist/screens/create_playlist_screen.dart';
 import '../features/playlist/screens/playlist_detail_screen.dart';
 import '../features/profile/screens/edit_profile_screen.dart';
@@ -35,6 +39,8 @@ import '../features/studio/screens/upload_album_screen.dart';
 import '../features/studio/screens/studio_stats_screen.dart';
 import '../features/library/screens/library_screen.dart';
 import '../features/receipt/screens/receipt_screen.dart';
+import '../features/downloads/screens/downloads_screen.dart';
+import '../features/collaborations/screens/collaborations_screen.dart';
 
 class AppRoutes {
   static const String home = '/';
@@ -55,7 +61,6 @@ class AppRoutes {
   static const String followedArtists = '/profile/followed-artists';
   static const String changePassword = '/profile/change-password';
   static const String search = '/search';
-  static const String notifications = '/notifications';
   static const String purchaseHistory = '/profile/purchase-history';
   static const String library = '/library';
   static const String receipt = '/receipt';
@@ -65,6 +70,8 @@ class AppRoutes {
   static const String studioStats = '/studio/stats';
   static const String studioCatalog = '/studio/catalog';
   static const String studioFileDemo = '/studio/file-demo';
+  static const String studioCollaborations = '/studio/collaborations';
+  static const String studioTickets = '/studio/tickets';
   static const String admin = '/admin';
   static const String adminSongs = '/admin/songs';
   static const String adminAlbums = '/admin/albums';
@@ -74,6 +81,10 @@ class AppRoutes {
   static const String adminContacts = '/admin/contacts';
   static const String adminOrders = '/admin/orders';
   static const String adminStats = '/admin/stats';
+  static const String downloads = '/downloads';
+  static const String adminModerationHistory = '/admin/moderation-history';
+  static const String adminFeaturedContent = '/admin/featured-content';
+  static const String userTicket = '/profile/tickets';
 
   static Route<dynamic> generateRoute(RouteSettings settings) {
     switch (settings.name) {
@@ -122,14 +133,14 @@ class AppRoutes {
       case search:
         return MaterialPageRoute(builder: (_) => const SearchScreen());
 
-      case notifications:
-        return MaterialPageRoute(builder: (_) => const NotificationsScreen());
-
       case createPlaylist:
         return MaterialPageRoute(builder: (_) => const CreatePlaylistScreen());
 
       case editProfile:
         return MaterialPageRoute(builder: (_) => const EditProfileScreen());
+
+      case studioCollaborations:
+        return MaterialPageRoute(builder: (_) => const CollaborationsScreen());
 
       case purchaseHistory:
         return MaterialPageRoute(builder: (_) => const PurchaseHistoryScreen());
@@ -165,10 +176,15 @@ class AppRoutes {
         );
 
       case editPlaylist:
-        ScaffoldMessenger.of(settings.arguments as BuildContext).showSnackBar(
-          const SnackBar(content: Text('Edit Playlist - Coming soon')),
-        );
-        return MaterialPageRoute(builder: (_) => const MainLayout());
+        // Soportar el ID como argumento
+        final playlistId = settings.arguments as int?;
+        if (playlistId != null) {
+          return MaterialPageRoute(
+            builder: (_) => CreatePlaylistScreen(playlistId: playlistId),
+          );
+        }
+        // Si no hay ID, crear nueva playlist
+        return MaterialPageRoute(builder: (_) => const CreatePlaylistScreen());
 
       // User statistics
       case userStats:
@@ -196,6 +212,11 @@ class AppRoutes {
         return MaterialPageRoute(builder: (_) => const FileUploadDemoScreen());
 
       case studioCatalog:
+        return MaterialPageRoute(builder: (_) => const StudioCatalogScreen());
+
+      case studioTickets:
+        return MaterialPageRoute(builder: (_) => const StudioTicketsScreen());
+
       case adminSongs:
         return MaterialPageRoute(builder: (_) => const AdminSongsScreen());
 
@@ -220,6 +241,20 @@ class AppRoutes {
       case adminStats:
         return MaterialPageRoute(builder: (_) => const AdminStatsScreen());
 
+      case downloads:
+        return MaterialPageRoute(builder: (_) => const DownloadsScreen());
+
+      case userTicket:
+        return MaterialPageRoute(builder: (_) => const MyTicketsScreen());
+
+      case adminModerationHistory:
+        return MaterialPageRoute(
+            builder: (_) => const AdminModerationHistoryScreen());
+
+      case adminFeaturedContent:
+        return MaterialPageRoute(
+            builder: (_) => const AdminFeaturedContentScreen());
+
       default:
         return MaterialPageRoute(
           builder: (_) => Scaffold(
@@ -230,7 +265,7 @@ class AppRoutes {
                 children: [
                   const Icon(Icons.error_outline, size: 64, color: Colors.red),
                   const SizedBox(height: 16),
-                  Text('Route not found: ${settings.name}'),
+                  Text('No se ha podido encontrar: ${settings.name}'),
                 ],
               ),
             ),

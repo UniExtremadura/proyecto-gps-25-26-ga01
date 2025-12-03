@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
 import '../../../config/theme.dart';
 import '../../../core/providers/auth_provider.dart';
-import '../../../core/api/services/metrics_service.dart';
+import '../../../core/api/services/playlist_service.dart';
+import '../../../core/api/services/library_service.dart';
 
 class UserStatsScreen extends StatefulWidget {
   const UserStatsScreen({super.key});
@@ -13,341 +15,479 @@ class UserStatsScreen extends StatefulWidget {
 }
 
 class _UserStatsScreenState extends State<UserStatsScreen> {
-  final MetricsService _metricsService = MetricsService();
-  Map<String, dynamic>? _userMetrics;
-  List<dynamic>? _listeningHistory;
+  final PlaylistService _playlistService = PlaylistService();
+  // final OrderService _orderService = OrderService(); // Ya no lo necesitamos para esta vista si quitamos la lista de pedidos
+  final LibraryService _libraryService = LibraryService(); // <--- RECUPERADO
+
+  // Datos
+  int _playlistCount = 0;
+
+  // Variables locales para asegurar que los datos se muestran
+  int _ownedSongs = 0;
+  int _ownedAlbums = 0;
+  double _totalSpent = 0.0;
+
   bool _isLoading = true;
+  String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
-    _loadMetrics();
+    _loadRealStats();
   }
 
-  Future<void> _loadMetrics() async {
+  Future<void> _loadRealStats() async {
     setState(() {
       _isLoading = true;
+      _errorMessage = null;
     });
 
-    final authProvider = context.read<AuthProvider>();
-    if (authProvider.currentUser != null) {
-      final metricsResponse =
-          await _metricsService.getUserMetrics(authProvider.currentUser!.id);
-      final historyResponse = await _metricsService.getUserListeningHistory(
-        authProvider.currentUser!.id,
-        limit: 5,
-      );
+    try {
+      final authProvider = context.read<AuthProvider>();
+      if (authProvider.currentUser != null) {
+        final userId = authProvider.currentUser!.id;
 
-      if (metricsResponse.success) {
-        _userMetrics = metricsResponse.data;
+        // 1. Cargar Librería (Fuente de verdad para compras y gasto)
+        final libraryResponse = await _libraryService.getUserLibrary(userId);
+
+        if (libraryResponse.success && libraryResponse.data != null) {
+          final lib = libraryResponse.data!;
+
+          // A. Conteos
+          _ownedSongs = lib.songs.length;
+          _ownedAlbums = lib.albums.length;
+
+          // B. CÁLCULO DE GASTO TOTAL (Iterar y sumar precios)
+          double calculatedSpent = 0.0;
+
+          // Sumar Canciones
+          for (var item in lib.songs) {
+            calculatedSpent += (item.price * item.quantity);
+          }
+
+          // Sumar Álbumes
+          for (var item in lib.albums) {
+            calculatedSpent += (item.price * item.quantity);
+          }
+
+          // Sumar Merchandise (si lo usas)
+          for (var item in lib.merchandise) {
+            calculatedSpent += (item.price * item.quantity);
+          }
+
+          _totalSpent = calculatedSpent;
+        }
+
+        // 2. Cargar Playlists
+        final playlistsResponse =
+            await _playlistService.getUserPlaylists(userId);
+        if (playlistsResponse.success && playlistsResponse.data != null) {
+          _playlistCount = playlistsResponse.data!.length;
+        }
       }
-      if (historyResponse.success) {
-        _listeningHistory = historyResponse.data;
-      }
+    } catch (e) {
+      _errorMessage = 'Error al cargar estadísticas: $e';
+      debugPrint(_errorMessage);
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
     }
-
-    setState(() {
-      _isLoading = false;
-    });
   }
 
   @override
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
     final user = authProvider.currentUser;
+    final currencyFormat = NumberFormat.currency(locale: 'es_ES', symbol: '€');
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('My Statistics'),
+        title: const Text('Estadísticas'),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: _loadMetrics,
+            onPressed: _loadRealStats,
           ),
         ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('${user?.fullName}',
-                      style: const TextStyle(
-                          fontSize: 20, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 24),
-
-                  // Overview Cards
-                  GridView.count(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
-                    childAspectRatio: 1.5,
+          : _errorMessage != null
+              ? Center(
+                  child: Text(_errorMessage!,
+                      style: const TextStyle(color: Colors.red)))
+              : SingleChildScrollView(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildStatCard(
-                          'Total Plays',
-                          '${_userMetrics?['totalPlays'] ?? 0}',
-                          Icons.play_circle,
-                          AppTheme.primaryBlue),
-                      _buildStatCard(
-                          'Purchased Songs',
-                          '${_userMetrics?['purchasedSongs'] ?? 0}',
-                          Icons.music_note,
-                          Colors.purple),
-                      _buildStatCard(
-                          'Purchased Albums',
-                          '${_userMetrics?['purchasedAlbums'] ?? 0}',
-                          Icons.album,
-                          Colors.orange),
-                      _buildStatCard(
-                          'Total Spent',
-                          '\$${(_userMetrics?['totalSpent'] ?? 0).toStringAsFixed(2)}',
-                          Icons.attach_money,
-                          Colors.green),
-                    ],
-                  ).animate().fadeIn(),
-                  const SizedBox(height: 24),
+                      // Header
+                      Text('Hola, ${user?.fullName}',
+                          style: const TextStyle(
+                              fontSize: 24, fontWeight: FontWeight.bold)),
+                      const Text('Tu impacto y nivel como coleccionista.',
+                          style: TextStyle(color: Colors.grey)),
+                      const SizedBox(height: 24),
 
-                  const Text('Listening Activity',
-                      style:
-                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 16),
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        children: [
-                          _buildStatRow(
-                              'This Week',
-                              '${_userMetrics?['playsThisWeek'] ?? 0} plays',
-                              AppTheme.primaryBlue),
-                          const Divider(),
-                          _buildStatRow(
-                              'This Month',
-                              '${_userMetrics?['playsThisMonth'] ?? 0} plays',
-                              AppTheme.primaryBlue),
-                          const Divider(),
-                          _buildStatRow(
-                              'Total Listening Time',
-                              _formatMinutes(
-                                  _userMetrics?['totalListeningTime'] ?? 0),
-                              Colors.purple),
-                          const Divider(),
-                          _buildStatRow(
-                              'Avg. Daily Listening',
-                              _formatMinutes(
-                                  _userMetrics?['avgDailyListening'] ?? 0),
-                              Colors.orange),
-                        ],
-                      ),
-                    ),
-                  ).animate().fadeIn(delay: 100.ms),
-                  const SizedBox(height: 24),
-
-                  if (_userMetrics?['topGenres'] != null &&
-                      (_userMetrics!['topGenres'] as List).isNotEmpty) ...[
-                    const Text('Top Genres',
-                        style: TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 16),
-                    Card(
-                      child: Column(
-                        children: _buildGenresList(_userMetrics!['topGenres']),
-                      ),
-                    ).animate().fadeIn(delay: 200.ms),
-                    const SizedBox(height: 24),
-                  ],
-                  const SizedBox(height: 24),
-
-                  if (_listeningHistory != null &&
-                      _listeningHistory!.isNotEmpty) ...[
-                    const Text('Recently Played',
-                        style: TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 16),
-                    ...List.generate(
-                      _listeningHistory!.length,
-                      (index) {
-                        final item = _listeningHistory![index];
-                        return Card(
-                          child: ListTile(
-                            leading: const CircleAvatar(
-                              backgroundColor: AppTheme.primaryBlue,
-                              child:
-                                  Icon(Icons.music_note, color: Colors.white),
-                            ),
-                            title: Text(item['songName'] ?? 'Unknown Song'),
-                            subtitle: Text(
-                                '${item['artistName'] ?? 'Unknown Artist'} • ${item['playCount'] ?? 0} plays'),
-                            trailing: const Icon(Icons.chevron_right),
-                            onTap: () {
-                              if (item['songId'] != null) {
-                                Navigator.pushNamed(context, '/song',
-                                    arguments: item['songId']);
-                              }
-                            },
+                      // TARJETA PRINCIPAL: Inversión Total
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              AppTheme.primaryBlue,
+                              AppTheme.primaryBlue.withValues(alpha: 0.7)
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
                           ),
-                        ).animate().fadeIn(delay: ((index + 1) * 50).ms);
-                      },
-                    ),
-                    const SizedBox(height: 24),
-                  ],
-
-                  if (_userMetrics?['topArtists'] != null &&
-                      (_userMetrics!['topArtists'] as List).isNotEmpty) ...[
-                    const Text('Favorite Artists',
-                        style: TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 16),
-                    SizedBox(
-                      height: 120,
-                      child: ListView.builder(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: (_userMetrics!['topArtists'] as List).length,
-                        itemBuilder: (context, index) {
-                          final artist = _userMetrics!['topArtists'][index];
-                          return Padding(
-                            padding: const EdgeInsets.only(right: 12),
-                            child: InkWell(
-                              onTap: () {
-                                if (artist['artistId'] != null) {
-                                  Navigator.pushNamed(context, '/artist',
-                                      arguments: artist['artistId']);
-                                }
-                              },
-                              child: Column(
-                                children: [
-                                  CircleAvatar(
-                                    radius: 40,
-                                    backgroundColor: AppTheme.primaryBlue,
-                                    child: Text(
-                                        (artist['artistName'] ?? 'A')
-                                            .substring(0, 1)
-                                            .toUpperCase(),
-                                        style: const TextStyle(
-                                            fontSize: 20, color: Colors.white)),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  SizedBox(
-                                    width: 80,
-                                    child: Text(
-                                      artist['artistName'] ?? 'Unknown',
-                                      textAlign: TextAlign.center,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                ],
-                              ),
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color:
+                                  AppTheme.primaryBlue.withValues(alpha: 0.3),
+                              blurRadius: 10,
+                              offset: const Offset(0, 5),
                             ),
-                          );
-                        },
-                      ),
-                    ).animate().fadeIn(delay: 350.ms),
-                  ],
-                ],
-              ),
-            ),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Row(
+                              children: [
+                                Icon(Icons.verified, color: Colors.white70),
+                                SizedBox(width: 8),
+                                Text('APOYO TOTAL AL ARTISTA',
+                                    style: TextStyle(
+                                        color: Colors.white70,
+                                        letterSpacing: 1.2,
+                                        fontSize: 12)),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+                            // USAMOS LA VARIABLE CALCULADA _totalSpent
+                            Text(
+                              currencyFormat.format(_totalSpent),
+                              style: const TextStyle(
+                                  fontSize: 36,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white),
+                            ),
+                            const SizedBox(height: 5),
+                            const Text('Invertidos en música de calidad',
+                                style: TextStyle(
+                                    color: Colors.white60, fontSize: 14)),
+                          ],
+                        ),
+                      ).animate().scale(delay: 100.ms),
+
+                      const SizedBox(height: 24),
+
+                      // GRID: Estadísticas (Usando los datos corregidos _ownedSongs)
+                      const Text('Tu Biblioteca',
+                          style: TextStyle(
+                              fontSize: 18, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 16),
+                      GridView.count(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        crossAxisCount: 2,
+                        crossAxisSpacing: 12,
+                        mainAxisSpacing: 12,
+                        childAspectRatio: 1.15, // Ajustado para evitar overflow
+                        children: [
+                          _buildStatCard('Canciones', '$_ownedSongs',
+                              Icons.music_note, Colors.purple),
+                          _buildStatCard('Álbumes', '$_ownedAlbums',
+                              Icons.album, Colors.orange),
+                          _buildStatCard('Playlists', '$_playlistCount',
+                              Icons.queue_music, Colors.teal),
+                          _buildStatCard(
+                              'Nivel Actual',
+                              _getCurrentLevelName(_ownedSongs),
+                              Icons.emoji_events,
+                              Colors.amber),
+                        ],
+                      ).animate().fadeIn(delay: 200.ms),
+
+                      const SizedBox(height: 30),
+
+                      // --- NUEVA SECCIÓN: SENDA DEL COLECCIONISTA ---
+                      const Text('Senda del Coleccionista',
+                          style: TextStyle(
+                              fontSize: 18, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 8),
+                      const Text(
+                          'Desbloquea niveles ampliando tu colección musical.',
+                          style: TextStyle(fontSize: 13, color: Colors.grey)),
+                      const SizedBox(height: 16),
+
+                      _buildCollectorPath(),
+
+                      const SizedBox(height: 40),
+                    ],
+                  ),
+                ),
     );
   }
+
+  // --- WIDGETS AUXILIARES ---
 
   Widget _buildStatCard(
       String title, String value, IconData icon, Color color) {
     return Card(
+      color: const Color(0xFF252525),
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(14),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon, size: 28, color: color),
-            const SizedBox(height: 4),
-            Text(value,
-                style: TextStyle(
-                    fontSize: 16, fontWeight: FontWeight.bold, color: color)),
-            const SizedBox(height: 4),
-            Text(title,
-                style: const TextStyle(fontSize: 12, color: AppTheme.textGrey),
-                textAlign: TextAlign.center),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, size: 26, color: color),
+            ),
+            const SizedBox(height: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      value,
+                      style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.white,
+                          height: 1.0),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.white.withValues(alpha: 0.8),
+                      fontWeight: FontWeight.w500,
+                      height: 1.2,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildStatRow(String label, String value, Color color) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label),
-          Text(value,
-              style: TextStyle(
-                  fontSize: 16, fontWeight: FontWeight.bold, color: color)),
-        ],
-      ),
-    );
-  }
-
-  List<Widget> _buildGenresList(List<dynamic> genres) {
-    final colors = [
-      Colors.pink,
-      Colors.red,
-      Colors.blue,
-      Colors.purple,
-      Colors.orange
+  // Lógica de Niveles y Construcción de la Lista
+  Widget _buildCollectorPath() {
+    // Definición de Niveles
+    final levels = [
+      {
+        'name': 'Diamante',
+        'threshold': 50,
+        'color': Colors.cyanAccent,
+        'icon': Icons.diamond
+      },
+      {
+        'name': 'Platino',
+        'threshold': 25,
+        'color': Colors.blueGrey,
+        'icon': Icons.verified
+      },
+      {
+        'name': 'Oro',
+        'threshold': 10,
+        'color': Colors.amber,
+        'icon': Icons.star
+      },
+      {
+        'name': 'Plata',
+        'threshold': 5,
+        'color': Colors.grey.shade300,
+        'icon': Icons.shield
+      },
+      {
+        'name': 'Bronce',
+        'threshold': 1,
+        'color': Colors.brown.shade300,
+        'icon': Icons.music_note
+      },
+      {
+        'name': 'Oyente',
+        'threshold': 0,
+        'color': Colors.blue,
+        'icon': Icons.headphones
+      },
     ];
-    List<Widget> widgets = [];
 
-    for (int i = 0; i < genres.length; i++) {
-      final genre = genres[i];
-      final color = colors[i % colors.length];
+    return Column(
+      children: levels.map((level) {
+        final threshold = level['threshold'] as int;
+        final isUnlocked = _ownedSongs >= threshold;
+        final isNextGoal = !isUnlocked &&
+            (_ownedSongs >=
+                (levels[levels.indexOf(level) + 1]['threshold'] as int));
 
-      if (i > 0) {
-        widgets.add(const Divider(height: 1));
-      }
+        // Progreso para este nivel específico
+        // (Solo visual si es el siguiente objetivo)
+        double progress = 0.0;
+        if (isNextGoal) {
+          final prevThreshold =
+              (levels[levels.indexOf(level) + 1]['threshold'] as int);
+          progress =
+              (_ownedSongs - prevThreshold) / (threshold - prevThreshold);
+        } else if (isUnlocked) {
+          progress = 1.0;
+        }
 
-      widgets.add(_buildGenreItem(
-        genre['genreName'] ?? 'Unknown',
-        (genre['percentage'] ?? 0).toInt(),
-        color,
-      ));
-    }
+        return Container(
+          margin: const EdgeInsets.only(bottom: 16),
+          child: Row(
+            children: [
+              // Columna de Línea de Tiempo
+              Column(
+                children: [
+                  Container(
+                    width: 2,
+                    height: 20,
+                    color: isUnlocked
+                        ? (level['color'] as Color)
+                        : Colors.grey.shade800,
+                  ),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                        color: isUnlocked
+                            ? (level['color'] as Color).withValues(alpha: 0.2)
+                            : Colors.transparent,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                            color: isUnlocked
+                                ? (level['color'] as Color)
+                                : Colors.grey.shade700,
+                            width: 2)),
+                    child: Icon(
+                      level['icon'] as IconData,
+                      size: 20,
+                      color:
+                          isUnlocked ? (level['color'] as Color) : Colors.grey,
+                    ),
+                  ),
+                  Container(
+                    width: 2,
+                    height: 20,
+                    // Si es el último elemento, ocultamos la línea inferior
+                    color: level == levels.last
+                        ? Colors.transparent
+                        : (isUnlocked
+                            ? (level['color'] as Color)
+                            : Colors.grey.shade800),
+                  ),
+                ],
+              ),
+              const SizedBox(width: 16),
 
-    return widgets;
-  }
-
-  Widget _buildGenreItem(String genre, int percentage, Color color) {
-    return ListTile(
-      title: Text(genre),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SizedBox(
-            width: 100,
-            child: LinearProgressIndicator(
-              value: percentage / 100,
-              backgroundColor: Colors.grey[800],
-              color: color,
-            ),
+              // Tarjeta de Nivel
+              Expanded(
+                child: Opacity(
+                  opacity: isUnlocked || isNextGoal ? 1.0 : 0.5,
+                  child: Card(
+                    color: isUnlocked
+                        ? const Color(0xFF2C2C2C)
+                        : const Color(0xFF1E1E1E),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        side: isNextGoal
+                            ? BorderSide(
+                                color: (level['color'] as Color), width: 1)
+                            : BorderSide.none),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                level['name'] as String,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                  color:
+                                      isUnlocked ? Colors.white : Colors.grey,
+                                ),
+                              ),
+                              if (isUnlocked)
+                                const Icon(Icons.check_circle,
+                                    size: 18, color: Colors.green)
+                              else
+                                Text(
+                                  'Req: $threshold canciones',
+                                  style: const TextStyle(
+                                      fontSize: 12, color: Colors.grey),
+                                )
+                            ],
+                          ),
+                          if (isNextGoal) ...[
+                            const SizedBox(height: 8),
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(4),
+                              child: LinearProgressIndicator(
+                                value: progress,
+                                backgroundColor: Colors.grey.shade800,
+                                color: (level['color'] as Color),
+                                minHeight: 6,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '${threshold - _ownedSongs} canciones más para desbloquear',
+                              style: TextStyle(
+                                  fontSize: 11,
+                                  color: (level['color'] as Color)),
+                            )
+                          ] else if (isUnlocked) ...[
+                            const SizedBox(height: 4),
+                            const Text("¡Completado!",
+                                style:
+                                    TextStyle(fontSize: 11, color: Colors.grey))
+                          ]
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 8),
-          Text('$percentage%',
-              style: TextStyle(color: color, fontWeight: FontWeight.bold)),
-        ],
-      ),
+        ).animate().slideX(
+            begin: 0.1, end: 0, delay: (levels.indexOf(level) * 100).ms);
+      }).toList(),
     );
   }
 
-  String _formatMinutes(int minutes) {
-    if (minutes < 60) {
-      return '$minutes min';
-    }
-    final hours = minutes ~/ 60;
-    final mins = minutes % 60;
-    return '${hours}h ${mins}m';
+  String _getCurrentLevelName(int songs) {
+    if (songs >= 50) return "Diamante";
+    if (songs >= 25) return "Platino";
+    if (songs >= 10) return "Oro";
+    if (songs >= 5) return "Plata";
+    if (songs >= 1) return "Bronce";
+    return "Oyente";
   }
 }

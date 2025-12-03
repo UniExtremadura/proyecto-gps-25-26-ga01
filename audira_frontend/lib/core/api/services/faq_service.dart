@@ -8,10 +8,10 @@ class FaqService {
 
   final ApiClient _apiClient = ApiClient();
 
-  /// Get all FAQs
+  /// Get all FAQs (no auth required - public access)
   Future<ApiResponse<List<FAQ>>> getAllFaqs() async {
     try {
-      final response = await _apiClient.get('/api/faqs');
+      final response = await _apiClient.get('/api/faqs', requiresAuth: false);
 
       if (response.success && response.data != null) {
         final List<dynamic> data = response.data as List;
@@ -25,7 +25,7 @@ class FaqService {
 
       return ApiResponse(
         success: false,
-        error: response.error ?? 'Failed to fetch FAQs',
+        error: response.error ?? 'Fallo al obtener las FAQs',
         statusCode: response.statusCode,
       );
     } catch (e) {
@@ -33,10 +33,11 @@ class FaqService {
     }
   }
 
-  /// Get active FAQs only
+  /// Get active FAQs only (no auth required - public access)
   Future<ApiResponse<List<FAQ>>> getActiveFaqs() async {
     try {
-      final response = await _apiClient.get('/api/faqs/active');
+      final response =
+          await _apiClient.get('/api/faqs/active', requiresAuth: false);
 
       if (response.success && response.data != null) {
         final List<dynamic> data = response.data as List;
@@ -50,7 +51,7 @@ class FaqService {
 
       return ApiResponse(
         success: false,
-        error: response.error ?? 'Failed to fetch active FAQs',
+        error: response.error ?? 'Fallo al obtener las FAQs activas',
         statusCode: response.statusCode,
       );
     } catch (e) {
@@ -58,10 +59,11 @@ class FaqService {
     }
   }
 
-  /// Get FAQs by category
+  /// Get FAQs by category (no auth required - public access)
   Future<ApiResponse<List<FAQ>>> getFaqsByCategory(String category) async {
     try {
-      final response = await _apiClient.get('/api/faqs/category/$category');
+      final response = await _apiClient.get('/api/faqs/category/$category',
+          requiresAuth: false);
 
       if (response.success && response.data != null) {
         final List<dynamic> data = response.data as List;
@@ -75,7 +77,7 @@ class FaqService {
 
       return ApiResponse(
         success: false,
-        error: response.error ?? 'Failed to fetch FAQs by category',
+        error: response.error ?? 'Fallo al obtener las FAQs por categoría',
         statusCode: response.statusCode,
       );
     } catch (e) {
@@ -83,10 +85,11 @@ class FaqService {
     }
   }
 
-  /// Get FAQ by ID
+  /// Get FAQ by ID (no auth required - public access)
   Future<ApiResponse<FAQ>> getFaqById(int id) async {
     try {
-      final response = await _apiClient.get('/api/faqs/$id');
+      final response =
+          await _apiClient.get('/api/faqs/$id', requiresAuth: false);
 
       if (response.success && response.data != null) {
         final faq = FAQ.fromJson(response.data);
@@ -99,7 +102,7 @@ class FaqService {
 
       return ApiResponse(
         success: false,
-        error: response.error ?? 'Failed to fetch FAQ',
+        error: response.error ?? 'Fallo al obtener la FAQ',
         statusCode: response.statusCode,
       );
     } catch (e) {
@@ -107,10 +110,11 @@ class FaqService {
     }
   }
 
-  /// Increment view count for FAQ
+  /// Increment view count for FAQ (no auth required)
   Future<ApiResponse<void>> incrementViewCount(int id) async {
     try {
-      final response = await _apiClient.post('/api/faqs/$id/view');
+      final response =
+          await _apiClient.post('/api/faqs/$id/view', requiresAuth: false);
 
       if (response.success) {
         return ApiResponse(
@@ -122,7 +126,7 @@ class FaqService {
 
       return ApiResponse(
         success: false,
-        error: response.error ?? 'Failed to increment view count',
+        error: response.error ?? 'Fallo al incrementar las visitas',
         statusCode: response.statusCode,
       );
     } catch (e) {
@@ -130,10 +134,11 @@ class FaqService {
     }
   }
 
-  /// Mark FAQ as helpful
+  /// Mark FAQ as helpful (no auth required)
   Future<ApiResponse<void>> markAsHelpful(int id) async {
     try {
-      final response = await _apiClient.post('/api/faqs/$id/helpful');
+      final response =
+          await _apiClient.post('/api/faqs/$id/helpful', requiresAuth: false);
 
       if (response.success) {
         return ApiResponse(
@@ -145,7 +150,7 @@ class FaqService {
 
       return ApiResponse(
         success: false,
-        error: response.error ?? 'Failed to mark as helpful',
+        error: response.error ?? 'Fallo al marcar como útil',
         statusCode: response.statusCode,
       );
     } catch (e) {
@@ -153,10 +158,11 @@ class FaqService {
     }
   }
 
-  /// Mark FAQ as not helpful
+  /// Mark FAQ as not helpful (no auth required)
   Future<ApiResponse<void>> markAsNotHelpful(int id) async {
     try {
-      final response = await _apiClient.post('/api/faqs/$id/not-helpful');
+      final response = await _apiClient.post('/api/faqs/$id/not-helpful',
+          requiresAuth: false);
 
       if (response.success) {
         return ApiResponse(
@@ -168,7 +174,7 @@ class FaqService {
 
       return ApiResponse(
         success: false,
-        error: response.error ?? 'Failed to mark as not helpful',
+        error: response.error ?? 'Fallo al marcar como no útil',
         statusCode: response.statusCode,
       );
     } catch (e) {
@@ -205,7 +211,7 @@ class FaqService {
 
       return ApiResponse(
         success: false,
-        error: response.error ?? 'Failed to create FAQ',
+        error: response.error ?? 'Fallo al crear la FAQ',
         statusCode: response.statusCode,
       );
     } catch (e) {
@@ -241,7 +247,7 @@ class FaqService {
 
       return ApiResponse(
         success: false,
-        error: response.error ?? 'Failed to update FAQ',
+        error: response.error ?? 'Fallo al actualizar la FAQ',
         statusCode: response.statusCode,
       );
     } catch (e) {
@@ -265,7 +271,7 @@ class FaqService {
 
       return ApiResponse(
         success: false,
-        error: response.error ?? 'Failed to toggle FAQ status',
+        error: response.error ?? 'Fallo al cambiar el estado activo de la FAQ',
         statusCode: response.statusCode,
       );
     } catch (e) {
@@ -288,7 +294,7 @@ class FaqService {
 
       return ApiResponse(
         success: false,
-        error: response.error ?? 'Failed to delete FAQ',
+        error: response.error ?? 'Fallo al eliminar la FAQ',
         statusCode: response.statusCode,
       );
     } catch (e) {

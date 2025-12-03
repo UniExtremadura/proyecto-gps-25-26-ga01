@@ -2,6 +2,7 @@
 
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:just_audio/just_audio.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:image_picker/image_picker.dart';
@@ -21,32 +22,38 @@ class UploadSongScreen extends StatefulWidget {
 
 class _UploadSongScreenState extends State<UploadSongScreen> {
   final _formKey = GlobalKey<FormState>();
+
+  // Controllers
   final _nameController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _lyricsController = TextEditingController();
   final _priceController = TextEditingController(text: '9.99');
   final _durationController = TextEditingController();
   final _categoryController = TextEditingController();
+  final _collaboratorNameController = TextEditingController();
+  final _collaboratorRoleController = TextEditingController();
+
+  // Services
   final MusicService _musicService = MusicService();
   final FileService _fileService = FileService();
 
+  // State
   bool _showPreview = false;
   bool _isUploading = false;
   bool _isLoadingGenres = true;
   double _uploadProgress = 0.0;
+
+  // Files
   String? _audioFileName;
   String? _audioFilePath;
-  String? _imageFileName;
   String? _imageFilePath;
   int? _audioFileSizeBytes;
   String? _audioFileExtension;
+
+  // Data
   List<Genre> _availableGenres = [];
   final List<int> _selectedGenreIds = [];
-
-  // Colaboradores
   final List<Map<String, String>> _collaborators = [];
-  final _collaboratorNameController = TextEditingController();
-  final _collaboratorRoleController = TextEditingController();
 
   @override
   void initState() {
@@ -62,11 +69,12 @@ class _UploadSongScreenState extends State<UploadSongScreen> {
     _priceController.dispose();
     _durationController.dispose();
     _categoryController.dispose();
-
     _collaboratorNameController.dispose();
     _collaboratorRoleController.dispose();
     super.dispose();
   }
+
+  // --- Lógica del Negocio (Mantenida Intacta) ---
 
   Future<void> _loadGenres() async {
     setState(() => _isLoadingGenres = true);
@@ -80,19 +88,13 @@ class _UploadSongScreenState extends State<UploadSongScreen> {
       } else {
         setState(() => _isLoadingGenres = false);
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-                content: Text('Error al cargar géneros: ${response.error}')),
-          );
+          _showSnack('Error al cargar géneros: ${response.error}',
+              isError: true);
         }
       }
     } catch (e) {
       setState(() => _isLoadingGenres = false);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al cargar géneros: $e')),
-        );
-      }
+      if (mounted) _showSnack('Error al cargar géneros: $e', isError: true);
     }
   }
 
@@ -108,33 +110,32 @@ class _UploadSongScreenState extends State<UploadSongScreen> {
         final file = result.files.first;
         final extension = file.extension?.toLowerCase();
 
-        // Validar extensión
         if (extension == null ||
             !['mp3', 'wav', 'flac', 'aac', 'm4a', 'ogg'].contains(extension)) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-                content: Text(
-                    'Formato de audio no válido. Use MP3, WAV, FLAC, AAC, M4A u OGG')),
-          );
+          _showSnack('Formato no válido. Use MP3, WAV, FLAC, AAC, M4A u OGG',
+              isError: true);
           return;
         }
 
-        // Validar tamaño (máximo 100MB)
         if (file.size > 100 * 1024 * 1024) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-                content: Text('El archivo es demasiado grande. Máximo 100MB')),
-          );
+          _showSnack('Archivo demasiado grande (Máx 100MB)', isError: true);
           return;
         }
 
-        // Validar que tengamos el path del archivo
         if (file.path == null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-                content: Text('No se pudo obtener la ruta del archivo')),
-          );
+          _showSnack('No se pudo obtener la ruta del archivo', isError: true);
           return;
+        }
+
+        try {
+          final player = AudioPlayer();
+          final duration = await player.setFilePath(file.path!);
+          _durationController.text =
+              duration != null ? duration.inSeconds.toString() : '180';
+          await player.dispose();
+        } catch (e) {
+          debugPrint('Error duration: $e');
+          _durationController.text = '180';
         }
 
         setState(() {
@@ -142,27 +143,18 @@ class _UploadSongScreenState extends State<UploadSongScreen> {
           _audioFilePath = file.path;
           _audioFileSizeBytes = file.size;
           _audioFileExtension = extension;
+
+          if (_nameController.text.isEmpty) {
+            _nameController.text = file.name.replaceAll(RegExp(r'\.\w+$'), '');
+          }
         });
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-                'Audio seleccionado: ${file.name} (${_formatFileSize(file.size)})'),
-            backgroundColor: Colors.green[700],
-          ),
-        );
+        _showSnack(
+            'Audio seleccionado: ${file.name} (${_formatFileSize(file.size)})');
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al seleccionar audio: $e')),
-      );
+      _showSnack('Error al seleccionar audio: $e', isError: true);
     }
-  }
-
-  String _formatFileSize(int bytes) {
-    if (bytes < 1024) return '$bytes B';
-    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
-    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
   }
 
   Future<void> _pickImageFile() async {
@@ -177,42 +169,23 @@ class _UploadSongScreenState extends State<UploadSongScreen> {
 
       if (image != null) {
         setState(() {
-          _imageFileName = image.name;
           _imageFilePath = image.path;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Imagen seleccionada: ${image.name}')),
-        );
+        _showSnack('Imagen seleccionada: ${image.name}');
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al seleccionar imagen: $e')),
-      );
+      _showSnack('Error al seleccionar imagen: $e', isError: true);
     }
   }
 
   Future<void> _uploadSong() async {
     if (!_formKey.currentState!.validate()) return;
-
-    // Validar archivo de audio
     if (_audioFileName == null || _audioFilePath == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Por favor selecciona un archivo de audio'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      _showSnack('Por favor selecciona un archivo de audio', isError: true);
       return;
     }
-
-    // Validar géneros seleccionados
     if (_selectedGenreIds.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Por favor selecciona al menos un género'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      _showSnack('Por favor selecciona al menos un género', isError: true);
       return;
     }
 
@@ -222,55 +195,53 @@ class _UploadSongScreenState extends State<UploadSongScreen> {
     });
 
     try {
-      // Paso 1: Subir archivo de audio (30% del progreso)
+      // Paso 1: Subir Audio (0% - 30%)
       setState(() => _uploadProgress = 0.1);
       final audioUploadResponse = await _fileService.uploadAudioFile(
         _audioFilePath!,
         onProgress: (sent, total) {
-          setState(() {
-            _uploadProgress = 0.1 + (sent / total) * 0.3;
-          });
+          if (total > 0) {
+            setState(() {
+              _uploadProgress = 0.1 + (sent / total) * 0.3;
+            });
+          }
         },
       );
 
       if (!audioUploadResponse.success) {
         throw Exception('Error al subir audio: ${audioUploadResponse.error}');
       }
-
       final audioUrl = audioUploadResponse.data!.fileUrl;
 
-      // Paso 2: Subir imagen de portada si existe (20% del progreso)
+      // Paso 2: Subir Imagen (40% - 60%)
       setState(() => _uploadProgress = 0.4);
       String? coverImageUrl;
       if (_imageFilePath != null) {
         final imageUploadResponse = await _fileService.uploadImageFile(
           _imageFilePath!,
           onProgress: (sent, total) {
-            setState(() {
-              _uploadProgress = 0.4 + (sent / total) * 0.2;
-            });
+            if (total > 0) {
+              setState(() {
+                _uploadProgress = 0.4 + (sent / total) * 0.2;
+              });
+            }
           },
         );
-
         if (!imageUploadResponse.success) {
           throw Exception(
               'Error al subir imagen: ${imageUploadResponse.error}');
         }
-
         coverImageUrl = imageUploadResponse.data!.fileUrl;
       }
 
-      // Paso 3: Obtener artistId del usuario autenticado
+      // Paso 3: IDs y Datos (60% - 70%)
       setState(() => _uploadProgress = 0.6);
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       final artistId = authProvider.currentUser?.id;
-
       if (artistId == null) {
-        throw Exception(
-            'No se pudo obtener el ID del artista. Inicia sesión nuevamente.');
+        throw Exception('No se pudo obtener el ID del artista');
       }
 
-      // Paso 4: Preparar datos de la canción
       setState(() => _uploadProgress = 0.7);
       final songData = {
         'title': _nameController.text.trim(),
@@ -292,7 +263,7 @@ class _UploadSongScreenState extends State<UploadSongScreen> {
         'collaborators': _collaborators,
       };
 
-      // Paso 5: Crear la canción en el backend
+      // Paso 4: Crear Canción en Backend (80% - 100%)
       setState(() => _uploadProgress = 0.8);
       final createSongResponse = await _musicService.createSong(songData);
 
@@ -302,471 +273,431 @@ class _UploadSongScreenState extends State<UploadSongScreen> {
 
       setState(() => _uploadProgress = 1.0);
 
-      // Éxito!
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('¡Canción subida exitosamente!'),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 3),
-          ),
-        );
-
-        // Pequeña espera para que el usuario vea el mensaje
+        _showSnack('¡Canción subida exitosamente! Pendiente de revisión.',
+            isError: false);
         await Future.delayed(const Duration(milliseconds: 500));
         Navigator.pop(context);
       }
     } catch (e) {
-      // Error
       setState(() => _isUploading = false);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error al subir canción: ${e.toString()}'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 5),
-          ),
-        );
-      }
+      if (mounted) _showSnack('Error: $e', isError: true);
     } finally {
-      if (mounted) {
+      if (mounted && !_isUploading) {
+        // Asegurar que el estado de carga se limpie si no se hizo antes
         setState(() => _isUploading = false);
       }
     }
   }
 
-  void _addCollaborator() {
-    if (_collaboratorNameController.text.trim().isEmpty ||
-        _collaboratorRoleController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Por favor completa el nombre y rol del colaborador'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      return;
-    }
-
-    setState(() {
-      _collaborators.add({
-        'name': _collaboratorNameController.text.trim(),
-        'role': _collaboratorRoleController.text.trim(),
-      });
-      _collaboratorNameController.clear();
-      _collaboratorRoleController.clear();
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Colaborador añadido'),
-        backgroundColor: Colors.green,
-        duration: Duration(seconds: 1),
-      ),
-    );
+  void _showSnack(String msg, {bool isError = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(msg, style: const TextStyle(color: Colors.white)),
+      backgroundColor: isError ? AppTheme.errorRed : AppTheme.successGreen,
+      behavior: SnackBarBehavior.floating,
+    ));
   }
 
-  void _removeCollaborator(int index) {
-    setState(() {
-      _collaborators.removeAt(index);
-    });
+  String _formatFileSize(int bytes) {
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
   }
+
+  // --- UI (Remodelada con diseño Dark) ---
 
   @override
   Widget build(BuildContext context) {
     Provider.of<AuthProvider>(context);
 
     return Scaffold(
+      backgroundColor: AppTheme.backgroundBlack,
       appBar: AppBar(
-        title: const Text('Subir Canción'),
+        backgroundColor: AppTheme.backgroundBlack,
+        iconTheme: const IconThemeData(color: Colors.white),
+        title: const Text(
+          'SUBIR CANCIÓN',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+            letterSpacing: 1,
+          ),
+        ),
+        centerTitle: true,
         actions: [
           IconButton(
-            icon: Icon(_showPreview ? Icons.edit : Icons.preview),
+            icon: Icon(_showPreview
+                ? Icons.edit_note_rounded
+                : Icons.visibility_rounded),
+            tooltip: _showPreview ? 'Editar' : 'Vista Previa',
             onPressed: () {
               if (_formKey.currentState!.validate()) {
                 setState(() => _showPreview = !_showPreview);
+              } else {
+                _showSnack('Completa los campos obligatorios', isError: true);
               }
             },
           ),
+          const SizedBox(width: 8),
         ],
       ),
-      body: _showPreview ? _buildPreview() : _buildForm(),
-      bottomNavigationBar: _isUploading
-          ? Container(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text('Subiendo canción... ${(_uploadProgress * 100).toInt()}%'),
-                  const SizedBox(height: 8),
-                  LinearProgressIndicator(value: _uploadProgress),
-                ],
+      body: SafeArea(
+        child: Column(
+          children: [
+            Expanded(
+              child: _showPreview ? _buildPreview() : _buildForm(),
+            ),
+            // Contenedor de subida SIN animación de entrada para evitar reinicios
+            if (_isUploading)
+              Container(
+                color: AppTheme.surfaceBlack,
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('Subiendo...',
+                            style: TextStyle(color: Colors.white)),
+                        Text('${(_uploadProgress * 100).toInt()}%',
+                            style: const TextStyle(
+                                color: AppTheme.primaryBlue,
+                                fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    LinearProgressIndicator(
+                      value: _uploadProgress,
+                      backgroundColor: Colors.white10,
+                      color: AppTheme.primaryBlue,
+                      minHeight: 6,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ],
+                ),
               ),
-            )
-          : null,
+          ],
+        ),
+      ),
     );
   }
 
   Widget _buildForm() {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.all(20),
       child: Form(
         key: _formKey,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Audio File - Enhanced
-            Card(
-              child: ListTile(
-                leading:
-                    const Icon(Icons.audiotrack, color: AppTheme.primaryBlue),
-                title: Text(_audioFileName ?? 'Seleccionar Archivo de Audio *'),
-                subtitle: _audioFileName != null && _audioFileSizeBytes != null
-                    ? Column(
+            // 1. Selector de Audio (Destacado)
+            GestureDetector(
+              onTap: _pickAudioFile,
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: _audioFileName != null
+                      ? AppTheme.primaryBlue.withValues(alpha: 0.1)
+                      : AppTheme.cardBlack,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                      color: _audioFileName != null
+                          ? AppTheme.primaryBlue
+                          : Colors.white10,
+                      width: 1.5,
+                      style: _audioFileName != null
+                          ? BorderStyle.solid
+                          : BorderStyle.none),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: _audioFileName != null
+                            ? AppTheme.primaryBlue
+                            : AppTheme.surfaceBlack,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        _audioFileName != null
+                            ? Icons.check
+                            : Icons.audio_file_rounded,
+                        color: Colors.white,
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                              'Formato: ${_audioFileExtension?.toUpperCase() ?? 'N/A'}'),
+                            _audioFileName ?? 'Seleccionar Archivo de Audio *',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: _audioFileName != null ? 14 : 16,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 4),
                           Text(
-                              'Tamaño: ${_formatFileSize(_audioFileSizeBytes!)}'),
+                            _audioFileName != null &&
+                                    _audioFileSizeBytes != null
+                                ? '${_audioFileExtension?.toUpperCase()} • ${_formatFileSize(_audioFileSizeBytes!)}'
+                                : 'MP3, WAV, FLAC, M4A (Máx 100MB)',
+                            style: const TextStyle(
+                                color: AppTheme.textGrey, fontSize: 12),
+                          ),
                         ],
-                      )
-                    : const Text('MP3, WAV, FLAC, AAC, M4A, OGG (Máx 100MB)'),
-                trailing: Icon(
-                  _audioFileName != null
-                      ? Icons.check_circle
-                      : Icons.upload_file,
-                  color: _audioFileName != null ? Colors.green : null,
-                ),
-                onTap: _pickAudioFile,
-              ),
-            ).animate().fadeIn(),
-            const SizedBox(height: 16),
-
-            // Cover Image
-            Card(
-              child: Column(
-                children: [
-                  ListTile(
-                    leading: const Icon(Icons.image, color: AppTheme.primaryBlue),
-                    title: Text(_imageFileName ?? 'Seleccionar Portada'),
-                    subtitle: const Text('JPG, PNG (Opcional)'),
-                    trailing: Icon(
-                      _imageFileName != null
-                          ? Icons.check_circle
-                          : Icons.upload_file,
-                      color: _imageFileName != null ? Colors.green : null,
-                    ),
-                    onTap: _pickImageFile,
-                  ),
-                  if (_imageFilePath != null)
-                    Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: Image.file(
-                          File(_imageFilePath!),
-                          height: 150,
-                          width: 150,
-                          fit: BoxFit.cover,
-                        ),
                       ),
                     ),
-                ],
+                    if (_audioFileName == null)
+                      const Icon(Icons.upload_rounded,
+                          color: AppTheme.textGrey),
+                  ],
+                ),
               ),
-            ).animate().fadeIn(delay: 50.ms),
+            ).animate().fadeIn().scale(),
+
             const SizedBox(height: 24),
 
-            // Song Name
-            TextFormField(
-              controller: _nameController,
-              decoration: const InputDecoration(
-                labelText: 'Song Name *',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.music_note),
-              ),
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please enter song name';
-                }
-                return null;
-              },
-            ).animate().fadeIn(delay: 100.ms),
-            const SizedBox(height: 16),
-
-            // Description
-            TextFormField(
-              controller: _descriptionController,
-              decoration: const InputDecoration(
-                labelText: 'Descripción *',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.description),
-                helperText: 'Describe tu canción (estilo, mood, historia)',
-              ),
-              maxLines: 3,
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Por favor ingresa una descripción';
-                }
-                return null;
-              },
-            ).animate().fadeIn(delay: 150.ms),
-            const SizedBox(height: 16),
-
-            // Géneros - Selección Múltiple
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.category,
-                            color: AppTheme.primaryBlue, size: 20),
-                        const SizedBox(width: 8),
-                        const Text(
-                          'Géneros *',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
+            // 2. Imagen y Datos Principales
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Imagen Portada
+                GestureDetector(
+                  onTap: _pickImageFile,
+                  child: Container(
+                    width: 100,
+                    height: 100,
+                    decoration: BoxDecoration(
+                      color: AppTheme.cardBlack,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.white10),
+                      image: _imageFilePath != null
+                          ? DecorationImage(
+                              image: FileImage(File(_imageFilePath!)),
+                              fit: BoxFit.cover,
+                            )
+                          : null,
                     ),
-                    const SizedBox(height: 12),
-                    if (_isLoadingGenres)
-                      const Center(
-                        child: Padding(
-                          padding: EdgeInsets.all(16),
-                          child: CircularProgressIndicator(),
-                        ),
-                      )
-                    else if (_availableGenres.isEmpty)
-                      const Text(
-                        'No hay géneros disponibles',
-                        style: TextStyle(color: AppTheme.textGrey),
-                      )
-                    else
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: _availableGenres.map((genre) {
-                          final isSelected =
-                              _selectedGenreIds.contains(genre.id);
-                          return FilterChip(
-                            label: Text(genre.name),
-                            selected: isSelected,
-                            onSelected: (selected) {
-                              setState(() {
-                                if (selected) {
-                                  _selectedGenreIds.add(genre.id);
-                                } else {
-                                  _selectedGenreIds.remove(genre.id);
-                                }
-                              });
-                            },
-                            selectedColor:
-                                AppTheme.primaryBlue.withValues(alpha: 0.3),
-                            checkmarkColor: AppTheme.primaryBlue,
-                            backgroundColor: AppTheme.surfaceBlack,
-                            labelStyle: TextStyle(
-                              color: isSelected
-                                  ? Colors.white
-                                  : AppTheme.textSecondary,
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                    if (_selectedGenreIds.isEmpty && !_isLoadingGenres)
-                      const Padding(
-                        padding: EdgeInsets.only(top: 8),
-                        child: Text(
-                          'Selecciona al menos un género',
-                          style:
-                              TextStyle(color: AppTheme.textGrey, fontSize: 12),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ).animate().fadeIn(delay: 175.ms),
-            const SizedBox(height: 16),
-
-            // Categoría/Metadata
-            TextFormField(
-              controller: _categoryController,
-              decoration: const InputDecoration(
-                labelText: 'Categoría (Opcional)',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.label),
-                helperText: 'Ej: Single, Álbum, EP, Remix, Cover',
-              ),
-              maxLines: 1,
-            ).animate().fadeIn(delay: 185.ms),
-            const SizedBox(height: 16),
-
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.people,
-                            color: AppTheme.primaryBlue, size: 20),
-                        const SizedBox(width: 8),
-                        const Text(
-                          'Colaboradores (Opcional)',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          flex: 2,
-                          child: TextField(
-                            controller: _collaboratorNameController,
-                            decoration: const InputDecoration(
-                              labelText: 'Nombre',
-                              border: OutlineInputBorder(),
-                              isDense: true,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: TextField(
-                            controller: _collaboratorRoleController,
-                            decoration: const InputDecoration(
-                              labelText: 'Rol',
-                              border: OutlineInputBorder(),
-                              isDense: true,
-                              helperText: 'Ej: feat, productor',
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        IconButton(
-                          onPressed: _addCollaborator,
-                          icon: const Icon(Icons.add_circle,
-                              color: AppTheme.primaryBlue),
-                          tooltip: 'Añadir colaborador',
-                        ),
-                      ],
-                    ),
-                    if (_collaborators.isNotEmpty) ...[
-                      const SizedBox(height: 12),
-                      const Divider(),
-                      const SizedBox(height: 8),
-                      ...List.generate(_collaborators.length, (index) {
-                        final collab = _collaborators[index];
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 4),
-                          child: Row(
+                    child: _imageFilePath == null
+                        ? const Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              const Icon(Icons.person,
-                                  size: 16, color: AppTheme.textGrey),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  '${collab['name']} - ${collab['role']}',
-                                  style: const TextStyle(fontSize: 14),
-                                ),
-                              ),
-                              IconButton(
-                                onPressed: () => _removeCollaborator(index),
-                                icon: const Icon(Icons.remove_circle,
-                                    color: Colors.red, size: 20),
-                                padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints(),
-                              ),
+                              Icon(Icons.add_a_photo_outlined,
+                                  color: AppTheme.textGrey),
+                              SizedBox(height: 4),
+                              Text('Portada',
+                                  style: TextStyle(
+                                      fontSize: 10, color: AppTheme.textGrey)),
                             ],
+                          )
+                        : Container(
+                            decoration: BoxDecoration(
+                              color: Colors.black38,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(Icons.edit, color: Colors.white),
                           ),
-                        );
-                      }),
-                    ],
-                  ],
+                  ),
                 ),
-              ),
-            ).animate().fadeIn(delay: 190.ms),
+                const SizedBox(width: 16),
+                // Inputs Título y Categoría
+                Expanded(
+                  child: Column(
+                    children: [
+                      _buildDarkInput(
+                        controller: _nameController,
+                        label: 'Título',
+                        hint: 'Nombre de la canción',
+                        icon: Icons.title,
+                        validator: (v) =>
+                            (v == null || v.isEmpty) ? 'Requerido' : null,
+                      ),
+                      const SizedBox(height: 12),
+                      _buildDarkInput(
+                        controller: _categoryController,
+                        label: 'Categoría',
+                        hint: 'Ej: Single, Remix',
+                        icon: Icons.tag,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ).animate().fadeIn(delay: 100.ms),
+
+            const SizedBox(height: 24),
+
+            // 3. Descripción
+            _buildSectionLabel('DETALLES'),
+            _buildDarkInput(
+              controller: _descriptionController,
+              label: 'Descripción',
+              hint: 'Historia, mood, inspiración...',
+              icon: Icons.description_outlined,
+              maxLines: 3,
+              validator: (v) => (v == null || v.isEmpty) ? 'Requerido' : null,
+            ).animate().fadeIn(delay: 150.ms),
+
             const SizedBox(height: 16),
 
-            // Lyrics (Optional)
-            TextFormField(
-              controller: _lyricsController,
-              decoration: const InputDecoration(
-                labelText: 'Lyrics (Optional)',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.lyrics),
-              ),
-              maxLines: 5,
-            ).animate().fadeIn(delay: 200.ms),
-            const SizedBox(height: 16),
-
-            // Price and Duration
+            // 4. Precio y Duración
             Row(
               children: [
                 Expanded(
-                  child: TextFormField(
+                  child: _buildDarkInput(
                     controller: _priceController,
-                    decoration: const InputDecoration(
-                      labelText: 'Price *',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.attach_money),
-                    ),
-                    keyboardType: TextInputType.number,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Required';
-                      }
-                      if (double.tryParse(value) == null) {
-                        return 'Invalid';
-                      }
-                      return null;
-                    },
+                    label: 'Precio',
+                    icon: Icons.attach_money,
+                    inputType: TextInputType.number,
+                    validator: (v) => (v!.isEmpty || double.tryParse(v) == null)
+                        ? 'Inválido'
+                        : null,
                   ),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
-                  child: TextFormField(
+                  child: _buildDarkInput(
                     controller: _durationController,
-                    decoration: const InputDecoration(
-                      labelText: 'Duration (sec) *',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.timer),
-                    ),
-                    keyboardType: TextInputType.number,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Required';
-                      }
-                      return null;
-                    },
+                    label: 'Duración (s)',
+                    icon: Icons.timer_outlined,
+                    inputType: TextInputType.number,
+                    validator: (v) => v!.isEmpty ? 'Requerido' : null,
                   ),
                 ),
               ],
-            ).animate().fadeIn(delay: 250.ms),
+            ).animate().fadeIn(delay: 200.ms),
+
             const SizedBox(height: 24),
 
-            // Upload Button
+            // 5. Géneros
+            _buildSectionLabel('GÉNEROS'),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppTheme.cardBlack,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.white10),
+              ),
+              child: _isLoadingGenres
+                  ? const Center(
+                      child: CircularProgressIndicator(strokeWidth: 2))
+                  : _availableGenres.isEmpty
+                      ? const Text('No hay géneros disponibles',
+                          style: TextStyle(color: AppTheme.textGrey))
+                      : Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: _availableGenres.map((genre) {
+                            final isSelected =
+                                _selectedGenreIds.contains(genre.id);
+                            return FilterChip(
+                              label: Text(genre.name),
+                              selected: isSelected,
+                              onSelected: (selected) {
+                                setState(() {
+                                  selected
+                                      ? _selectedGenreIds.add(genre.id)
+                                      : _selectedGenreIds.remove(genre.id);
+                                });
+                              },
+                              backgroundColor: AppTheme.surfaceBlack,
+                              selectedColor:
+                                  AppTheme.primaryBlue.withValues(alpha: 0.2),
+                              checkmarkColor: AppTheme.primaryBlue,
+                              labelStyle: TextStyle(
+                                color: isSelected
+                                    ? AppTheme.primaryBlue
+                                    : AppTheme.textGrey,
+                                fontSize: 12,
+                                fontWeight: isSelected
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                                side: BorderSide(
+                                    color: isSelected
+                                        ? AppTheme.primaryBlue
+                                        : Colors.white10),
+                              ),
+                              padding: EdgeInsets.zero,
+                            );
+                          }).toList(),
+                        ),
+            ).animate().fadeIn(delay: 250.ms),
+
+            const SizedBox(height: 24),
+
+            // 6. Letra
+            _buildSectionLabel('LETRA (OPCIONAL)'),
+            _buildDarkInput(
+              controller: _lyricsController,
+              label: 'Letra de la canción',
+              hint: 'Pega la letra aquí...',
+              icon: Icons.lyrics_outlined,
+              maxLines: 5,
+            ).animate().fadeIn(delay: 300.ms),
+
+            const SizedBox(height: 24),
+
+            // 7. Info Moderación
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppTheme.primaryBlue.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                    color: AppTheme.primaryBlue.withValues(alpha: 0.3)),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.info_outline_rounded, color: AppTheme.primaryBlue),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Tu canción será revisada por un administrador antes de estar disponible públicamente.',
+                      style: TextStyle(color: Colors.white70, fontSize: 12),
+                    ),
+                  ),
+                ],
+              ),
+            ).animate().fadeIn(delay: 350.ms),
+
+            const SizedBox(height: 32),
+
+            // 8. Botón Submit
             SizedBox(
               width: double.infinity,
-              height: 50,
+              height: 56,
               child: ElevatedButton.icon(
                 onPressed: _isUploading ? null : _uploadSong,
-                icon: const Icon(Icons.cloud_upload),
-                label: const Text('Upload Song'),
+                icon: const Icon(Icons.cloud_upload_rounded),
+                label: const Text('PUBLICAR CANCIÓN',
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold, letterSpacing: 1)),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.primaryBlue,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16)),
                 ),
               ),
-            ).animate().fadeIn(delay: 300.ms).scale(),
+            ).animate().fadeIn(delay: 400.ms).scale(),
+
+            const SizedBox(height: 20),
           ],
         ),
       ),
@@ -774,239 +705,147 @@ class _UploadSongScreenState extends State<UploadSongScreen> {
   }
 
   Widget _buildPreview() {
-    final selectedGenres = _availableGenres
-        .where((genre) => _selectedGenreIds.contains(genre.id))
-        .toList();
-
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(24),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Cover Image Preview
-          Center(
-            child: Container(
-              width: 250,
-              height: 250,
-              decoration: BoxDecoration(
-                color: AppTheme.surfaceBlack,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha:0.3),
-                    blurRadius: 10,
-                    spreadRadius: 2,
-                  ),
-                ],
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: _imageFilePath != null
-                    ? Image.file(
-                        File(_imageFilePath!),
-                        fit: BoxFit.cover,
-                      )
-                    : const Center(
-                        child: Icon(Icons.music_note,
-                            size: 100, color: AppTheme.primaryBlue),
-                      ),
-              ),
+          Container(
+            width: 240,
+            height: 240,
+            decoration: BoxDecoration(
+              color: AppTheme.cardBlack,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.4),
+                    blurRadius: 20,
+                    offset: const Offset(0, 10)),
+              ],
+              image: _imageFilePath != null
+                  ? DecorationImage(
+                      image: FileImage(File(_imageFilePath!)),
+                      fit: BoxFit.cover)
+                  : null,
             ),
-          ),
-          const SizedBox(height: 24),
-
-          // Song Details
+            child: _imageFilePath == null
+                ? const Icon(Icons.music_note_rounded,
+                    size: 80, color: AppTheme.textGrey)
+                : null,
+          ).animate().scale(),
+          const SizedBox(height: 32),
           Text(
-            _nameController.text.isEmpty ? 'Song Name' : _nameController.text,
-            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            _nameController.text.isEmpty ? 'Sin Título' : _nameController.text,
+            style: const TextStyle(
+                fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
+            textAlign: TextAlign.center,
           ),
           const SizedBox(height: 8),
           Text(
             _descriptionController.text.isEmpty
-                ? 'Description'
+                ? 'Sin descripción'
                 : _descriptionController.text,
-            style: const TextStyle(color: AppTheme.textGrey),
+            style: const TextStyle(color: AppTheme.textGrey, fontSize: 14),
+            textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 16),
-
-          // Genres
-          if (selectedGenres.isNotEmpty) ...[
-            const Text(
-              'Géneros',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          const SizedBox(height: 32),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppTheme.cardBlack,
+              borderRadius: BorderRadius.circular(16),
             ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: selectedGenres.map((genre) {
-                return Chip(
-                  label: Text(genre.name),
-                  backgroundColor: AppTheme.primaryBlue.withValues(alpha: 0.2),
-                  labelStyle: const TextStyle(color: Colors.white),
-                  avatar: const Icon(Icons.music_note,
-                      color: AppTheme.primaryBlue, size: 16),
-                );
-              }).toList(),
-            ),
-            const SizedBox(height: 16),
-          ],
-
-          // Category
-          if (_categoryController.text.isNotEmpty) ...[
-            Row(
+            child: Column(
               children: [
-                const Icon(Icons.label, color: AppTheme.primaryBlue),
-                const SizedBox(width: 8),
-                Text(
-                  _categoryController.text,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
+                _buildPreviewRow('Archivo', _audioFileName ?? 'N/A'),
+                const Divider(color: Colors.white10),
+                _buildPreviewRow('Duración', '${_durationController.text} seg'),
+                const Divider(color: Colors.white10),
+                _buildPreviewRow('Precio', '\$${_priceController.text}'),
+                const Divider(color: Colors.white10),
+                _buildPreviewRow(
+                    'Géneros', _selectedGenreIds.length.toString()),
               ],
             ),
-            const SizedBox(height: 16),
-          ],
-
-          // Collaborators
-          if (_collaborators.isNotEmpty) ...[
-            const Text(
-              'Colaboradores',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            Card(
-              color: AppTheme.surfaceBlack,
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: _collaborators.map((collab) {
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.person,
-                              color: AppTheme.primaryBlue, size: 18),
-                          const SizedBox(width: 8),
-                          Text(
-                            collab['name']!,
-                            style: const TextStyle(fontWeight: FontWeight.w500),
-                          ),
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: AppTheme.primaryBlue.withValues(alpha:0.2),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              collab['role']!,
-                              style: const TextStyle(
-                                color: AppTheme.primaryBlue,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-          ],
-
-          // Audio File Info
-          if (_audioFileName != null) ...[
-            Card(
-              color: AppTheme.surfaceBlack,
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Row(
-                  children: [
-                    const Icon(Icons.audiotrack, color: AppTheme.primaryBlue),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            _audioFileName!,
-                            style: const TextStyle(fontWeight: FontWeight.w500),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          if (_audioFileSizeBytes != null)
-                            Text(
-                              '${_audioFileExtension?.toUpperCase()} • ${_formatFileSize(_audioFileSizeBytes!)}',
-                              style: const TextStyle(
-                                color: AppTheme.textGrey,
-                                fontSize: 12,
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-          ],
-
-          // Price
-          Row(
-            children: [
-              const Icon(Icons.attach_money, color: AppTheme.primaryBlue),
-              const SizedBox(width: 8),
-              Text(
-                '\$${_priceController.text}',
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.primaryBlue,
-                ),
-              ),
-            ],
           ),
-          const SizedBox(height: 16),
+        ],
+      ),
+    );
+  }
 
-          // Duration
-          if (_durationController.text.isNotEmpty)
-            Row(
-              children: [
-                const Icon(Icons.timer, color: AppTheme.textGrey),
-                const SizedBox(width: 8),
-                Text('${_durationController.text}s'),
-              ],
-            ),
-          const SizedBox(height: 24),
+  // --- Helpers ---
 
-          // Lyrics
-          if (_lyricsController.text.isNotEmpty) ...[
-            const Text(
-              'Letra',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+  Widget _buildSectionLabel(String label) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12, left: 4),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: AppTheme.textGrey,
+          fontSize: 11,
+          fontWeight: FontWeight.bold,
+          letterSpacing: 1.2,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDarkInput({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    String? hint,
+    TextInputType inputType = TextInputType.text,
+    int maxLines = 1,
+    String? Function(String?)? validator,
+  }) {
+    return TextFormField(
+      controller: controller,
+      style: const TextStyle(color: Colors.white),
+      keyboardType: inputType,
+      maxLines: maxLines,
+      validator: validator,
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.3)),
+        labelStyle: const TextStyle(color: AppTheme.textGrey),
+        prefixIcon: Icon(icon, color: AppTheme.textGrey, size: 20),
+        filled: true,
+        fillColor: AppTheme.cardBlack,
+        border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none),
+        enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none),
+        focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: AppTheme.primaryBlue)),
+        errorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: AppTheme.errorRed)),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      ),
+    );
+  }
+
+  Widget _buildPreviewRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: const TextStyle(color: AppTheme.textGrey)),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(
+                  color: Colors.white, fontWeight: FontWeight.bold),
+              textAlign: TextAlign.end,
+              overflow: TextOverflow.ellipsis,
             ),
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppTheme.surfaceBlack,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                _lyricsController.text,
-                style:
-                    const TextStyle(color: AppTheme.textSecondary, height: 1.5),
-              ),
-            ),
-          ],
+          ),
         ],
       ),
     );

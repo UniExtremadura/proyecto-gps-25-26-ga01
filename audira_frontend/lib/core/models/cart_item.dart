@@ -132,7 +132,8 @@ class Cart extends Equatable {
   }
 
   @override
-  List<Object?> get props => [id, userId, items, totalAmount, createdAt, updatedAt];
+  List<Object?> get props =>
+      [id, userId, items, totalAmount, createdAt, updatedAt];
 }
 
 class CartItemDetail extends Equatable {
@@ -168,7 +169,7 @@ class CartItemDetail extends Equatable {
     if (cartItem.itemType == 'SONG' && song != null) {
       return song!.artistName;
     } else if (cartItem.itemType == 'ALBUM' && album != null) {
-      return 'Album';
+      return album!.artistName;
     }
     return 'Unknown Artist';
   }

@@ -24,7 +24,9 @@ spring:
 services:
   user:
     url: http://api-gateway:8080/api/users
-
+  catalog:
+    url: http://172.16.0.4:9002/api
+    
 eureka:
   client:
     service-url:

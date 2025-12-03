@@ -3,6 +3,7 @@ import 'package:equatable/equatable.dart';
 class Album extends Equatable {
   final int id;
   final int artistId;
+  final String artistName; // Nombre del artista
   final String name;
   final String? description;
   final double price;
@@ -16,10 +17,16 @@ class Album extends Equatable {
   final DateTime? updatedAt;
   final bool published;
   final int? songCount;
+  // GA01-162: Campos de moderación
+  final String? moderationStatus; // PENDING, APPROVED, REJECTED
+  final String? rejectionReason;
+  final int? moderatedBy;
+  final DateTime? moderatedAt;
 
   const Album({
     required this.id,
     required this.artistId,
+    required this.artistName,
     required this.name,
     this.description,
     required this.price,
@@ -33,16 +40,35 @@ class Album extends Equatable {
     this.updatedAt,
     this.published = false,
     this.songCount,
+    this.moderationStatus,
+    this.rejectionReason,
+    this.moderatedBy,
+    this.moderatedAt,
   });
 
   double get discountedPrice {
     return price * (1 - discountPercentage / 100);
   }
 
+  // GA01-162: Helper para obtener el nombre del estado de moderación
+  String get moderationStatusDisplay {
+    switch (moderationStatus) {
+      case 'PENDING':
+        return 'En revisión';
+      case 'APPROVED':
+        return 'Aprobado';
+      case 'REJECTED':
+        return 'Rechazado';
+      default:
+        return 'Desconocido';
+    }
+  }
+
   factory Album.fromJson(Map<String, dynamic> json) {
     return Album(
       id: json['id'] as int,
       artistId: json['artistId'] as int,
+      artistName: json['artistName'] as String? ?? 'Artista Desconocido',
       name: json['title'] as String,
       description: json['description'] as String?,
       price: (json['price'] as num).toDouble(),
@@ -64,7 +90,13 @@ class Album extends Equatable {
           ? DateTime.parse(json['updatedAt'] as String)
           : null,
       published: json['published'] as bool? ?? false,
-      songCount: json['songCount'] as int?, 
+      songCount: json['songCount'] as int?,
+      moderationStatus: json['moderationStatus'] as String?,
+      rejectionReason: json['rejectionReason'] as String?,
+      moderatedBy: json['moderatedBy'] as int?,
+      moderatedAt: json['moderatedAt'] != null
+          ? DateTime.parse(json['moderatedAt'] as String)
+          : null,
     );
   }
 
@@ -72,6 +104,7 @@ class Album extends Equatable {
     return {
       'id': id,
       'artistId': artistId,
+      'artistName': artistName,
       'title': name,
       'description': description,
       'price': price,
@@ -84,13 +117,18 @@ class Album extends Equatable {
       'createdAt': createdAt?.toIso8601String(),
       'updatedAt': updatedAt?.toIso8601String(),
       'published': published,
-      'songCount': songCount
+      'songCount': songCount,
+      'moderationStatus': moderationStatus,
+      'rejectionReason': rejectionReason,
+      'moderatedBy': moderatedBy,
+      'moderatedAt': moderatedAt?.toIso8601String(),
     };
   }
 
   Album copyWith({
     int? id,
     int? artistId,
+    String? artistName,
     String? name,
     String? description,
     double? price,
@@ -104,10 +142,15 @@ class Album extends Equatable {
     DateTime? updatedAt,
     bool? published,
     int? songCount,
+    String? moderationStatus,
+    String? rejectionReason,
+    int? moderatedBy,
+    DateTime? moderatedAt,
   }) {
     return Album(
       id: id ?? this.id,
       artistId: artistId ?? this.artistId,
+      artistName: artistName ?? this.artistName,
       name: name ?? this.name,
       description: description ?? this.description,
       price: price ?? this.price,
@@ -121,6 +164,10 @@ class Album extends Equatable {
       updatedAt: updatedAt ?? this.updatedAt,
       published: published ?? this.published,
       songCount: songCount ?? this.songCount,
+      moderationStatus: moderationStatus ?? this.moderationStatus,
+      rejectionReason: rejectionReason ?? this.rejectionReason,
+      moderatedBy: moderatedBy ?? this.moderatedBy,
+      moderatedAt: moderatedAt ?? this.moderatedAt,
     );
   }
 
@@ -128,6 +175,7 @@ class Album extends Equatable {
   List<Object?> get props => [
         id,
         artistId,
+        artistName,
         name,
         description,
         price,
@@ -141,5 +189,9 @@ class Album extends Equatable {
         updatedAt,
         published,
         songCount,
+        moderationStatus,
+        rejectionReason,
+        moderatedBy,
+        moderatedAt,
       ];
 }

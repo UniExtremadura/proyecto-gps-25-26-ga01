@@ -19,7 +19,8 @@ class UserService {
           data: User.fromJson(response.data as Map<String, dynamic>),
         );
       } catch (e) {
-        return ApiResponse(success: false, error: 'Error al parsear usuario: $e');
+        return ApiResponse(
+            success: false, error: 'Error al parsear usuario: $e');
       }
     }
     return ApiResponse(success: false, error: response.error);
@@ -39,7 +40,8 @@ class UserService {
           data: User.fromJson(response.data as Map<String, dynamic>),
         );
       } catch (e) {
-        return ApiResponse(success: false, error: 'Error al parsear perfil: $e');
+        return ApiResponse(
+            success: false, error: 'Error al parsear perfil: $e');
       }
     }
     return ApiResponse(success: false, error: response.error);
@@ -60,7 +62,36 @@ class UserService {
             .toList();
         return ApiResponse(success: true, data: users);
       } catch (e) {
-        return ApiResponse(success: false, error: 'Error al parsear usuarios: $e');
+        return ApiResponse(
+            success: false, error: 'Error al parsear usuarios: $e');
+      }
+    }
+    return ApiResponse(success: false, error: response.error);
+  }
+
+  /// Search artists by name
+  /// GA01-154: Search artists for collaboration invitations
+  Future<ApiResponse<List<User>>> searchArtists(String query) async {
+    if (query.trim().isEmpty) {
+      return ApiResponse(success: true, data: []);
+    }
+
+    final response = await _apiClient.get(
+      '/api/users/search/artists',
+      queryParameters: {'query': query},
+      requiresAuth: true,
+    );
+
+    if (response.success && response.data != null) {
+      try {
+        final List<dynamic> usersJson = response.data as List<dynamic>;
+        final artists = usersJson
+            .map((json) => User.fromJson(json as Map<String, dynamic>))
+            .toList();
+        return ApiResponse(success: true, data: artists);
+      } catch (e) {
+        return ApiResponse(
+            success: false, error: 'Error al buscar artistas: $e');
       }
     }
     return ApiResponse(success: false, error: response.error);
@@ -81,7 +112,8 @@ class UserService {
             .toList();
         return ApiResponse(success: true, data: users);
       } catch (e) {
-        return ApiResponse(success: false, error: 'Error al parsear seguidores: $e');
+        return ApiResponse(
+            success: false, error: 'Error al parsear seguidores: $e');
       }
     }
     return ApiResponse(success: false, error: response.error);
@@ -102,7 +134,8 @@ class UserService {
             .toList();
         return ApiResponse(success: true, data: users);
       } catch (e) {
-        return ApiResponse(success: false, error: 'Error al parsear siguiendo: $e');
+        return ApiResponse(
+            success: false, error: 'Error al parsear siguiendo: $e');
       }
     }
     return ApiResponse(success: false, error: response.error);
@@ -123,7 +156,8 @@ class UserService {
             .toList();
         return ApiResponse(success: true, data: artists);
       } catch (e) {
-        return ApiResponse(success: false, error: 'Error al parsear artistas: $e');
+        return ApiResponse(
+            success: false, error: 'Error al parsear artistas: $e');
       }
     }
     return ApiResponse(success: false, error: response.error);
@@ -143,7 +177,8 @@ class UserService {
           data: User.fromJson(response.data as Map<String, dynamic>),
         );
       } catch (e) {
-        return ApiResponse(success: false, error: 'Error al seguir usuario: $e');
+        return ApiResponse(
+            success: false, error: 'Error al seguir usuario: $e');
       }
     }
     return ApiResponse(success: false, error: response.error);
@@ -163,7 +198,8 @@ class UserService {
           data: User.fromJson(response.data as Map<String, dynamic>),
         );
       } catch (e) {
-        return ApiResponse(success: false, error: 'Error al dejar de seguir: $e');
+        return ApiResponse(
+            success: false, error: 'Error al dejar de seguir: $e');
       }
     }
     return ApiResponse(success: false, error: response.error);
@@ -186,7 +222,8 @@ class UserService {
           data: User.fromJson(response.data as Map<String, dynamic>),
         );
       } catch (e) {
-        return ApiResponse(success: false, error: 'Error al actualizar perfil: $e');
+        return ApiResponse(
+            success: false, error: 'Error al actualizar perfil: $e');
       }
     }
     return ApiResponse(success: false, error: response.error);

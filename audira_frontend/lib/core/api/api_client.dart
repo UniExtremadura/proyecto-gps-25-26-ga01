@@ -153,8 +153,11 @@ class ApiClient {
     }
   }
 
+  // En ApiClient class
   Future<ApiResponse<T>> delete<T>(
     String endpoint, {
+    // Nuevo: Permite enviar datos en el cuerpo (e.g., para desregistro de FCM)
+    Map<String, dynamic>? body, 
     Map<String, String>? queryParameters,
     bool requiresAuth = true,
   }) async {
@@ -178,6 +181,8 @@ class ApiClient {
       final response = await http.delete(
         uri,
         headers: _getHeaders(includeAuth: requiresAuth, token: token),
+        // Lógica de corrección: Si 'body' existe, lo codifica a JSON. Si es null, envía null (sin cuerpo).
+        body: body != null ? jsonEncode(body) : null, 
       );
 
       return _handleResponse<T>(response);

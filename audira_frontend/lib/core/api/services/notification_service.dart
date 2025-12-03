@@ -1,4 +1,9 @@
+import 'dart:async';
+import 'dart:convert';
 import 'package:audira_frontend/core/api/api_client.dart';
+import 'package:audira_frontend/core/api/services/local_notification_service.dart';
+import 'package:flutter/foundation.dart';
+import '../../models/notification_model.dart'; // Asegúrate de importar el modelo
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -6,16 +11,38 @@ class NotificationService {
   NotificationService._internal();
 
   final ApiClient _apiClient = ApiClient();
+  final LocalNotificationService _localNotifications =
+      LocalNotificationService();
 
-  /// Get user's notifications
-  Future<ApiResponse<List<dynamic>>> getUserNotifications(int userId) async {
+  Timer? _pollingTimer;
+  int? _currentUserId;
+  Set<int> _seenNotificationIds = {};
+  bool _isPolling = false;
+
+  /// Get user's notifications (Paginado)
+  /// Devuelve una lista de notificaciones y un booleano indicando si es la última página
+  Future<ApiResponse<Map<String, dynamic>>> getUserNotifications(int userId,
+      {int page = 0, int size = 20}) async {
     try {
-      final response = await _apiClient.get('/api/notifications/user/$userId');
+      // Agregamos query params para la paginación de Spring Boot
+      final response = await _apiClient
+          .get('/api/notifications/user/$userId?page=$page&size=$size');
 
       if (response.success && response.data != null) {
+        // Spring devuelve un objeto Page: { "content": [], "last": false, ... }
+        final dataMap = response.data as Map<String, dynamic>;
+        final List<dynamic> content = dataMap['content'] ?? [];
+        final bool last = dataMap['last'] ?? true;
+
+        final notifications =
+            content.map((json) => NotificationModel.fromJson(json)).toList();
+
         return ApiResponse(
           success: true,
-          data: response.data as List<dynamic>,
+          data: {
+            'notifications': notifications,
+            'isLastPage': last,
+          },
           statusCode: response.statusCode,
         );
       }
@@ -37,9 +64,13 @@ class NotificationService {
           await _apiClient.get('/api/notifications/user/$userId/unread/count');
 
       if (response.success && response.data != null) {
+        // El backend devuelve map: {"count": 5}
+        final count =
+            (response.data is Map) ? response.data['count'] : response.data;
+
         return ApiResponse(
           success: true,
-          data: response.data as int,
+          data: count as int,
           statusCode: response.statusCode,
         );
       }
@@ -55,22 +86,22 @@ class NotificationService {
   }
 
   /// Mark notification as read
-  Future<ApiResponse<void>> markAsRead(int notificationId) async {
+  Future<ApiResponse<NotificationModel>> markAsRead(int notificationId) async {
     try {
       final response =
           await _apiClient.patch('/api/notifications/$notificationId/read');
 
-      if (response.success) {
+      if (response.success && response.data != null) {
         return ApiResponse(
           success: true,
-          data: null,
+          data: NotificationModel.fromJson(response.data),
           statusCode: response.statusCode,
         );
       }
 
       return ApiResponse(
         success: false,
-        error: response.error ?? 'Failed to mark notification as read',
+        error: response.error ?? 'Failed to mark as read',
         statusCode: response.statusCode,
       );
     } catch (e) {
@@ -94,7 +125,7 @@ class NotificationService {
 
       return ApiResponse(
         success: false,
-        error: response.error ?? 'Failed to mark all notifications as read',
+        error: response.error ?? 'Failed to mark all as read',
         statusCode: response.statusCode,
       );
     } catch (e) {
@@ -126,27 +157,101 @@ class NotificationService {
     }
   }
 
-  /// Delete all notifications for user
-  Future<ApiResponse<void>> deleteAllNotifications(int userId) async {
-    try {
-      final response =
-          await _apiClient.delete('/api/notifications/user/$userId');
-
-      if (response.success) {
-        return ApiResponse(
-          success: true,
-          data: null,
-          statusCode: response.statusCode,
-        );
-      }
-
-      return ApiResponse(
-        success: false,
-        error: response.error ?? 'Failed to delete all notifications',
-        statusCode: response.statusCode,
-      );
-    } catch (e) {
-      return ApiResponse(success: false, error: e.toString());
+  /// Start polling for new notifications
+  Future<void> startPolling(int userId,
+      {Duration interval = const Duration(seconds: 30)}) async {
+    if (_isPolling && _currentUserId == userId) {
+      debugPrint('Already polling for user $userId');
+      return;
     }
+
+    stopPolling();
+
+    _currentUserId = userId;
+    _isPolling = true;
+
+    // Initialize local notifications
+    await _localNotifications.initialize();
+    await _localNotifications.requestPermissions();
+
+    // Load initial notifications to populate seen IDs
+    final initialResponse =
+        await getUserNotifications(userId, page: 0, size: 20);
+    if (initialResponse.success && initialResponse.data != null) {
+      final notifications =
+          initialResponse.data!['notifications'] as List<NotificationModel>;
+      _seenNotificationIds = notifications.map((n) => n.id).toSet();
+    }
+
+    // Start periodic polling
+    _pollingTimer = Timer.periodic(interval, (timer) async {
+      await _checkForNewNotifications(userId);
+    });
+
+    debugPrint(
+        'Started polling notifications for user $userId every ${interval.inSeconds}s');
+  }
+
+  /// Stop polling for notifications
+  void stopPolling() {
+    _pollingTimer?.cancel();
+    _pollingTimer = null;
+    _isPolling = false;
+    _currentUserId = null;
+    debugPrint('Stopped polling notifications');
+  }
+
+  /// Check for new notifications and show local push notifications
+  Future<void> _checkForNewNotifications(int userId) async {
+    try {
+      final response = await getUserNotifications(userId, page: 0, size: 20);
+
+      if (response.success && response.data != null) {
+        final notifications =
+            response.data!['notifications'] as List<NotificationModel>;
+
+        for (var notification in notifications) {
+          // Only show notification if it's new and unread
+          if (!_seenNotificationIds.contains(notification.id) &&
+              !notification.isRead) {
+            _seenNotificationIds.add(notification.id);
+            await _showLocalNotification(notification);
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error checking for new notifications: $e');
+    }
+  }
+
+  /// Show local push notification based on notification type
+  Future<void> _showLocalNotification(NotificationModel notification) async {
+    try {
+      // Create payload with navigation information
+      final payload = jsonEncode({
+        'type': notification.type,
+        'referenceId': notification.referenceId,
+        'referenceType': notification.referenceType,
+        'notificationId': notification.id,
+      });
+
+      // All notification types are now handled uniformly with high priority
+      await _localNotifications.showNotification(
+        id: notification.id,
+        title: notification.title,
+        body: notification.message,
+        payload: payload,
+        priority: NotificationPriority.high,
+      );
+
+      debugPrint('Local notification shown: ${notification.title} (type: ${notification.type})');
+    } catch (e) {
+      debugPrint('Error showing local notification: $e');
+    }
+  }
+
+  /// Dispose resources
+  void dispose() {
+    stopPolling();
   }
 }

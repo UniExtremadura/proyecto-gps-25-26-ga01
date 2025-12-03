@@ -23,6 +23,14 @@ class CartProvider with ChangeNotifier {
   double get totalAmount => _cart?.totalAmount ?? 0.0;
   List<CartItemDetail> get cartItemDetails => _cartItemDetails;
 
+  // Check if an item is in the cart
+  bool isItemInCart(String itemType, int itemId) {
+    if (_cart == null || _cart!.items.isEmpty) return false;
+    return _cart!.items.any(
+      (item) => item.itemType == itemType && item.itemId == itemId,
+    );
+  }
+
   // Tax calculations (IVA 21%)
   static const double taxRate = 0.21;
 
@@ -83,11 +91,29 @@ class CartProvider with ChangeNotifier {
         final songResponse = await _musicService.getSongById(item.itemId);
         if (songResponse.success && songResponse.data != null) {
           song = songResponse.data;
+
+          // Cargar el nombre del artista
+          final artistResponse =
+              await _musicService.getArtistById(song!.artistId);
+          if (artistResponse.success && artistResponse.data != null) {
+            song = song.copyWith(
+                artistName: artistResponse.data!.artistName ??
+                    artistResponse.data!.username);
+          }
         }
       } else if (item.itemType == 'ALBUM') {
         final albumResponse = await _musicService.getAlbumById(item.itemId);
         if (albumResponse.success && albumResponse.data != null) {
           album = albumResponse.data;
+
+          // Cargar el nombre del artista
+          final artistResponse =
+              await _musicService.getArtistById(album!.artistId);
+          if (artistResponse.success && artistResponse.data != null) {
+            album = album.copyWith(
+                artistName: artistResponse.data!.artistName ??
+                    artistResponse.data!.username);
+          }
         }
       }
 
@@ -147,7 +173,8 @@ class CartProvider with ChangeNotifier {
     int quantity = 1,
   }) async {
     try {
-      debugPrint('CartProvider.addToCart called - userId: $userId, itemType: $itemType, itemId: $itemId, price: $price');
+      debugPrint(
+          'CartProvider.addToCart called - userId: $userId, itemType: $itemType, itemId: $itemId, price: $price');
 
       // Check if the item already exists in the cart (prevent duplicates for digital products)
       if (_cart != null) {
@@ -175,14 +202,16 @@ class CartProvider with ChangeNotifier {
         quantity: 1, // Always 1 for digital products
       );
 
-      debugPrint('CartService.addToCart response - success: ${response.success}, error: ${response.error}, statusCode: ${response.statusCode}');
+      debugPrint(
+          'CartService.addToCart response - success: ${response.success}, error: ${response.error}, statusCode: ${response.statusCode}');
 
       if (response.success && response.data != null) {
         _cart = response.data;
         debugPrint('Cart updated - items count: ${_cart!.items.length}');
 
         await _loadCartItemDetails();
-        debugPrint('Cart item details loaded - count: ${_cartItemDetails.length}');
+        debugPrint(
+            'Cart item details loaded - count: ${_cartItemDetails.length}');
 
         await _saveCartToLocal(userId);
 
@@ -192,7 +221,8 @@ class CartProvider with ChangeNotifier {
       }
 
       _isLoading = false;
-      debugPrint('addToCart failed - success: ${response.success}, data null: ${response.data == null}');
+      debugPrint(
+          'addToCart failed - success: ${response.success}, data null: ${response.data == null}');
       notifyListeners();
       return false;
     } catch (e) {
@@ -221,15 +251,18 @@ class CartProvider with ChangeNotifier {
   }
 
   Future<bool> removeItem(int userId, int itemId) async {
-    debugPrint('CartProvider.removeItem called - userId: $userId, itemId: $itemId');
+    debugPrint(
+        'CartProvider.removeItem called - userId: $userId, itemId: $itemId');
 
     final response = await _cartService.removeFromCart(userId, itemId);
 
-    debugPrint('CartService.removeFromCart response - success: ${response.success}, error: ${response.error}');
+    debugPrint(
+        'CartService.removeFromCart response - success: ${response.success}, error: ${response.error}');
 
     if (response.success && response.data != null) {
       _cart = response.data;
-      debugPrint('Cart updated after removal - items count: ${_cart!.items.length}');
+      debugPrint(
+          'Cart updated after removal - items count: ${_cart!.items.length}');
 
       await _loadCartItemDetails();
       await _saveCartToLocal(userId);
@@ -237,7 +270,8 @@ class CartProvider with ChangeNotifier {
       return true;
     }
 
-    debugPrint('removeItem failed - success: ${response.success}, data null: ${response.data == null}');
+    debugPrint(
+        'removeItem failed - success: ${response.success}, data null: ${response.data == null}');
     return false;
   }
 
@@ -246,7 +280,8 @@ class CartProvider with ChangeNotifier {
 
     try {
       final response = await _cartService.clearCart(userId);
-      debugPrint('CartService.clearCart response - success: ${response.success}');
+      debugPrint(
+          'CartService.clearCart response - success: ${response.success}');
 
       // Clear local state regardless of server response
       _cart = null;
