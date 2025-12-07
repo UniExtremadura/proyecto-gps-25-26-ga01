@@ -162,7 +162,7 @@ class _CollaborationInvitationsScreenState
         elevation: 0,
         centerTitle: false,
         title: const Text(
-          'Collaboration Requests',
+          'Peticiones de colaboración',
           style: TextStyle(
               color: AppTheme.primaryBlue, fontWeight: FontWeight.w800),
         ),
@@ -176,7 +176,7 @@ class _CollaborationInvitationsScreenState
             child: IconButton(
               icon: Icon(Icons.refresh, color: AppTheme.primaryBlue),
               onPressed: _loadInvitations,
-              tooltip: 'Refresh',
+              tooltip: 'Refrescar',
             ),
           ),
         ],
@@ -209,13 +209,13 @@ class _CollaborationInvitationsScreenState
           ),
           const SizedBox(height: 24),
           Text(
-            'All caught up!',
+            '¡Estás al día!',
             style: TextStyle(
                 fontSize: 20, fontWeight: FontWeight.bold, color: lightText),
           ),
           const SizedBox(height: 8),
           Text(
-            'No pending collaboration requests.',
+            'No tienes peticiones de colaboración.',
             style: TextStyle(color: subText),
           ),
         ],
@@ -236,7 +236,7 @@ class _CollaborationInvitationsScreenState
             onPressed: _loadInvitations,
             style:
                 ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryBlue),
-            child: const Text('Try Again'),
+            child: const Text('Reintentar'),
           ),
         ],
       ),
@@ -334,7 +334,7 @@ class _CollaborationInvitationsScreenState
                           Icon(Icons.access_time_filled,
                               size: 12, color: Colors.orangeAccent),
                           SizedBox(width: 4),
-                          Text('PENDING',
+                          Text('Pendiente',
                               style: TextStyle(
                                   color: Colors.orangeAccent,
                                   fontSize: 10,
@@ -377,7 +377,7 @@ class _CollaborationInvitationsScreenState
                           shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12)),
                         ),
-                        child: const Text('Decline'),
+                        child: const Text('Rechazar'),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -392,7 +392,7 @@ class _CollaborationInvitationsScreenState
                               borderRadius: BorderRadius.circular(12)),
                           elevation: 0,
                         ),
-                        child: const Text('Accept & Join'),
+                        child: const Text('Aceptar y unirse'),
                       ),
                     ),
                   ],
@@ -440,7 +440,7 @@ class _CollaborationInvitationsScreenState
               const Icon(Icons.monetization_on,
                   size: 18, color: Colors.greenAccent),
               const SizedBox(width: 8),
-              Text('Revenue Share Offer',
+              Text('Oferta de participación en los ingresos',
                   style:
                       TextStyle(color: Colors.greenAccent[100], fontSize: 13)),
             ],

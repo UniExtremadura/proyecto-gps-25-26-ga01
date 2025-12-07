@@ -122,7 +122,7 @@ class _LibraryScreenState extends State<LibraryScreen>
         });
       }
     } catch (e) {
-      debugPrint("Error loading genres: $e");
+      debugPrint("Error cargando los géneros: $e");
       if (mounted) setState(() => _isLoadingGenres = false);
     }
   }

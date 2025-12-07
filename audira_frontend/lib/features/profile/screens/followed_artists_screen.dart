@@ -46,7 +46,7 @@ class _FollowedArtistsScreenState extends State<FollowedArtistsScreen> {
 
     if (userId == null) {
       setState(() {
-        _error = 'User not identified. Please login.';
+        _error = 'Usuario desconocido.';
         _isLoading = false;
       });
       return;
@@ -62,7 +62,7 @@ class _FollowedArtistsScreenState extends State<FollowedArtistsScreen> {
       });
     } else {
       setState(() {
-        _error = response.error ?? 'Failed to load artists.';
+        _error = response.error ?? 'Fallo al cargar artistas.';
         _isLoading = false;
       });
     }
@@ -78,14 +78,14 @@ class _FollowedArtistsScreenState extends State<FollowedArtistsScreen> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: darkCardBg,
-        title: const Text('Unfollow Artist',
+        title: const Text('Dejar de seguir',
             style: TextStyle(color: Colors.white)),
-        content: Text('Stop following ${artist.fullName}?',
+        content: Text('Seguir ${artist.fullName}?',
             style: TextStyle(color: subText)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: const Text('Cancelar'),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
@@ -93,7 +93,7 @@ class _FollowedArtistsScreenState extends State<FollowedArtistsScreen> {
               backgroundColor: Colors.red[900],
               foregroundColor: Colors.white,
             ),
-            child: const Text('Unfollow'),
+            child: const Text('Dejar de seguir'),
           ),
         ],
       ),
@@ -112,7 +112,7 @@ class _FollowedArtistsScreenState extends State<FollowedArtistsScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Unfollowed ${artist.fullName}'),
+            content: Text('Has dejado de seguir a ${artist.fullName}'),
             backgroundColor: Colors.orange,
           ),
         );
@@ -121,7 +121,7 @@ class _FollowedArtistsScreenState extends State<FollowedArtistsScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(response.error ?? 'Failed to unfollow'),
+            content: Text(response.error ?? 'Fallo al dejar de seguir'),
             backgroundColor: Colors.red[900],
           ),
         );
@@ -136,7 +136,7 @@ class _FollowedArtistsScreenState extends State<FollowedArtistsScreen> {
     return Scaffold(
       backgroundColor: darkBg,
       appBar: AppBar(
-        title: const Text('Following',
+        title: const Text('Siguiendo',
             style: TextStyle(
                 color: AppTheme.primaryBlue, fontWeight: FontWeight.w800)),
         backgroundColor: darkBg,
@@ -165,7 +165,7 @@ class _FollowedArtistsScreenState extends State<FollowedArtistsScreen> {
               onPressed: _loadFollowedArtists,
               style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.primaryBlue),
-              child: const Text('Retry'),
+              child: const Text('Reintentar'),
             ),
           ],
         ),
@@ -189,13 +189,13 @@ class _FollowedArtistsScreenState extends State<FollowedArtistsScreen> {
             ),
             const SizedBox(height: 24),
             Text(
-              'No artists followed yet',
+              'Aún no sigues a ningún artista',
               style: TextStyle(
                   fontSize: 20, fontWeight: FontWeight.bold, color: lightText),
             ),
             const SizedBox(height: 8),
             Text(
-              'Explore and follow your favorite artists',
+              'Explora a tus artistas favoritos',
               style: TextStyle(color: subText),
             ),
           ],
@@ -294,7 +294,7 @@ class _FollowedArtistsScreenState extends State<FollowedArtistsScreen> {
                           Icon(Icons.people, size: 12, color: subText),
                           const SizedBox(width: 4),
                           Text(
-                            '${artist.followerIds.length} followers',
+                            '${artist.followerIds.length} seguidores',
                             style: TextStyle(color: subText, fontSize: 11),
                           ),
                         ],
@@ -316,7 +316,8 @@ class _FollowedArtistsScreenState extends State<FollowedArtistsScreen> {
                         borderRadius: BorderRadius.circular(20)),
                     minimumSize: const Size(0, 32),
                   ),
-                  child: const Text('Unfollow', style: TextStyle(fontSize: 12)),
+                  child: const Text('Dejar de seguir',
+                      style: TextStyle(fontSize: 12)),
                 )
               ],
             ),

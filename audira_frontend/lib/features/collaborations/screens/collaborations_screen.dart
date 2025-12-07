@@ -135,23 +135,23 @@ class _CollaborationsScreenState extends State<CollaborationsScreen>
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: darkCardBg,
-        title: const Text('End Collaboration',
+        title: const Text('Terminar colaboración',
             style: TextStyle(color: Colors.white)),
         content: const Text(
-          'Are you sure you want to end this collaboration?\nThis action cannot be undone.',
+          '¿Estás seguro de terminar esta colaboración?\nEsta acción es irreversible.',
           style: TextStyle(color: Colors.grey),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: const Text('Cancelar'),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.red[900],
                 foregroundColor: Colors.white),
-            child: const Text('End'),
+            child: const Text('Terminar'),
           ),
         ],
       ),
@@ -166,12 +166,12 @@ class _CollaborationsScreenState extends State<CollaborationsScreen>
           if (!currentContext.mounted) return;
           ScaffoldMessenger.of(currentContext).showSnackBar(
             const SnackBar(
-                content: Text('Collaboration ended'),
+                content: Text('Colaboración terminada'),
                 backgroundColor: Colors.green),
           );
           _loadData();
         } else {
-          throw Exception(response.error ?? 'Unknown error');
+          throw Exception(response.error ?? 'Error desconocido');
         }
       } catch (e) {
         if (!currentContext.mounted) return;
@@ -189,7 +189,7 @@ class _CollaborationsScreenState extends State<CollaborationsScreen>
     return Scaffold(
       backgroundColor: darkBg,
       appBar: AppBar(
-        title: const Text('Active Collaborations',
+        title: const Text('Colaboraciones activas',
             style: TextStyle(
                 color: AppTheme.primaryBlue, fontWeight: FontWeight.w800)),
         backgroundColor: darkBg,
@@ -244,8 +244,8 @@ class _CollaborationsScreenState extends State<CollaborationsScreen>
           unselectedLabelColor: subText,
           indicatorWeight: 3,
           tabs: const [
-            Tab(text: 'My Projects'), // Owned by me
-            Tab(text: 'Guest Projects'), // Invited to
+            Tab(text: 'Mis proyectos'), // Owned by me
+            Tab(text: 'Proyectos de colaboración'), // Invited to
           ],
         ),
       ),
@@ -265,8 +265,8 @@ class _CollaborationsScreenState extends State<CollaborationsScreen>
         onPressed: _showAddCollaboratorDialog,
         backgroundColor: AppTheme.primaryBlue,
         icon: const Icon(Icons.person_add, color: Colors.white),
-        label:
-            const Text('Invite Artist', style: TextStyle(color: Colors.white)),
+        label: const Text('Invitar artistas',
+            style: TextStyle(color: Colors.white)),
       ),
     );
   }
@@ -278,7 +278,7 @@ class _CollaborationsScreenState extends State<CollaborationsScreen>
   Widget _buildInvitedCollaborationsTab() {
     if (_invitedCollaborations.isEmpty) {
       return _buildEmptyState(
-          'No active collaborations', 'Invite artists to your songs/albums');
+          'Sin colaboraciones activas', 'Invitar artistas a tus proyectos');
     }
     return RefreshIndicator(
       onRefresh: _loadData,
@@ -297,7 +297,7 @@ class _CollaborationsScreenState extends State<CollaborationsScreen>
   Widget _buildMyCollaborationsTab() {
     if (_myCollaborations.isEmpty) {
       return _buildEmptyState(
-          'No guest collaborations', 'You haven\'t joined any projects yet');
+          'Sin colaboraciones', 'No tienes ninguna colaboración activa');
     }
     return RefreshIndicator(
       onRefresh: _loadData,
@@ -406,7 +406,7 @@ class _CollaborationsScreenState extends State<CollaborationsScreen>
                     OutlinedButton.icon(
                       onPressed: () => _showRevenueSettings(collaboration),
                       icon: const Icon(Icons.attach_money, size: 16),
-                      label: const Text('Adjust Revenue'),
+                      label: const Text('Ajustar ingresos'),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: Colors.greenAccent,
                         side: BorderSide(
@@ -417,7 +417,7 @@ class _CollaborationsScreenState extends State<CollaborationsScreen>
                     ElevatedButton.icon(
                       onPressed: () => _removeCollaboration(collaboration),
                       icon: const Icon(Icons.close, size: 16),
-                      label: const Text('End Contract'),
+                      label: const Text('Terminar contrato'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.red[900],
                         foregroundColor: Colors.white,
@@ -433,7 +433,7 @@ class _CollaborationsScreenState extends State<CollaborationsScreen>
                     const SizedBox(width: 8),
                     Expanded(
                         child: Text(
-                            'Only the project owner can manage this contract.',
+                            'Solo el propietario del proyecto puede gestionar este contrato.',
                             style: TextStyle(
                                 color: subText,
                                 fontSize: 11,
@@ -490,7 +490,7 @@ class _CollaborationsScreenState extends State<CollaborationsScreen>
           const SizedBox(height: 16),
           Text(_error!, style: const TextStyle(color: Colors.red)),
           const SizedBox(height: 16),
-          ElevatedButton(onPressed: _loadData, child: const Text('Retry')),
+          ElevatedButton(onPressed: _loadData, child: const Text('Reintentar')),
         ],
       ),
     );

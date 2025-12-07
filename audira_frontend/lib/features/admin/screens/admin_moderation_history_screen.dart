@@ -455,7 +455,7 @@ class _AdminModerationHistoryScreenState
             ),
             const SizedBox(width: 12),
             Expanded(
-                child: Text('Action Details',
+                child: Text('Detalles',
                     style: TextStyle(color: lightText, fontSize: 18))),
           ],
         ),
@@ -488,7 +488,7 @@ class _AdminModerationHistoryScreenState
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Rejection Reason',
+                    Text('Motivo de rechazo',
                         style: TextStyle(
                             color: Colors.red[200],
                             fontSize: 12,
@@ -505,7 +505,7 @@ class _AdminModerationHistoryScreenState
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
+            child: const Text('Cerrar'),
           ),
         ],
       ),
@@ -550,7 +550,7 @@ class _AdminModerationHistoryScreenState
             onPressed: _loadData,
             style:
                 ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryBlue),
-            child: const Text('Retry'),
+            child: const Text('Reintentar'),
           ),
         ],
       ),
@@ -564,7 +564,7 @@ class _AdminModerationHistoryScreenState
         children: [
           Icon(Icons.history, size: 64, color: Colors.grey[850]),
           const SizedBox(height: 16),
-          Text('No moderation history yet',
+          Text('Sin histórico de moderación',
               style: TextStyle(color: subText, fontSize: 16)),
         ],
       ),

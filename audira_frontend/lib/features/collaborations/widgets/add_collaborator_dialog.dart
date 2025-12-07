@@ -43,11 +43,11 @@ class _AddCollaboratorDialogState extends State<AddCollaboratorDialog> {
   Timer? _debounceTimer;
 
   final List<String> _suggestedRoles = [
-    'Featured Artist',
-    'Producer',
-    'Songwriter',
-    'Vocalist',
-    'Mixing Engineer',
+    'Artistas destacados',
+    'Productor',
+    'Compositor',
+    'Cantante',
+    'Técnico de sonido',
   ];
 
   @override
@@ -93,11 +93,11 @@ class _AddCollaboratorDialogState extends State<AddCollaboratorDialog> {
     if (!_formKey.currentState!.validate()) return;
 
     if (_selectedEntityId == null) {
-      _showError('Please select a song or album.');
+      _showError('Seleccione una canción o álbum.');
       return;
     }
     if (_selectedArtist == null) {
-      _showError('Please select an artist.');
+      _showError('Seleccione un artista.');
       return;
     }
 
@@ -124,11 +124,11 @@ class _AddCollaboratorDialogState extends State<AddCollaboratorDialog> {
         Navigator.pop(context, true);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-              content: Text('Invitation sent successfully'),
+              content: Text('Invitación enviada correctamente'),
               backgroundColor: Colors.green),
         );
       } else {
-        throw Exception(response.error ?? 'Unknown error');
+        throw Exception(response.error ?? 'Error desconocido');
       }
     } catch (e) {
       _showError(e.toString());
@@ -172,12 +172,12 @@ class _AddCollaboratorDialogState extends State<AddCollaboratorDialog> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Invite Collaborator',
+                      Text('Invitar colaboradores',
                           style: TextStyle(
                               color: lightText,
                               fontSize: 20,
                               fontWeight: FontWeight.bold)),
-                      Text('Add an artist to your project',
+                      Text('Añadir artistas a tu proyecto',
                           style: TextStyle(color: subText, fontSize: 12)),
                     ],
                   ),
@@ -198,29 +198,29 @@ class _AddCollaboratorDialogState extends State<AddCollaboratorDialog> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // 1. Content Type Selector
-                      _buildSectionLabel('1. Project Type'),
+                      _buildSectionLabel('1. Tipo de proyecto'),
                       Row(
                         children: [
                           Expanded(
                               child: _buildTypeOption(
-                                  'Song', Icons.music_note, 'song')),
+                                  'Canción', Icons.music_note, 'song')),
                           const SizedBox(width: 12),
                           Expanded(
                               child: _buildTypeOption(
-                                  'Album', Icons.album, 'album')),
+                                  'Álbum', Icons.album, 'album')),
                         ],
                       ),
                       const SizedBox(height: 20),
 
                       // 2. Entity Dropdown
                       _buildSectionLabel(_entityType == 'song'
-                          ? '2. Select Song'
-                          : '2. Select Album'),
+                          ? '2. Seleccionar canción'
+                          : '2. Seleccionar álbum'),
                       _buildEntityDropdown(),
                       const SizedBox(height: 20),
 
                       // 3. Artist Search
-                      _buildSectionLabel('3. Find Artist'),
+                      _buildSectionLabel('3. Buscar artista'),
                       if (_selectedArtist != null)
                         _buildSelectedArtistCard()
                       else
@@ -229,14 +229,15 @@ class _AddCollaboratorDialogState extends State<AddCollaboratorDialog> {
                       const SizedBox(height: 20),
 
                       // 4. Role Input
-                      _buildSectionLabel('4. Assign Role'),
+                      _buildSectionLabel('4. Asignar rol'),
                       TextFormField(
                         controller: _roleController,
                         style: TextStyle(color: lightText),
-                        decoration: _inputDecoration('e.g. Producer, Vocalist',
+                        decoration: _inputDecoration(
+                            'ej. Productor, Cantante...',
                             icon: Icons.work_outline),
                         validator: (val) =>
-                            val!.trim().isEmpty ? 'Role is required' : null,
+                            val!.trim().isEmpty ? 'El rol es necesario' : null,
                       ),
                       const SizedBox(height: 12),
                       Wrap(
@@ -272,7 +273,7 @@ class _AddCollaboratorDialogState extends State<AddCollaboratorDialog> {
                         height: 24,
                         child: CircularProgressIndicator(
                             color: Colors.white, strokeWidth: 2))
-                    : const Text('Send Invitation',
+                    : const Text('Enviar invitación',
                         style: TextStyle(
                             fontSize: 16, fontWeight: FontWeight.bold)),
               ),
@@ -346,7 +347,7 @@ class _AddCollaboratorDialogState extends State<AddCollaboratorDialog> {
             const Icon(Icons.warning_amber, color: Colors.orange, size: 20),
             const SizedBox(width: 8),
             Expanded(
-                child: Text('No ${_entityType}s found.',
+                child: Text('No se ha encotnrado ${_entityType}s.',
                     style: const TextStyle(color: Colors.orange))),
           ],
         ),
@@ -357,7 +358,7 @@ class _AddCollaboratorDialogState extends State<AddCollaboratorDialog> {
       initialValue: _selectedEntityId,
       dropdownColor: const Color(0xFF303030),
       style: TextStyle(color: lightText),
-      decoration: _inputDecoration('Select $_entityType...',
+      decoration: _inputDecoration('Seleccionar $_entityType...',
           icon: _entityType == 'song' ? Icons.music_note : Icons.album),
       items: items.map((item) {
         // Handle dynamic typing for Song vs Album
@@ -378,7 +379,7 @@ class _AddCollaboratorDialogState extends State<AddCollaboratorDialog> {
         TextFormField(
           controller: _searchController,
           style: TextStyle(color: lightText),
-          decoration: _inputDecoration('Search artist by name...',
+          decoration: _inputDecoration('Buscar artistas por nombre...',
               icon: Icons.search,
               suffix: _isSearching
                   ? const Padding(

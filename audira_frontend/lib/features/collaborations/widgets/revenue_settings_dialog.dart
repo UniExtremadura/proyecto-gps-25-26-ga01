@@ -74,9 +74,10 @@ class _RevenueSettingsDialogState extends State<RevenueSettingsDialog> {
         if (!mounted) return;
         Navigator.pop(context, true);
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Revenue updated'), backgroundColor: Colors.green));
+            content: Text('Ingresos actualizados'),
+            backgroundColor: Colors.green));
       } else {
-        throw Exception(response.error ?? 'Unknown error');
+        throw Exception(response.error ?? 'Error desconocido');
       }
     } catch (e) {
       if (!mounted) return;
@@ -118,7 +119,7 @@ class _RevenueSettingsDialogState extends State<RevenueSettingsDialog> {
                     child: Icon(Icons.attach_money, color: moneyColor),
                   ),
                   const SizedBox(width: 12),
-                  Text('Revenue Share',
+                  Text('Participación en los ingresos',
                       style: TextStyle(
                           color: lightText,
                           fontSize: 20,
@@ -129,7 +130,7 @@ class _RevenueSettingsDialogState extends State<RevenueSettingsDialog> {
 
               // Distribution Bar
               if (_currentTotalRevenue != null) ...[
-                Text('Current Distribution',
+                Text('Distribución actual',
                     style: TextStyle(
                         color: subText,
                         fontSize: 12,
@@ -162,9 +163,11 @@ class _RevenueSettingsDialogState extends State<RevenueSettingsDialog> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('Used: ${currentAssignedToOthers.toStringAsFixed(1)}%',
+                    Text(
+                        'Usado: ${currentAssignedToOthers.toStringAsFixed(1)}%',
                         style: TextStyle(color: subText, fontSize: 10)),
-                    Text('Max for user: ${maxAssignable.toStringAsFixed(1)}%',
+                    Text(
+                        'Máximo por usuario: ${maxAssignable.toStringAsFixed(1)}%',
                         style: TextStyle(
                             color: moneyColor,
                             fontSize: 10,
@@ -175,7 +178,7 @@ class _RevenueSettingsDialogState extends State<RevenueSettingsDialog> {
               ],
 
               // Input
-              Text('Percentage Share',
+              Text('Cuota de participación',
                   style: TextStyle(
                       color: subText,
                       fontSize: 12,
@@ -209,10 +212,10 @@ class _RevenueSettingsDialogState extends State<RevenueSettingsDialog> {
                 ),
                 validator: (val) {
                   final n = double.tryParse(val ?? '');
-                  if (n == null) return 'Invalid number';
-                  if (n < 0) return 'Cannot be negative';
+                  if (n == null) return 'Número inválido';
+                  if (n < 0) return 'No puede ser negativo';
                   if (n > maxAssignable) {
-                    return 'Max allowed: ${maxAssignable.toStringAsFixed(1)}%';
+                    return 'Máximo permitido: ${maxAssignable.toStringAsFixed(1)}%';
                   }
                   return null;
                 },
@@ -249,7 +252,7 @@ class _RevenueSettingsDialogState extends State<RevenueSettingsDialog> {
                 children: [
                   TextButton(
                       onPressed: () => Navigator.pop(context),
-                      child: const Text('Cancel')),
+                      child: const Text('Cancelar')),
                   const SizedBox(width: 8),
                   ElevatedButton(
                     onPressed: _isLoading ? null : _updateRevenue,
@@ -266,7 +269,7 @@ class _RevenueSettingsDialogState extends State<RevenueSettingsDialog> {
                             height: 20,
                             child: CircularProgressIndicator(
                                 strokeWidth: 2, color: Colors.black))
-                        : const Text('Save Changes'),
+                        : const Text('Guardar cambios'),
                   ),
                 ],
               )

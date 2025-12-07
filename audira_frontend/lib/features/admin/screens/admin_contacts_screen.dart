@@ -52,7 +52,7 @@ class _AdminContactsScreenState extends State<AdminContactsScreen> {
         });
       } else {
         setState(() {
-          _error = response.error ?? 'Error loading messages';
+          _error = response.error ?? 'Error cargando los mensajes';
           _isLoading = false;
         });
       }
@@ -90,7 +90,7 @@ class _AdminContactsScreenState extends State<AdminContactsScreen> {
     return Scaffold(
       backgroundColor: darkBg,
       appBar: AppBar(
-        title: const Text('Support Inbox',
+        title: const Text('Buzón de ayuda',
             style: TextStyle(
                 color: AppTheme.primaryBlue, fontWeight: FontWeight.w800)),
         backgroundColor: darkBg,
@@ -106,7 +106,7 @@ class _AdminContactsScreenState extends State<AdminContactsScreen> {
             child: IconButton(
               icon: Icon(Icons.refresh, color: AppTheme.primaryBlue),
               onPressed: _loadContacts,
-              tooltip: 'Refresh',
+              tooltip: 'Refrescar',
             ),
           ),
         ],
@@ -294,7 +294,7 @@ class _AdminContactsScreenState extends State<AdminContactsScreen> {
                       decoration: BoxDecoration(
                           color: Colors.purple.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(4)),
-                      child: const Text('CONTEXT',
+                      child: const Text('Contexto',
                           style: TextStyle(
                               color: Colors.purpleAccent,
                               fontSize: 9,
@@ -351,7 +351,7 @@ class _AdminContactsScreenState extends State<AdminContactsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('MESSAGE',
+                      const Text('Mensaje',
                           style: TextStyle(
                               color: Colors.grey,
                               fontSize: 10,
@@ -392,7 +392,7 @@ class _AdminContactsScreenState extends State<AdminContactsScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text('RELATED CONTENT',
+                              const Text('Contenido relacionado',
                                   style: TextStyle(
                                       color: Colors.purpleAccent,
                                       fontSize: 10,
@@ -469,7 +469,7 @@ class _AdminContactsScreenState extends State<AdminContactsScreen> {
           children: [
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 8),
-              child: Text('HISTORY',
+              child: Text('Historial',
                   style: TextStyle(
                       color: AppTheme.textGrey,
                       fontSize: 10,
@@ -541,7 +541,7 @@ class _AdminContactsScreenState extends State<AdminContactsScreen> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: darkCardBg,
-        title: Text('Reply to ${contact.name}',
+        title: Text('Responder a ${contact.name}',
             style: TextStyle(color: lightText)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -550,7 +550,7 @@ class _AdminContactsScreenState extends State<AdminContactsScreen> {
               controller: controller,
               style: TextStyle(color: lightText),
               decoration: InputDecoration(
-                hintText: 'Type your response...',
+                hintText: 'Escribe tu respuesta...',
                 hintStyle: TextStyle(color: subText),
                 filled: true,
                 fillColor: Colors.black,
@@ -565,7 +565,7 @@ class _AdminContactsScreenState extends State<AdminContactsScreen> {
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel')),
+              child: const Text('Cancelar')),
           ElevatedButton(
             onPressed: () async {
               if (controller.text.trim().isEmpty) return;
@@ -584,7 +584,7 @@ class _AdminContactsScreenState extends State<AdminContactsScreen> {
             style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primaryBlue,
                 foregroundColor: Colors.white),
-            child: const Text('Send'),
+            child: const Text('Enviar'),
           ),
         ],
       ),
@@ -593,7 +593,7 @@ class _AdminContactsScreenState extends State<AdminContactsScreen> {
     if (result == true) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Response sent'), backgroundColor: Colors.green));
+          content: Text('Respuesta enviada'), backgroundColor: Colors.green));
       _loadContacts();
     }
   }
@@ -604,7 +604,8 @@ class _AdminContactsScreenState extends State<AdminContactsScreen> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: darkCardBg,
-        title: Text('Update Status', style: TextStyle(color: lightText)),
+        title:
+            Text('Actualización de estado', style: TextStyle(color: lightText)),
         content: RadioGroup<ContactStatus>(
           groupValue: selected,
           onChanged: (val) => setState(() => selected = val),
@@ -612,26 +613,26 @@ class _AdminContactsScreenState extends State<AdminContactsScreen> {
             builder: (context, setState) => Column(
               mainAxisSize: MainAxisSize.min,
               children: ContactStatus.values
-                .map((status) => RadioListTile<ContactStatus>(
-                      title: Text(status.label,
-                          style: TextStyle(color: lightText)),
-                      value: status,
-                      activeColor: AppTheme.primaryBlue,
-                    ))
-                .toList(),
+                  .map((status) => RadioListTile<ContactStatus>(
+                        title: Text(status.label,
+                            style: TextStyle(color: lightText)),
+                        value: status,
+                        activeColor: AppTheme.primaryBlue,
+                      ))
+                  .toList(),
             ),
           ),
         ),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel')),
+              child: const Text('Cancelar')),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, selected),
             style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primaryBlue,
                 foregroundColor: Colors.white),
-            child: const Text('Update'),
+            child: const Text('Actualizar'),
           ),
         ],
       ),
@@ -648,17 +649,17 @@ class _AdminContactsScreenState extends State<AdminContactsScreen> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: darkCardBg,
-        title: Text('Delete Message', style: TextStyle(color: lightText)),
-        content: Text('Are you sure you want to delete this message?',
+        title: Text('Borrar mensaje', style: TextStyle(color: lightText)),
+        content: Text('¿Estás seguro que quieres borrar este mensaje?',
             style: TextStyle(color: subText)),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel')),
+              child: const Text('Cancelar')),
           TextButton(
               onPressed: () => Navigator.pop(context, true),
               style: TextButton.styleFrom(foregroundColor: Colors.red),
-              child: const Text('Delete')),
+              child: const Text('Borrar')),
         ],
       ),
     );
@@ -678,7 +679,7 @@ class _AdminContactsScreenState extends State<AdminContactsScreen> {
         children: [
           Icon(Icons.inbox_outlined, size: 64, color: Colors.grey[800]),
           const SizedBox(height: 16),
-          Text('No messages found',
+          Text('No se encotnraron mensajes',
               style: TextStyle(color: subText, fontSize: 16)),
         ],
       ),
@@ -694,7 +695,8 @@ class _AdminContactsScreenState extends State<AdminContactsScreen> {
           const SizedBox(height: 16),
           Text(_error!, style: const TextStyle(color: Colors.red)),
           const SizedBox(height: 16),
-          ElevatedButton(onPressed: _loadContacts, child: const Text('Retry')),
+          ElevatedButton(
+              onPressed: _loadContacts, child: const Text('Reintentar')),
         ],
       ),
     );

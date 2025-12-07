@@ -44,7 +44,7 @@ class _PurchaseHistoryScreenState extends State<PurchaseHistoryScreen> {
 
     if (userId == null) {
       setState(() {
-        _error = 'User not identified';
+        _error = 'Usuario desconocido';
         _isLoading = false;
       });
       return;
@@ -60,7 +60,7 @@ class _PurchaseHistoryScreenState extends State<PurchaseHistoryScreen> {
       });
     } else {
       setState(() {
-        _error = response.error ?? 'Error loading history';
+        _error = response.error ?? 'Error cargando historial';
         _isLoading = false;
       });
     }
@@ -73,7 +73,7 @@ class _PurchaseHistoryScreenState extends State<PurchaseHistoryScreen> {
     return Scaffold(
       backgroundColor: darkBg,
       appBar: AppBar(
-        title: const Text('My Purchases',
+        title: const Text('Mis compras',
             style: TextStyle(
                 color: AppTheme.primaryBlue, fontWeight: FontWeight.w800)),
         backgroundColor: darkBg,
@@ -113,7 +113,7 @@ class _PurchaseHistoryScreenState extends State<PurchaseHistoryScreen> {
                 size: 64, color: Colors.grey[700]),
           ),
           const SizedBox(height: 24),
-          Text('No purchases yet',
+          Text('No has realizado compras aún',
               style: TextStyle(color: subText, fontSize: 18)),
         ],
       ),
@@ -130,7 +130,7 @@ class _PurchaseHistoryScreenState extends State<PurchaseHistoryScreen> {
           Text(_error!, style: const TextStyle(color: Colors.red)),
           const SizedBox(height: 16),
           ElevatedButton(
-              onPressed: _loadPurchaseHistory, child: const Text('Retry')),
+              onPressed: _loadPurchaseHistory, child: const Text('Reintentar')),
         ],
       ),
     );
@@ -161,7 +161,7 @@ class _PurchaseHistoryScreenState extends State<PurchaseHistoryScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Order #${order.orderNumber}',
+                        'Pedido #${order.orderNumber}',
                         style: TextStyle(
                             color: lightText,
                             fontWeight: FontWeight.bold,
@@ -250,7 +250,7 @@ class _PurchaseHistoryScreenState extends State<PurchaseHistoryScreen> {
                           color: Colors.grey[700],
                           borderRadius: BorderRadius.circular(2)))),
               const SizedBox(height: 24),
-              Text('Order Details',
+              Text('Detalles del pedido',
                   style: TextStyle(
                       color: lightText,
                       fontSize: 20,
@@ -337,7 +337,7 @@ class _PurchaseHistoryScreenState extends State<PurchaseHistoryScreen> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text('Total Paid',
+                          Text('Total a pagar',
                               style: TextStyle(
                                   color: AppTheme.primaryBlue,
                                   fontWeight: FontWeight.bold,
