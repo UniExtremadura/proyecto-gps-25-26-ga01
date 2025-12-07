@@ -47,7 +47,7 @@ class _AdminFeaturedContentScreenState
       });
     } else {
       if (mounted) {
-        _showSnack(response.error ?? 'Error loading content', isError: true);
+        _showSnack(response.error ?? 'Error cargando contenido', isError: true);
       }
     }
 
@@ -76,7 +76,7 @@ class _AdminFeaturedContentScreenState
 
     final response = await _featuredService.reorderFeaturedContent(orderData);
     if (!response.success && mounted) {
-      _showSnack(response.error ?? 'Error reordering', isError: true);
+      _showSnack(response.error ?? 'Error reordenando', isError: true);
       _loadFeaturedContent(); // Revert on error
     }
   }
@@ -88,11 +88,12 @@ class _AdminFeaturedContentScreenState
     if (response.success) {
       _loadFeaturedContent();
       if (mounted) {
-        _showSnack(item.isActive ? 'Content deactivated' : 'Content activated');
+        _showSnack(
+            item.isActive ? 'Contenido desactivado' : 'Contenido activado');
       }
     } else {
       if (mounted) {
-        _showSnack(response.error ?? 'Error toggling status', isError: true);
+        _showSnack(response.error ?? 'Error cambiando estado', isError: true);
       }
     }
   }
@@ -102,18 +103,18 @@ class _AdminFeaturedContentScreenState
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: darkCardBg,
-        title: Text('Confirm Deletion', style: TextStyle(color: lightText)),
-        content: Text('Delete "${item.contentTitle}" from featured?',
+        title: Text('Confirmar borrado', style: TextStyle(color: lightText)),
+        content: Text('¿Borrar "${item.contentTitle}" de destacados?',
             style: TextStyle(color: subText)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: const Text('Cancelar'),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
-            child: const Text('Delete'),
+            child: const Text('Borrar'),
           ),
         ],
       ),
@@ -125,10 +126,10 @@ class _AdminFeaturedContentScreenState
 
     if (response.success) {
       _loadFeaturedContent();
-      if (mounted) _showSnack('Content removed from featured');
+      if (mounted) _showSnack('Contenido eliminado de destacados');
     } else {
       if (mounted) {
-        _showSnack(response.error ?? 'Error deleting', isError: true);
+        _showSnack(response.error ?? 'Error borrando', isError: true);
       }
     }
   }
@@ -147,7 +148,7 @@ class _AdminFeaturedContentScreenState
     return Scaffold(
       backgroundColor: darkBg,
       appBar: AppBar(
-        title: const Text('Featured Content',
+        title: const Text('Contenido destacado',
             style: TextStyle(
                 color: AppTheme.primaryBlue, fontWeight: FontWeight.w800)),
         backgroundColor: darkBg,
@@ -163,7 +164,7 @@ class _AdminFeaturedContentScreenState
             child: IconButton(
               icon: Icon(Icons.add, color: AppTheme.primaryBlue),
               onPressed: () => _showAddDialog(),
-              tooltip: 'Add Featured',
+              tooltip: 'Añadir nuevo destacado',
             ),
           ),
         ],
@@ -180,7 +181,7 @@ class _AdminFeaturedContentScreenState
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Drag and drop items to reorder the featured carousel.',
+                    'Arrastra y suelta para reodenar el carrusel.',
                     style: TextStyle(color: subText, fontSize: 13),
                   ),
                 ),
@@ -233,13 +234,13 @@ class _AdminFeaturedContentScreenState
         children: [
           Icon(Icons.star_border, size: 64, color: Colors.grey[800]),
           const SizedBox(height: 16),
-          Text('No featured content yet',
+          Text('Sin contenido destacado',
               style: TextStyle(color: subText, fontSize: 16)),
           const SizedBox(height: 16),
           ElevatedButton.icon(
             onPressed: () => _showAddDialog(),
             icon: const Icon(Icons.add),
-            label: const Text('Add Content'),
+            label: const Text('Añadir nuevo destacado'),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppTheme.primaryBlue,
               foregroundColor: Colors.white,
@@ -382,7 +383,7 @@ class _FeaturedContentCard extends StatelessWidget {
                   child: Row(children: [
                     Icon(Icons.edit, size: 18, color: Colors.blueAccent),
                     SizedBox(width: 12),
-                    Text('Edit Schedule', style: TextStyle(color: Colors.white))
+                    Text('Editar agenda', style: TextStyle(color: Colors.white))
                   ]),
                 ),
                 const PopupMenuItem(
@@ -390,7 +391,7 @@ class _FeaturedContentCard extends StatelessWidget {
                   child: Row(children: [
                     Icon(Icons.delete, size: 18, color: Colors.redAccent),
                     SizedBox(width: 12),
-                    Text('Remove', style: TextStyle(color: Colors.white))
+                    Text('Eliminar', style: TextStyle(color: Colors.white))
                   ]),
                 ),
               ],
@@ -519,7 +520,7 @@ class _AddFeaturedContentDialogState extends State<_AddFeaturedContentDialog> {
 
     return AlertDialog(
       backgroundColor: const Color(0xFF212121),
-      title: const Text('Add Featured Content',
+      title: const Text('Añadir contenido destacado',
           style: TextStyle(color: Colors.white)),
       content: SizedBox(
         width: 400,
@@ -545,7 +546,7 @@ class _AddFeaturedContentDialogState extends State<_AddFeaturedContentDialog> {
                             left: Radius.circular(8)),
                       ),
                       alignment: Alignment.center,
-                      child: Text('Song',
+                      child: Text('Canción',
                           style: TextStyle(
                               color: _selectedType == FeaturedContentType.song
                                   ? Colors.white
@@ -569,7 +570,7 @@ class _AddFeaturedContentDialogState extends State<_AddFeaturedContentDialog> {
                             right: Radius.circular(8)),
                       ),
                       alignment: Alignment.center,
-                      child: Text('Album',
+                      child: Text('Álbum',
                           style: TextStyle(
                               color: _selectedType == FeaturedContentType.album
                                   ? Colors.white
@@ -644,13 +645,13 @@ class _AddFeaturedContentDialogState extends State<_AddFeaturedContentDialog> {
       actions: [
         TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel')),
+            child: const Text('cancelar')),
         ElevatedButton(
           onPressed: _selectedContentId != null && !_isLoading ? _save : null,
           style: ElevatedButton.styleFrom(
               backgroundColor: AppTheme.primaryBlue,
               foregroundColor: Colors.white),
-          child: const Text('Add'),
+          child: const Text('Añadir'),
         )
       ],
     );
@@ -744,7 +745,8 @@ class _EditFeaturedContentDialogState
   Widget build(BuildContext context) {
     return AlertDialog(
       backgroundColor: const Color(0xFF212121),
-      title: const Text('Edit Schedule', style: TextStyle(color: Colors.white)),
+      title:
+          const Text('Cambiar agenda', style: TextStyle(color: Colors.white)),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -768,13 +770,13 @@ class _EditFeaturedContentDialogState
       actions: [
         TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel')),
+            child: const Text('Cancelar')),
         ElevatedButton(
           onPressed: !_isLoading ? _save : null,
           style: ElevatedButton.styleFrom(
               backgroundColor: AppTheme.primaryBlue,
               foregroundColor: Colors.white),
-          child: const Text('Save'),
+          child: const Text('Guardar'),
         )
       ],
     );

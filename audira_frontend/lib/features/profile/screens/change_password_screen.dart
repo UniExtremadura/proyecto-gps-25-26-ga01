@@ -49,7 +49,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       final userId = authProvider.currentUser?.id;
 
       if (userId == null) {
-        throw Exception('User not identified');
+        throw Exception('Usuario no identificado');
       }
 
       final authService = AuthService();
@@ -64,14 +64,14 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Password updated successfully'),
+              content: Text('Contraseña actualizada con éxito'),
               backgroundColor: Colors.green,
             ),
           );
           Navigator.pop(context);
         }
       } else {
-        throw Exception(response.error ?? 'Failed to update password');
+        throw Exception(response.error ?? 'Fallo al actualizar la contraseña');
       }
     } catch (e) {
       if (mounted) {
@@ -97,7 +97,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       backgroundColor: darkBg,
       appBar: AppBar(
         title: const Text(
-          'Security Settings',
+          'Ajustes de seguridad',
           style: TextStyle(
               color: AppTheme.primaryBlue, fontWeight: FontWeight.w800),
         ),
@@ -135,7 +135,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 
               Center(
                 child: Text(
-                  'Change Password',
+                  'Cambiar Contraseña',
                   style: TextStyle(
                       color: lightText,
                       fontSize: 24,
@@ -147,7 +147,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 
               Center(
                 child: Text(
-                  'Your new password must be different from\npreviously used passwords.',
+                  'Tu nueva contraseña debe ser distinta a\nlas anteriores.',
                   textAlign: TextAlign.center,
                   style: TextStyle(color: subText, fontSize: 14),
                 ),
@@ -158,7 +158,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
               // Inputs Section
               _buildPasswordField(
                 controller: _currentPasswordController,
-                label: 'Current Password',
+                label: 'Contraseña actual',
                 isObscured: _obscureCurrentPassword,
                 onToggle: () => setState(
                     () => _obscureCurrentPassword = !_obscureCurrentPassword),
@@ -174,10 +174,10 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 onToggle: () =>
                     setState(() => _obscureNewPassword = !_obscureNewPassword),
                 validator: (val) {
-                  if (val == null || val.isEmpty) return 'Required';
-                  if (val.length < 8) return 'Min 8 characters';
+                  if (val == null || val.isEmpty) return 'Requerido';
+                  if (val.length < 8) return 'Minimo 8 caracteres';
                   if (val == _currentPasswordController.text) {
-                    return 'Must be different from current';
+                    return 'Debe ser diferente a la contraseña actual';
                   }
                   return null;
                 },
@@ -187,14 +187,14 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 
               _buildPasswordField(
                 controller: _confirmPasswordController,
-                label: 'Confirm New Password',
+                label: 'Confirmar nueva contraseña',
                 isObscured: _obscureConfirmPassword,
                 onToggle: () => setState(
                     () => _obscureConfirmPassword = !_obscureConfirmPassword),
                 validator: (val) {
-                  if (val == null || val.isEmpty) return 'Required';
+                  if (val == null || val.isEmpty) return 'Requerido';
                   if (val != _newPasswordController.text) {
-                    return 'Passwords do not match';
+                    return 'Las contraseñas no coinciden';
                   }
                   return null;
                 },
@@ -214,7 +214,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'PASSWORD REQUIREMENTS',
+                      'Requisitos de contraseña',
                       style: TextStyle(
                           color: subText,
                           fontSize: 11,
@@ -222,9 +222,10 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                           letterSpacing: 1),
                     ),
                     const SizedBox(height: 12),
-                    _buildRequirementRow('Minimum 8 characters long'),
+                    _buildRequirementRow('Mínimo 8 caracteres'),
                     const SizedBox(height: 8),
-                    _buildRequirementRow('Different from current password'),
+                    _buildRequirementRow(
+                        'Debe ser diferente a la contraseña actual'),
                   ],
                 ),
               ).animate().fadeIn(delay: 600.ms),
@@ -250,7 +251,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                           height: 24,
                           child: CircularProgressIndicator(
                               color: Colors.white, strokeWidth: 2))
-                      : const Text('Update Password',
+                      : const Text('Actualizar Contraseña',
                           style: TextStyle(
                               fontSize: 16, fontWeight: FontWeight.bold)),
                 ),

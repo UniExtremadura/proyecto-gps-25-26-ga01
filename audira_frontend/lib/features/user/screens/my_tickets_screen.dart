@@ -56,7 +56,7 @@ class _MyTicketsScreenState extends State<MyTicketsScreen> {
         });
       } else {
         setState(() {
-          _error = response.error ?? 'Error loading tickets';
+          _error = response.error ?? 'Error cargando tickets';
           _isLoading = false;
         });
       }
@@ -114,7 +114,7 @@ class _MyTicketsScreenState extends State<MyTicketsScreen> {
     return Scaffold(
       backgroundColor: darkBg,
       appBar: AppBar(
-        title: const Text('My Support Tickets',
+        title: const Text('Mis tickets',
             style: TextStyle(
                 color: AppTheme.primaryBlue, fontWeight: FontWeight.w800)),
         backgroundColor: darkBg,
@@ -123,7 +123,7 @@ class _MyTicketsScreenState extends State<MyTicketsScreen> {
           IconButton(
             icon: const Icon(Icons.refresh, color: AppTheme.primaryBlue),
             onPressed: _loadTickets,
-            tooltip: 'Reload',
+            tooltip: 'Recargar tickets',
           ),
           // Filter Popup
           PopupMenuButton<String>(
@@ -133,12 +133,12 @@ class _MyTicketsScreenState extends State<MyTicketsScreen> {
             itemBuilder: (context) => [
               const PopupMenuItem(
                   value: 'ALL',
-                  child: Text('All Tickets',
+                  child: Text('Todos los tickets',
                       style: TextStyle(color: Colors.white))),
               const PopupMenuItem(
                   value: 'PENDING',
-                  child:
-                      Text('Pending', style: TextStyle(color: Colors.white))),
+                  child: Text('Pendientes',
+                      style: TextStyle(color: Colors.white))),
               const PopupMenuItem(
                   value: 'IN_PROGRESS',
                   child: Text('In Progress',
@@ -146,7 +146,7 @@ class _MyTicketsScreenState extends State<MyTicketsScreen> {
               const PopupMenuItem(
                   value: 'RESOLVED',
                   child:
-                      Text('Resolved', style: TextStyle(color: Colors.white))),
+                      Text('Resueltos', style: TextStyle(color: Colors.white))),
               const PopupMenuItem(
                   value: 'CLOSED',
                   child: Text('Closed', style: TextStyle(color: Colors.white))),
@@ -192,13 +192,13 @@ class _MyTicketsScreenState extends State<MyTicketsScreen> {
           ),
           const SizedBox(height: 24),
           Text(
-            'No tickets found',
+            'No se encontraron tickets',
             style: TextStyle(
                 fontSize: 20, fontWeight: FontWeight.bold, color: lightText),
           ),
           const SizedBox(height: 8),
           Text(
-            'Your support requests will appear here.',
+            'Tus solicitudes aparecerán aquí.',
             style: TextStyle(color: subText),
           ),
         ],
@@ -216,7 +216,8 @@ class _MyTicketsScreenState extends State<MyTicketsScreen> {
           Text(_error!, style: const TextStyle(color: Colors.redAccent)),
           const SizedBox(height: 16),
           ElevatedButton(
-              onPressed: _loadTickets, child: const Text('Try Again')),
+              onPressed: _loadTickets,
+              child: const Text('Vuelve a intentarlo')),
         ],
       ),
     );
@@ -290,7 +291,7 @@ class _MyTicketsScreenState extends State<MyTicketsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('YOUR REQUEST',
+                      Text('Tu solicitud',
                           style: TextStyle(
                               color: subText,
                               fontSize: 10,
@@ -364,7 +365,7 @@ class _MyTicketsScreenState extends State<MyTicketsScreen> {
                       child: CircularProgressIndicator(strokeWidth: 2))));
         }
         if (snapshot.hasError) {
-          return Text('Error loading replies',
+          return Text('Error al cargar respuestas.',
               style: TextStyle(color: Colors.red[300], fontSize: 12));
         }
 
@@ -377,7 +378,7 @@ class _MyTicketsScreenState extends State<MyTicketsScreen> {
               children: [
                 Icon(Icons.info_outline, size: 16, color: subText),
                 const SizedBox(width: 8),
-                Text('No replies from support team yet.',
+                Text('Sin respuestas.',
                     style: TextStyle(
                         color: subText,
                         fontSize: 12,
@@ -392,7 +393,7 @@ class _MyTicketsScreenState extends State<MyTicketsScreen> {
           children: [
             Padding(
               padding: const EdgeInsets.only(bottom: 8),
-              child: Text('SUPPORT TEAM REPLIES',
+              child: Text('Respuestas',
                   style: TextStyle(
                       color: AppTheme.primaryBlue,
                       fontSize: 10,
@@ -418,7 +419,7 @@ class _MyTicketsScreenState extends State<MyTicketsScreen> {
                           const Icon(Icons.support_agent,
                               size: 14, color: AppTheme.primaryBlue),
                           const SizedBox(width: 6),
-                          Text('Support Agent',
+                          Text('Asistente',
                               style: TextStyle(
                                   color: AppTheme.primaryBlue,
                                   fontWeight: FontWeight.bold,
